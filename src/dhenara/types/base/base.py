@@ -1,4 +1,5 @@
 from typing import Literal
+
 import pydantic
 from pydantic import alias_generators
 
