@@ -1,22 +1,35 @@
-from typing import Literal
+from typing import Any, Literal, TypeVar
 
-import pydantic
-from pydantic import alias_generators
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ConfigDict, alias_generators
+
+T = TypeVar("T", bound="BaseModel")
 
 
-class BaseModel(pydantic.BaseModel):
-    model_config = pydantic.ConfigDict(
+class BaseModel(PydanticBaseModel):
+    """Base model class with enhanced configuration and serialization capabilities.
+
+    This base class provides:
+    - Camel case conversion for API interactions
+    - Flexible serialization options
+    - Support for arbitrary types
+    - Strict validation by default
+    """
+
+    model_config = ConfigDict(
         alias_generator=alias_generators.to_camel,
         populate_by_name=True,
         from_attributes=True,
-        protected_namespaces={},
-        extra="forbid",  # "allow"
-        # This allows us to use arbitrary types in the model. E.g. PIL.Image.
+        protected_namespaces=set(),
+        extra="forbid",
         arbitrary_types_allowed=True,
+        json_schema_extra={
+            "examples": []  # can be overridden by child classes
+        },
     )
 
     def to_dict(
-        self,
+        self: T,
         *,
         mode: Literal["json", "python"] = "python",
         use_api_names: bool = True,
@@ -24,25 +37,24 @@ class BaseModel(pydantic.BaseModel):
         exclude_defaults: bool = False,
         exclude_none: bool = False,
         warnings: bool = True,
-    ) -> dict[str, object]:
-        """Recursively generate a dictionary representation of the model, optionally specifying which fields to include or exclude.
-
-        By default, fields that were not set by the API will not be included,
-        and keys will match the API response, *not* the property names from the model.
-
-        For example, if the API responds with `"fooBar": true` but we've defined a `foo_bar: bool` property,
-        the output will use the `"fooBar"` key (unless `use_api_names=False` is passed).
+    ) -> dict[str, Any]:
+        """Convert the model to a dictionary representation.
 
         Args:
-            mode:
-                If mode is 'json', the dictionary will only contain JSON serializable types. e.g. `datetime` will be turned into a string, `"2024-3-22T18:11:19.117000Z"`.
-                If mode is 'python', the dictionary may contain any Python objects. e.g. `datetime(2024, 3, 22)`
+            mode: Serialization mode ('json' for JSON-compatible types, 'python' for Python objects)
+            use_api_names: Use API response keys instead of property names
+            exclude_unset: Exclude unset fields
+            exclude_defaults: Exclude fields with default values
+            exclude_none: Exclude None values
+            warnings: Enable serialization warnings (Pydantic v2 feature)
 
-            use_api_names: Whether to use the key that the API responded with or the property name. Defaults to `True`.
-            exclude_unset: Whether to exclude fields that have not been explicitly set.
-            exclude_defaults: Whether to exclude fields that are set to their default value from the output.
-            exclude_none: Whether to exclude fields that have a value of `None` from the output.
-            warnings: Whether to log warnings when invalid fields are encountered. This is only supported in Pydantic v2.
+        Returns:
+            dict: Dictionary representation of the model
+
+        Examples:
+            ```python
+            model_dict = model.to_dict(mode="python", exclude_none=True)
+            ```
         """
         return self.model_dump(
             mode=mode,
@@ -54,7 +66,7 @@ class BaseModel(pydantic.BaseModel):
         )
 
     def to_json(
-        self,
+        self: T,
         *,
         indent: int | None = 2,
         use_api_names: bool = True,
@@ -63,21 +75,23 @@ class BaseModel(pydantic.BaseModel):
         exclude_none: bool = False,
         warnings: bool = True,
     ) -> str:
-        """Generates a JSON string representing this model as it would be received from or sent to the API (but with indentation).
-
-        By default, fields that were not set by the API will not be included,
-        and keys will match the API response, *not* the property names from the model.
-
-        For example, if the API responds with `"fooBar": true` but we've defined a `foo_bar: bool` property,
-        the output will use the `"fooBar"` key (unless `use_api_names=False` is passed).
+        """Convert the model to a JSON string.
 
         Args:
-            indent: Indentation to use in the JSON output. If `None` is passed, the output will be compact. Defaults to `2`
-            use_api_names: Whether to use the key that the API responded with or the property name. Defaults to `True`.
-            exclude_unset: Whether to exclude fields that have not been explicitly set.
-            exclude_defaults: Whether to exclude fields that have the default value.
-            exclude_none: Whether to exclude fields that have a value of `None`.
-            warnings: Whether to show any warnings that occurred during serialization. This is only supported in Pydantic v2.
+            indent: Number of spaces for indentation (None for compact output)
+            use_api_names: Use API response keys instead of property names
+            exclude_unset: Exclude unset fields
+            exclude_defaults: Exclude fields with default values
+            exclude_none: Exclude None values
+            warnings: Enable serialization warnings (Pydantic v2 feature)
+
+        Returns:
+            str: JSON string representation of the model
+
+        Examples:
+            ```python
+            json_str = model.to_json(indent=4, exclude_none=True)
+            ```
         """
         return self.model_dump_json(
             indent=indent,
@@ -87,3 +101,15 @@ class BaseModel(pydantic.BaseModel):
             exclude_none=exclude_none,
             warnings=warnings,
         )
+
+    @classmethod
+    def schema_json(cls: type[T], by_alias: bool = True) -> str:
+        """Get JSON schema for the model.
+
+        Args:
+            by_alias: Use API field names instead of Python field names
+
+        Returns:
+            str: JSON schema representation
+        """
+        return cls.model_json_schema(by_alias=by_alias)
