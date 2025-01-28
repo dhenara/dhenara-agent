@@ -77,20 +77,20 @@ class Resource(BaseModel):
         ...,
         description="Type of the resource model",
     )
-    object_id: str = Field(
-        ...,
+    object_id: str | None = Field(
+        default=None,
         description="Unique identifier for the resource",
     )
-    query: str | None = Field(
+    query: dict | None = Field(
         default=None,
-        description="Query string for fetching resource details",
+        description="Query dict for fetching resource details",
         examples=["{'api_model_name': 'claude-sonet-3.5-v2'}"],
     )
 
     @model_validator(mode="after")
     def validate_exclusive_fields(self) -> "Resource":
-        if bool(self.object_params) == bool(self.query):
-            raise ValueError("Exactly one of object_params or query must be provided")
+        if self.object_id and self.query:
+            raise ValueError("Exactly one of model_type+object_id, or query is allowed")
         return self
 
 

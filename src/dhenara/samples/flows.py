@@ -1,4 +1,4 @@
-call_ai_model_with_user_input = {
+SIMPLE_CHATBOT_FLOW = {
     "name": "Simple Chatbot Flow",
     "description": "This flow will call a text-generation AI model in sync mode and return output",
     "nodes": [
@@ -28,20 +28,12 @@ call_ai_model_with_user_input = {
                     "query": {"api_model_name": "claude-3-5-haiku-20241022"},
                 },
             ],
-            "resource_config": {
-                "system_instructions": None,
-                "pre_prompt": None,
-                "prompt": None,
-                "post_prompt": None,
-                "options_overrides": {},
-            },
-            "config": {},
+            "prompt_options_settings": None,
             "output_actions": ["save_to_conversation_node", "send_result_and_status"],
         },
         {
             "identifier": "generate_conversation_title",
             "type": "ai_model_sync",
-            "bypass_mode": True,
             "order": 1,
             "resources": [
                 {
@@ -50,7 +42,7 @@ call_ai_model_with_user_input = {
                     "query": {"api_model_name": "gpt-4o-mini"},
                 },
             ],
-            "resource_config": {
+            "prompt_options_settings": {
                 "system_instructions": [
                     "You are a summarizer which generate a title text under 60 characters from the promts",
                 ],
@@ -58,15 +50,15 @@ call_ai_model_with_user_input = {
                 "prompt": [
                     "Summarize in plane text under 60 characters.",
                 ],
-                "post_prompt": None,
                 "options_overrides": {},
             },
-            "config": {},
             "output_actions": ["update_conversation_node_title", "send_push_notification"],
         },
     ],
     "execution_strategy": "sequential",
-    "resource_config": {
-        "system_instructions": "Always respond in markdown format.",
+    "prompt_options_settings": {
+        "system_instructions": [
+            "Always respond in markdown format.",
+        ],
     },
 }

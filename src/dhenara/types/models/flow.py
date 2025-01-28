@@ -1,10 +1,10 @@
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
 from ..base.base import BaseModel
-from .flow_data import Resource
+from .flow_data import FlowNodeOutputActionEnum, Resource
 
 
 class ExecutionStrategyEnum(str, Enum):
@@ -39,7 +39,7 @@ class NodeTypeEnum(str, Enum):
     stream = "stream"
 
 
-class ResourceConfig(BaseModel):
+class PromptOptionsSettings(BaseModel):
     """Configuration for an AI resource including prompts and options.
 
     This model defines the structure for configuring AI prompts and options.
@@ -54,33 +54,38 @@ class ResourceConfig(BaseModel):
         options_overrides: Override options for AI model API calls
     """
 
-    system_instructions: Optional[list[str]] = Field(
+    system_instructions: list[str] | None = Field(
         default=None,
+        default_factory=None,
         description="System-level instructions provided to the AI model",
     )
 
-    pre_prompt: Optional[list[str]] = Field(
+    pre_prompt: list[str] | None = Field(
         default=None,
+        default_factory=None,
         description="Text that will be prepended to the user's prompt",
     )
 
-    prompt: Optional[list[str]] = Field(
+    prompt: list[str] | None = Field(
         default=None,
+        default_factory=None,
         description="Direct prompt text to send to the AI model",
     )
 
-    post_prompt: Optional[list[str]] = Field(
+    post_prompt: list[str] | None = Field(
         default=None,
+        default_factory=None,
         description="Text that will be appended to the user's prompt",
     )
 
-    options_overrides: dict = Field(
-        default_factory=dict,
+    options_overrides: dict | None = Field(
+        default=None,
+        default_factory=None,
         description="Options to override default AI model API call parameters",
     )
 
     @model_validator(mode="after")
-    def validate_prompt_configuration(self) -> "ResourceConfig":
+    def validate_prompt_configuration(self) -> "PromptOptionsSettings":
         """Validates that either prompt or pre/post prompt is provided."""
         if self.prompt and (self.pre_prompt or self.post_prompt):
             raise ValueError("Both 'prompt' and 'pre_prompt'/'post_prompt' are not allowed")
@@ -88,7 +93,7 @@ class ResourceConfig(BaseModel):
         #    raise ValueError("Either 'prompt' or 'pre_prompt'/'post_prompt' must be provided")
         return self
 
-    def get_system_instructions(self) -> Optional[str]:
+    def get_system_instructions(self) -> str | None:
         """Returns the system instructions if set.
 
         Returns:
@@ -98,7 +103,7 @@ class ResourceConfig(BaseModel):
             return " ".join(self.system_instructions)
         return None
 
-    def get_full_prompt(self, user_prompt: Optional[str] = None) -> str:
+    def get_full_prompt(self, user_prompt: str | None = None) -> str:
         """Constructs and returns the full prompt by combining pre/post prompts.
 
         Args:
@@ -120,7 +125,7 @@ class ResourceConfig(BaseModel):
 
         return " ".join(parts)
 
-    def get_options(self, user_options: Optional[dict] = None) -> dict:
+    def get_options(self, user_options: dict | None = None) -> dict:
         """Returns the merged options dictionary.
 
         Args:
@@ -187,18 +192,30 @@ class Node(BaseModel):
         ge=0,
         examples=[1],
     )
-    config: dict[str, Any] = Field(
-        ...,
-        description="Node-specific configuration parameters",
-        examples=[{"model_name": "gpt-4", "temperature": 0.7}],
-    )
-    resources: list[Resource] = Field(
-        ...,
+
+    resources: list[Resource] | None = Field(
+        default=None,
         description="List of resources to be used",
+    )
+
+    # config: dict[str, Any] = Field(
+    #    ...,
+    #    description="Node-specific configuration parameters",
+    #    examples=[{"model_name": "gpt-4", "temperature": 0.7}],
+    # )
+    prompt_options_settings: PromptOptionsSettings | None = Field(
+        default=None,
+        description="Node-specific promt/instruction/option parameters",
+    )
+    output_actions: list[FlowNodeOutputActionEnum] = Field(
+        ...,
+        description="Output actions",
     )
     subflow: "FlowDefinition | None" = Field(
         default=None,
         description="Optional nested flow definition for complex operations",
+        default_factory=None,
+        exclude=True,  # NOTE: as this is factory, base model exclude won't work
     )
 
     @field_validator("identifier")
@@ -219,24 +236,6 @@ class Node(BaseModel):
             raise ValueError("Node identifier cannot be empty or whitespace")
         return v
 
-    @field_validator("config")
-    @classmethod
-    def validate_config(cls, v: dict[str, Any]) -> dict[str, Any]:
-        """Validate that config is not empty.
-
-        Args:
-            v: The config dictionary to validate
-
-        Returns:
-            The validated config dictionary
-
-        Raises:
-            ValueError: If config is empty
-        """
-        if not v:
-            raise ValueError("Config cannot be empty")
-        return v
-
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -244,9 +243,10 @@ class Node(BaseModel):
                     "identifier": "initial_model_call",
                     "type": "ai_model_sync",
                     "order": 1,
-                    "config": {
-                        "model_name": "gpt-4",
-                        "temperature": 0.7,
+                    "prompt_options_settings": {
+                        "system_instructions": ["You are a helpful assistant"],
+                        "pre_prompt": ["Please answer the following question:"],
+                        "options_overrides": {"temperature": 0.7},
                     },
                     "subflow": {
                         "nodes": [
@@ -254,7 +254,7 @@ class Node(BaseModel):
                                 "identifier": "preprocessing",
                                 "type": "stream",
                                 "order": 0,
-                                "config": {"filter": "text"},
+                                "prompt_options_settings": {"prompt": ["Process the following text"]},
                             },
                         ],
                         "execution_strategy": "sequential",
@@ -285,6 +285,10 @@ class FlowDefinition(BaseModel):
         ...,
         description="Execution strategy for top-level nodes",
         examples=["sequential"],
+    )
+    prompt_options_settings: PromptOptionsSettings | None = Field(
+        default=None,
+        description="Flow wide promt/instruction/option parameters",
     )
 
     def _collect_all_identifiers(self, node: Node, identifiers: set[str]) -> None:

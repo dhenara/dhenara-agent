@@ -16,6 +16,9 @@ class BaseModel(PydanticBaseModel):
     - Strict validation by default
     """
 
+    def model_dump(self) -> dict:
+        return super().model_dump(exclude=[None])
+
     model_config = ConfigDict(
         alias_generator=alias_generators.to_camel,
         populate_by_name=True,
