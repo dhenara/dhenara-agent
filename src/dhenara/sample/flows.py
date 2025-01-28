@@ -1,5 +1,5 @@
 call_ai_model_with_user_input = {
-    "name": "Generic Text Generateion Flow",
+    "name": "Simple Chatbot Flow",
     "description": "This flow will call a text-generation AI model in sync mode and return output",
     "nodes": [
         {
@@ -28,12 +28,18 @@ call_ai_model_with_user_input = {
                     "query": {"api_model_name": "claude-3-5-haiku-20241022"},
                 },
             ],
+            "resource_config": {
+                "system_instructions": None,
+                "pre_prompt": None,
+                "prompt": None,
+                "post_prompt": None,
+                "options_overrides": {},
+            },
             "config": {},
-            "save_output": True,
-            "output_actions": ["update_internal_data", "send_response"],
+            "output_actions": ["save_to_conversation_node", "send_result_and_status"],
         },
         {
-            "identifier": "generate_summary_1",
+            "identifier": "generate_conversation_title",
             "type": "ai_model_sync",
             "bypass_mode": True,
             "order": 1,
@@ -44,46 +50,23 @@ call_ai_model_with_user_input = {
                     "query": {"api_model_name": "gpt-4o-mini"},
                 },
             ],
+            "resource_config": {
+                "system_instructions": [
+                    "You are a summarizer which generate a title text under 60 characters from the promts",
+                ],
+                "pre_prompt": None,
+                "prompt": [
+                    "Summarize in plane text under 60 characters.",
+                ],
+                "post_prompt": None,
+                "options_overrides": {},
+            },
             "config": {},
-            "output_action": "send_response",
+            "output_actions": ["update_conversation_node_title", "send_push_notification"],
         },
     ],
     "execution_strategy": "sequential",
-}
-
-call_ai_model_with_user_input_2 = {
-    "name": "Generic Text Generateion Flow 2",
-    "description": "This flow will call a text-generation AI model in sync mode and return output",
-    "nodes": [
-        {
-            "identifier": "",
-            "type": "retrieve_inhouse_data",
-            "optional": True,
-            "order": 0,
-            "config": {
-                "model_id": str,
-                "model_type": "",
-                "resource_ep_id": None,
-                "resource_name": "gpt_4o",
-                "options": None,
-            },
-        },
-        {
-            "identifier": "texgen_ai_model_call",
-            "type": "ai_model_sync",
-            "order": 0,
-            "config": {
-                "resource_ep_id": None,
-                "resource_name": "gpt_4o",
-                "options": None,
-            },
-        },
-        {
-            "identifier": "generate_summary",
-            "type": "ai_model_sync",
-            "order": 1,
-            "config": {"model_name": "gpt-4"},
-        },
-    ],
-    "execution_strategy": "sequential",
+    "resource_config": {
+        "system_instructions": "Always respond in markdown format.",
+    },
 }

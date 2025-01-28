@@ -1,9 +1,9 @@
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
-from ..base import BaseModel
+from ..base.base import BaseModel
 from .flow_data import Resource
 
 
@@ -37,6 +37,121 @@ class NodeTypeEnum(str, Enum):
     rag_index = "rag_index"
     rag_query = "rag_query"
     stream = "stream"
+
+
+class ResourceConfig(BaseModel):
+    """Configuration for an AI resource including prompts and options.
+
+    This model defines the structure for configuring AI prompts and options.
+    Either direct prompt or pre/post prompts can be used for constructing
+    the final prompt sent to the AI model.
+
+    Attributes:
+        system_instructions: System-level instructions for the AI model as list of strings
+        pre_prompt: Text to prepend to user prompt as list of strings
+        prompt: Direct prompt text as list of strings
+        post_prompt: Text to append to user prompt as list of strings
+        options_overrides: Override options for AI model API calls
+    """
+
+    system_instructions: Optional[list[str]] = Field(
+        default=None,
+        description="System-level instructions provided to the AI model",
+    )
+
+    pre_prompt: Optional[list[str]] = Field(
+        default=None,
+        description="Text that will be prepended to the user's prompt",
+    )
+
+    prompt: Optional[list[str]] = Field(
+        default=None,
+        description="Direct prompt text to send to the AI model",
+    )
+
+    post_prompt: Optional[list[str]] = Field(
+        default=None,
+        description="Text that will be appended to the user's prompt",
+    )
+
+    options_overrides: dict = Field(
+        default_factory=dict,
+        description="Options to override default AI model API call parameters",
+    )
+
+    @model_validator(mode="after")
+    def validate_prompt_configuration(self) -> "ResourceConfig":
+        """Validates that either prompt or pre/post prompt is provided."""
+        if self.prompt and (self.pre_prompt or self.post_prompt):
+            raise ValueError("Both 'prompt' and 'pre_prompt'/'post_prompt' are not allowed")
+        # if not self.prompt and not (self.pre_prompt or self.post_prompt):
+        #    raise ValueError("Either 'prompt' or 'pre_prompt'/'post_prompt' must be provided")
+        return self
+
+    def get_system_instructions(self) -> Optional[str]:
+        """Returns the system instructions if set.
+
+        Returns:
+            Optional[str]: Joined system instructions or None if not set
+        """
+        if self.system_instructions:
+            return " ".join(self.system_instructions)
+        return None
+
+    def get_full_prompt(self, user_prompt: Optional[str] = None) -> str:
+        """Constructs and returns the full prompt by combining pre/post prompts.
+
+        Args:
+            user_prompt: Optional user provided prompt to combine with pre/post prompts
+
+        Returns:
+            str: The complete prompt text
+        """
+        if self.prompt is not None:
+            return " ".join(self.prompt)
+
+        parts = []
+        if self.pre_prompt:
+            parts.extend(self.pre_prompt)
+        if user_prompt:
+            parts.append(user_prompt)
+        if self.post_prompt:
+            parts.extend(self.post_prompt)
+
+        return " ".join(parts)
+
+    def get_options(self, user_options: Optional[dict] = None) -> dict:
+        """Returns the merged options dictionary.
+
+        Args:
+            user_options: Optional user provided options to merge with overrides
+
+        Returns:
+            dict: Merged options with overrides taking precedence
+        """
+        if user_options is None:
+            return self.options_overrides
+
+        merged = user_options.copy()
+        merged.update(self.options_overrides)
+        return merged
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "system_instructions": ["You are a helpful assistant"],
+                    "pre_prompt": ["Please answer the following question:"],
+                    "post_prompt": ["Provide a detailed explanation."],
+                    "options_overrides": {"temperature": 0.7},
+                },
+                {
+                    "prompt": ["What is the capital of France?"],
+                    "options_overrides": {"max_tokens": 100},
+                },
+            ]
+        }
+    }
 
 
 class Node(BaseModel):

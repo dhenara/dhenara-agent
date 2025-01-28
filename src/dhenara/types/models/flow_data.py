@@ -2,7 +2,7 @@ from enum import Enum
 
 from pydantic import Field, model_validator
 
-from ..base import BaseModel
+from ..base.base import BaseModel
 
 
 class InternalDataModelTypeEnum(str, Enum):
@@ -176,9 +176,16 @@ class FlowNodeExecutionStatusEnum(str, Enum):
 class FlowNodeOutputActionEnum(str, Enum):
     """Enumeration of available API call actions."""
 
-    save_content_to_conversation_node = "save_content_to_conversation_node"
+    # Conversation Node Actions
+    save_to_conversation_node = "save_to_conversation_node"
     update_conversation_node_title = "update_conversation_node_title"
     delete_conversation_node = "delete_conversation_node"
+    # Response
+    send_result = "send_result"
+    send_status = "send_status"
+    send_result_and_status = "send_result_and_status"
+    send_ack = "send_ack"
+    send_push_notification = "send_push_notification"
 
 
 class FlowNodeOutput(BaseModel):
@@ -195,11 +202,12 @@ class FlowNodeOutput(BaseModel):
     raw_output: list[str] = Field(
         ...,
         description="List of raw output strings",
+        min_items=0,
     )
-
     internal_data_objs: list[InternalDataObjParams] = Field(
         ...,
         description="List of internal data objects",
+        min_items=0,
     )
 
     action: FlowNodeOutputActionEnum = Field(
