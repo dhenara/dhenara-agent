@@ -1,9 +1,9 @@
 from enum import Enum
 from typing import Any
 
+from dhenara.types.base import BaseModel
 from pydantic import Field, field_validator, model_validator
 
-from ..base.base import BaseModel
 from .flow_data import FlowNodeOutputActionEnum, Resource
 
 

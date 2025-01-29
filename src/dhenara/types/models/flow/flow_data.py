@@ -1,8 +1,7 @@
 from enum import Enum
 
+from dhenara.types.base import BaseModel
 from pydantic import Field, model_validator
-
-from ..base.base import BaseModel
 
 
 class InternalDataModelTypeEnum(str, Enum):
