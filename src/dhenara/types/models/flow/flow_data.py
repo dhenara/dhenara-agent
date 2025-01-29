@@ -1,7 +1,7 @@
 from enum import Enum
 
 from dhenara.types.base import BaseModel
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 
 class InternalDataModelTypeEnum(str, Enum):
@@ -61,6 +61,13 @@ class ResourceModelTypeEnum(str, Enum):
     search_endpoint = "search_endpoint"
 
 
+RESOURCE_MODEL_QUERY_MAPPING = {
+    ResourceModelTypeEnum.ai_model_endpoint: [
+        "ai_model__api_model_name",
+    ]
+}
+
+
 class Resource(BaseModel):
     """
     Resource configuration model with mutually exclusive fields for object parameters
@@ -85,11 +92,22 @@ class Resource(BaseModel):
         description="Query dict for fetching resource details",
         examples=["{'api_model_name': 'claude-sonet-3.5-v2'}"],
     )
+    is_default: bool = Field(
+        default=False,
+        description="Is default resource or not. Only one default is allowed in a list of resources",
+    )
 
     @model_validator(mode="after")
     def validate_exclusive_fields(self) -> "Resource":
         if self.object_id and self.query:
             raise ValueError("Exactly one of model_type+object_id, or query is allowed")
+
+        # Validate query keys based on model type
+        for key in self.query.keys():
+            query_mapping = RESOURCE_MODEL_QUERY_MAPPING.get(self.model_type)
+            if key not in query_mapping:
+                raise ValueError(f"Unsupported query key `{key}`")
+
         return self
 
 
@@ -149,6 +167,27 @@ class FlowNodeInput(BaseModel):
         ...,
         description="Type of API action to perform",
     )
+
+    @field_validator("resources")
+    @classmethod
+    def validate_node_identifiers(cls, v: list[Resource]) -> list[Resource]:
+        """Validate that node IDs are unique within the same flow level."""
+        # Ignore empty lists
+        if not v:
+            return v
+
+        default_count = sum(1 for resource in v if resource.is_default)
+        if default_count > 1:
+            raise ValueError("Only one resource can be set as default")
+
+        # If there is only one resource, set it as default and return
+        if len(v) == 1:
+            v.is_default = True
+            return v
+        else:
+            if default_count < 1:
+                raise ValueError("One resource should be set as default")
+            return v
 
     @model_validator(mode="after")
     def validate_action_requirements(self) -> "FlowNodeInput":
