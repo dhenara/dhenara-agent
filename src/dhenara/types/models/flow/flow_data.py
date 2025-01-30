@@ -1,10 +1,8 @@
-from enum import Enum
-
-from dhenara.types.base import BaseModel
-from pydantic import Field, field_validator, model_validator
+from dhenara.types.base import BaseEnum, BaseModel
+from pydantic import Field, model_validator
 
 
-class InternalDataModelTypeEnum(str, Enum):
+class InternalDataModelTypeEnum(BaseEnum):
     """Enumeration of available internal data model types."""
 
     conversation = "conversation"
@@ -12,7 +10,7 @@ class InternalDataModelTypeEnum(str, Enum):
     conversation_space = "conversation_space"
 
 
-class InternalDataObjParamsScopeEnum(str, Enum):
+class InternalDataObjParamsScopeEnum(BaseEnum):
     """Enumeration of object scope types for internal data."""
 
     current = "current"
@@ -53,7 +51,7 @@ class InternalDataObjParams(BaseModel):
         return self
 
 
-class ResourceModelTypeEnum(str, Enum):
+class ResourceModelTypeEnum(BaseEnum):
     """Enumeration of available resource model types."""
 
     ai_model_endpoint = "ai_model_endpoint"
@@ -111,7 +109,7 @@ class Resource(BaseModel):
         return self
 
 
-class FlowNodeInputActionEnum(str, Enum):
+class FlowNodeInputActionEnum(BaseEnum):
     """Enumeration of available API call actions."""
 
     generate_conversation_node = "generate_conversation_node"
@@ -168,26 +166,9 @@ class FlowNodeInput(BaseModel):
         description="Type of API action to perform",
     )
 
-    @field_validator("resources")
-    @classmethod
-    def validate_node_identifiers(cls, v: list[Resource]) -> list[Resource]:
-        """Validate that node IDs are unique within the same flow level."""
-        # Ignore empty lists
-        if not v:
-            return v
-
-        default_count = sum(1 for resource in v if resource.is_default)
-        if default_count > 1:
-            raise ValueError("Only one resource can be set as default")
-
-        # If there is only one resource, set it as default and return
-        if len(v) == 1:
-            v.is_default = True
-            return v
-        else:
-            if default_count < 1:
-                raise ValueError("One resource should be set as default")
-            return v
+    # NOTE:
+    # `is_default` validations for resoures are added inside flow models,
+    # note input models
 
     @model_validator(mode="after")
     def validate_action_requirements(self) -> "FlowNodeInput":
@@ -203,7 +184,7 @@ class FlowNodeInput(BaseModel):
         return self
 
 
-class FlowNodeExecutionStatusEnum(str, Enum):
+class FlowNodeExecutionStatusEnum(BaseEnum):
     """Enumeration of possible execution statuses."""
 
     success = "success"
@@ -211,8 +192,11 @@ class FlowNodeExecutionStatusEnum(str, Enum):
     pending = "pending"
 
 
-class FlowNodeOutputActionEnum(str, Enum):
+class FlowNodeOutputActionEnum(BaseEnum):
     """Enumeration of available API call actions."""
+
+    def __str__(self):
+        return self.value
 
     # Conversation Node Actions
     save_to_conversation_node = "save_to_conversation_node"

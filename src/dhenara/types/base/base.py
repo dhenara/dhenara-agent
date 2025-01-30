@@ -1,9 +1,17 @@
+from enum import Enum
 from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, alias_generators
 
 T = TypeVar("T", bound="BaseModel")
+
+
+class BaseEnum(str, Enum):
+    """Base Enumeration class."""
+
+    def __str__(self):
+        return self.value
 
 
 class BaseModel(PydanticBaseModel):
@@ -17,7 +25,11 @@ class BaseModel(PydanticBaseModel):
     """
 
     def model_dump(self) -> dict:
-        return super().model_dump(exclude=[None])
+        return super().model_dump(
+            exclude=[None],
+            exclude_unset=True,
+            # mode="json",
+        )
 
     model_config = ConfigDict(
         alias_generator=alias_generators.to_camel,
@@ -64,7 +76,7 @@ class BaseModel(PydanticBaseModel):
             by_alias=use_api_names,
             exclude_unset=exclude_unset,
             exclude_defaults=exclude_defaults,
-            exclude_none=exclude_none,
+            exclude=[None] if exclude_none else [],
             warnings=warnings,
         )
 

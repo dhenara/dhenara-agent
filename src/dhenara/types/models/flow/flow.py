@@ -1,13 +1,12 @@
-from enum import Enum
 from typing import Any
 
-from dhenara.types.base import BaseModel
+from dhenara.types.base import BaseEnum, BaseModel
 from pydantic import Field, field_validator, model_validator
 
 from .flow_data import FlowNodeOutputActionEnum, Resource
 
 
-class ExecutionStrategyEnum(str, Enum):
+class ExecutionStrategyEnum(BaseEnum):
     """Enum defining execution strategy for flow nodes.
 
     Attributes:
@@ -19,7 +18,7 @@ class ExecutionStrategyEnum(str, Enum):
     parallel = "parallel"
 
 
-class FlowNodeTypeEnum(str, Enum):
+class FlowNodeTypeEnum(BaseEnum):
     """Enum defining types of flow nodes.
 
     Attributes:
@@ -236,6 +235,27 @@ class FlowNode(BaseModel):
             raise ValueError("FlowNode identifier cannot be empty or whitespace")
         return v
 
+    @field_validator("resources")
+    @classmethod
+    def validate_node_resources(cls, v: list[Resource]) -> list[Resource]:
+        """Validate that node IDs are unique within the same flow level."""
+        # Ignore empty lists
+        if not v:
+            return v
+
+        default_count = sum(1 for resource in v if resource.is_default)
+        if default_count > 1:
+            raise ValueError("Only one resource can be set as default")
+
+        # If there is only one resource, set it as default and return
+        if len(v) == 1:
+            v[0].is_default = True
+            return v
+        else:
+            if default_count < 1:
+                raise ValueError("One resource should be set as default")
+            return v
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -411,3 +431,70 @@ class FlowDefinition(BaseModel):
             ],
         },
     }
+
+
+class Flow(BaseModel):
+    """Model representing a complete flow."""
+
+    name: str = Field(
+        ...,
+        description="Flow Name",
+        min_length=5,
+        max_length=200,
+    )
+    description: str | None = Field(
+        ...,
+        description="Optional description",
+    )
+    definition: FlowDefinition = Field(
+        ...,
+        description="Flow Definition",
+    )
+    is_active: bool = Field(
+        default=True,
+        description="Active or not",
+    )
+
+
+class DhenRunEndpoint(BaseModel):
+    """Model representing a complete flow."""
+
+    name: str = Field(
+        ...,
+        description="Endpoint Name",
+        min_length=5,
+        max_length=200,
+    )
+    description: str | None = Field(
+        ...,
+        description="Optional description",
+    )
+
+    flow_id: str | None = Field(
+        default=None,
+        description="id of Flow object",
+    )
+
+    flow: Flow | None = Field(
+        default=None,
+        description="Flow Data",
+    )
+
+    allowed_domains: list[str] | None = Field(
+        default=None,
+        description="Allowed domains",
+    )
+    is_active: bool = Field(
+        default=True,
+        description="Active or not",
+    )
+    # workspace
+    # env_type
+
+    @model_validator(mode="after")
+    def validate_endpint(self) -> "DhenRunEndpoint":
+        if self.flow and self.flow_id:
+            raise ValueError("Both 'flow' and 'flow_id' are not allowed")
+        if not (self.flow or self.flow_id):
+            raise ValueError("Either 'flow' or 'flow_id' must be provided")
+        return self
