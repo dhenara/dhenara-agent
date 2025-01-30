@@ -22,7 +22,7 @@ class UrlSettings(BaseModel):
     )
 
     app_route: str = Field(
-        default="app",
+        default="app/run",
         description="Base application route segment",
     )
     devtime_route: str = Field(
@@ -30,7 +30,7 @@ class UrlSettings(BaseModel):
         description="Development-time route segment",
     )
     runtime_route: str = Field(
-        default="run",
+        default="serve",
         description="Runtime route segment",
     )
 

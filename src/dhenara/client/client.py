@@ -38,6 +38,12 @@ class Client:
         self._endpoint_id = None
         self._credentials_token = None
 
+    # def get_jwt_token(self):
+    #    response = requests.get(f"{self.base_url}/get-jwt-token", headers={"Authorization": self.api_key})
+    #    response.raise_for_status()
+    #    self.token = self.get_jwt_token()
+    #    return response.json()["token"]
+
     def _set_credentials(self, customer_id: str, workspace_id: str, endpoint_id, credentials_token):
         self._customer_id = customer_id
         self._workspace_id = workspace_id
