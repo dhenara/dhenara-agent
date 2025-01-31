@@ -9,23 +9,23 @@ SIMPLE_CHATBOT_FLOW = {
                 "order": 0,
                 "resources": [
                     {
-                        "model_type": "ai_model_endpoint",
+                        "object_type": "ai_model_endpoint",
                         "object_id": None,
                         "query": {"ai_model__api_model_name": "gpt-4o-mini"},
                         "is_default": True,
                     },
                     {
-                        "model_type": "ai_model_endpoint",
+                        "object_type": "ai_model_endpoint",
                         "object_id": None,
                         "query": {"ai_model__api_model_name": "gpt-4o"},
                     },
                     {
-                        "model_type": "ai_model_endpoint",
+                        "object_type": "ai_model_endpoint",
                         "object_id": None,
                         "query": {"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                     },
                     {
-                        "model_type": "ai_model_endpoint",
+                        "object_type": "ai_model_endpoint",
                         "object_id": None,
                         "query": {"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
                     },
@@ -39,7 +39,7 @@ SIMPLE_CHATBOT_FLOW = {
                 "order": 1,
                 "resources": [
                     {
-                        "model_type": "ai_model_endpoint",
+                        "object_type": "ai_model_endpoint",
                         "object_id": None,
                         "query": {"ai_model__api_model_name": "gpt-4o-mini"},
                     },

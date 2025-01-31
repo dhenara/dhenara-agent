@@ -1,8 +1,9 @@
-from dhenara.types.base import BaseEnum, BaseModel
 from pydantic import Field, model_validator
 
+from dhenara.types.base import BaseEnum, BaseModel
 
-class InternalDataModelTypeEnum(BaseEnum):
+
+class InternalDataObjectTypeEnum(BaseEnum):
     """Enumeration of available internal data model types."""
 
     conversation = "conversation"
@@ -22,12 +23,12 @@ class InternalDataObjParams(BaseModel):
     Parameters for internal data objects with validation rules for different model types.
 
     Attributes:
-        model_type: The type of internal data model
+        object_type: The type of internal data model
         object_id: Unique identifier for the object
         object_scope: Scope of the object (current or parent)
     """
 
-    model_type: InternalDataModelTypeEnum = Field(
+    object_type: InternalDataObjectTypeEnum = Field(
         ...,
         description="Type of the internal data model",
     )
@@ -41,17 +42,17 @@ class InternalDataObjParams(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_scope_based_on_model_type(self) -> "InternalDataObjParams":
-        if self.model_type == InternalDataModelTypeEnum.conversation_node:
+    def validate_scope_based_on_object_type(self) -> "InternalDataObjParams":
+        if self.object_type == InternalDataObjectTypeEnum.conversation_node:
             if self.object_scope not in [InternalDataObjParamsScopeEnum.current, InternalDataObjParamsScopeEnum.parent]:
                 raise ValueError("Conversation nodes must have either 'current' or 'parent' scope")
         else:
             if self.object_scope != InternalDataObjParamsScopeEnum.current:
-                raise ValueError(f"{self.model_type} must have 'current' scope")
+                raise ValueError(f"{self.object_type} must have 'current' scope")
         return self
 
 
-class ResourceModelTypeEnum(BaseEnum):
+class ResourceObjectTypeEnum(BaseEnum):
     """Enumeration of available resource model types."""
 
     ai_model_endpoint = "ai_model_endpoint"
@@ -60,7 +61,7 @@ class ResourceModelTypeEnum(BaseEnum):
 
 
 RESOURCE_MODEL_QUERY_MAPPING = {
-    ResourceModelTypeEnum.ai_model_endpoint: [
+    ResourceObjectTypeEnum.ai_model_endpoint: [
         "ai_model__api_model_name",
     ]
 }
@@ -72,12 +73,12 @@ class Resource(BaseModel):
     or fetch query.
 
     Attributes:
-        model_type: Type of the resource model
+        object_type: Type of the resource model
         object_id: Unique identifier for the resource
         query: Optional query string for fetching resource details
     """
 
-    model_type: ResourceModelTypeEnum = Field(
+    object_type: ResourceObjectTypeEnum = Field(
         ...,
         description="Type of the resource model",
     )
@@ -98,11 +99,11 @@ class Resource(BaseModel):
     @model_validator(mode="after")
     def validate_exclusive_fields(self) -> "Resource":
         if self.object_id and self.query:
-            raise ValueError("Exactly one of model_type+object_id, or query is allowed")
+            raise ValueError("Exactly one of object_type+object_id, or query is allowed")
 
         # Validate query keys based on model type
         for key in self.query.keys():
-            query_mapping = RESOURCE_MODEL_QUERY_MAPPING.get(self.model_type)
+            query_mapping = RESOURCE_MODEL_QUERY_MAPPING.get(self.object_type)
             if key not in query_mapping:
                 raise ValueError(f"Unsupported query key `{key}`")
 
@@ -172,7 +173,7 @@ class FlowNodeInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_action_requirements(self) -> "FlowNodeInput":
-        node_objects = [obj for obj in self.internal_data_objs if obj.model_type == InternalDataModelTypeEnum.conversation_node]
+        node_objects = [obj for obj in self.internal_data_objs if obj.object_type == InternalDataObjectTypeEnum.conversation_node]
 
         if self.action == FlowNodeInputActionEnum.regenerate_conversation_node:
             current_nodes = [obj for obj in node_objects if obj.object_scope == InternalDataObjParamsScopeEnum.current]

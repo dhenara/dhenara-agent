@@ -1,11 +1,13 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import Field, model_validator
+
+from dhenara.types.base import BaseModel
 
 # TODO: Delete
 
 
-class InternalDataModelTypeEnum(str, Enum):
+class InternalDataObjectTypeEnum(str, Enum):
     conversation = "conversation"
     conversation_node = "conversation_node"
     conversation_space = "conversation_space"
@@ -17,28 +19,28 @@ class InternalDataObjParamsScopeEnum(str, Enum):
 
 
 class InternalDataObjParams(BaseModel):
-    model_type: InternalDataModelTypeEnum
+    object_type: InternalDataObjectTypeEnum
     object_id: str
     object_scope: InternalDataObjParamsScopeEnum
 
     @model_validator(mode="after")
     def validate_scope(self):
-        if self.model_type == InternalDataModelTypeEnum.conversation_node:
+        if self.object_type == InternalDataObjectTypeEnum.conversation_node:
             if self.object_scope not in [InternalDataObjParamsScopeEnum.current, InternalDataObjParamsScopeEnum.parent]:
                 raise ValueError("Invalid scope for conversation node")
         elif self.object_scope != InternalDataObjParamsScopeEnum.current:
-            raise ValueError(f"{self.model_type} must have current scope")
+            raise ValueError(f"{self.object_type} must have current scope")
         return self
 
 
-class ResourceModelTypeEnum(str, Enum):
+class ResourceObjectTypeEnum(str, Enum):
     ai_model_endpoint = "ai_model_endpoint"
     rag_endpoint = "rag_endpoint"
     search_endpoint = "search_endpoint"
 
 
 class Resource(BaseModel):
-    model_type: ResourceModelTypeEnum
+    object_type: ResourceObjectTypeEnum
     object_id: str | None = None
     query: dict | None = None
 
