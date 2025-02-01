@@ -21,7 +21,9 @@ class ApiResponseMessageStatusCode(BaseEnum):
     INVALID_INPUTS = "invalid_inputs"
     FAIL_ENDPOINT_ERROR = "failed_with_endpoint_error"
     FAIL_SERVER_ERROR = "failed_with_server_error"
-    PERMISSION_DENIED_GENERAL = "permission_denied_general"
+    NOT_AUTHENTICATED = "not_authenticated"
+    NOT_AUTHORIZED = "not_authorized"
+    PERMISSION_DENIED_GENERAL = "permission_denied"
     PERMISSION_DENIED_BY_WORKSPACE = "permission_denied_by_workspace"
     USAGE_EXCEEDED_LIMIT = "usage_exceeded_limit"
 

@@ -55,7 +55,8 @@ class Client:
 
     def _get_headers(self) -> dict[str, str]:
         return {
-            "Authorization": f"ApiKey {self.config.api_key}",
+            # "Authorization": f"Bearer {self.config.api_key}",
+            "X-Api-Key": f"{self.config.api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": "dhenara-python-sdk/1.0",
