@@ -4,8 +4,13 @@ from dhenara.client import Client
 from dhenara.samples.flows import SIMPLE_CHATBOT_FLOW
 from dhenara.types import FlowExecutionStatus
 
-# TODO
-api_key = "abcdefghijk"
+
+def get_api_key():
+    with open(".api_key.txt") as file:
+        return file.read().strip()
+
+
+api_key = get_api_key()
 workspace_id = "aaa"
 
 

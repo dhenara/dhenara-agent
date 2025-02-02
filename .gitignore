@@ -65,6 +65,8 @@ cover/
 
 # virtualenv
 .venv/
+.api_key.txt
+
 
 # Ruff
 .ruff_cache
