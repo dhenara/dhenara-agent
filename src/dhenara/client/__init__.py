@@ -1,6 +1,5 @@
 # ruff: noqa: F401
 
-from .defs import *
-from .exceptions import *
-from .urls import *
-from .client import Client
+from ._exceptions import *
+from ._urls import *
+from ._client import Client

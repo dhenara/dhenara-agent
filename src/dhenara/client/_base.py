@@ -1,0 +1,190 @@
+from types import TracebackType
+from typing import Any, TypeVar
+
+import httpx
+from typing_extensions import Self  # for Python <3.11
+
+from dhenara.client import DhenaraAPIError, DhenaraConnectionError, UrlSettings
+from dhenara.client.types import ClientConfig
+from dhenara.types.api import (
+    ApiRequest,
+    ApiRequestActionTypeEnum,
+    ApiResponse,
+    ApiResponseMessageStatusCode,
+)
+from dhenara.types.base import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
+
+
+class _ClientBase:
+    """
+    Dhenara API client for making API requests.
+
+    Supports both synchronous and asynchronous operations with proper resource management.
+    """
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.dhenara.com",
+        timeout: int = 30,
+        max_retries: int = 3,
+    ) -> None:
+        """Initialize the API client."""
+        self.config = ClientConfig(
+            api_key=api_key,
+            base_url=base_url.rstrip("/"),
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+
+        self._sync_client = httpx.Client(
+            timeout=timeout,
+            headers=self._get_headers(),
+            follow_redirects=True,
+        )
+        self._async_client = httpx.AsyncClient(
+            timeout=timeout,
+            headers=self._get_headers(),
+            follow_redirects=True,
+        )
+        self.url_settings = UrlSettings(base_url=base_url)
+
+    def _get_headers(self) -> dict[str, str]:
+        """Get the headers for API requests."""
+        return {
+            # "Authorization": f"Bearer {self.config.api_key}",
+            "X-Api-Key": self.config.api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "dhenara-python-sdk/1.0",
+        }
+
+    def _parse_response(
+        self,
+        response_data: dict[str, Any],
+        model_class: type[T] | None = None,
+    ) -> ApiResponse[T]:
+        """
+        Parse raw response into ApiResponse object.
+
+        Args:
+            response_data: Raw response data from the API
+            model_class: Optional Pydantic model class for data validation
+
+        Returns:
+            Parsed API response
+
+        Raises:
+            DhenaraAPIError: If response parsing fails
+        """
+        try:
+            if response_data.get("data") and model_class:
+                parsed_data = model_class.model_validate(response_data["data"])
+                response_data["data"] = parsed_data
+            return ApiResponse[T].model_validate(response_data)
+        except ValueError as e:
+            raise DhenaraAPIError(
+                message=f"Failed to parse API response: {e}",
+                status_code=ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
+                response=response_data,
+            )
+
+    def _make_request(
+        self,
+        model_instance: BaseModel,
+        action: ApiRequestActionTypeEnum,
+        endpoint: str,
+        response_model: type[T],
+    ) -> ApiResponse[T]:
+        """
+        Make a request to the API with proper model validation.
+
+        Args:
+            model_instance: The request data model
+            action: The API action to perform
+            endpoint: The API endpoint
+            response_model: The expected response model
+
+        Returns:
+            Validated API response
+        """
+        api_request = ApiRequest[type(model_instance)](
+            data=model_instance.model_dump(),
+            action=action,
+        )
+
+        url = self.url_settings.get_full_url(endpoint)
+        response = self._sync_client.post(
+            url=url,
+            json=api_request.model_dump(),
+        )
+        return self._handle_response(response, response_model)
+
+    async def _make_request_async(
+        self,
+        model_instance: BaseModel,
+        action: ApiRequestActionTypeEnum,
+        endpoint: str,
+        response_model: type[T],
+    ) -> ApiResponse[T]:
+        """Async version of _make_request."""
+        api_request = ApiRequest[type(model_instance)](
+            data=model_instance.model_dump(),
+            action=action,
+        )
+
+        url = self.url_settings.get_full_url(endpoint)
+        response = await self._async_client.post(
+            url=url,
+            json=api_request.model_dump(),
+        )
+        return self._handle_response(response, response_model)
+
+    def _handle_response(
+        self,
+        response: httpx.Response,
+        model_class: type[T] | None = None,
+    ) -> ApiResponse[T]:
+        """Handle API response and raise appropriate exceptions."""
+        try:
+            response.raise_for_status()
+            return self._parse_response(response.json(), model_class)
+        except httpx.HTTPStatusError as e:
+            error_detail = {}
+            try:
+                error_detail = response.json()
+            except:
+                error_detail = {"detail": response.text}
+
+            raise DhenaraAPIError(
+                message=f"API request failed: {e}",
+                status_code=ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
+                response=error_detail,
+            )
+        except httpx.RequestError as e:
+            raise DhenaraConnectionError(f"Connection error: {e}")
+
+    # Context manager support
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self._sync_client.close()
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        await self._async_client.aclose()

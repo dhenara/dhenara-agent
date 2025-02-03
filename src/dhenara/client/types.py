@@ -1,13 +1,4 @@
-from enum import Enum
-
 from dhenara.types import BaseModel
-
-
-class ExecutionStatus(str, Enum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 class ClientConfig(BaseModel):

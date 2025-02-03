@@ -2,7 +2,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 from pydantic import Field
 
-from dhenara.client.exceptions import DhenaraAPIError
+from dhenara.client import DhenaraAPIError
 from dhenara.types.base import BaseEnum, BaseModel
 
 
