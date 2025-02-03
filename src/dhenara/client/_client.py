@@ -26,6 +26,25 @@ class Client(_ClientBase):
     Supports both synchronous and asynchronous operations with proper resource management.
     """
 
+    __version__ = "1.0.1"
+
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.dhenara.com",
+        timeout: int = 30,
+        max_retries: int = 3,
+        ep_version: str | None = "v1",
+    ) -> None:
+        super().__init__(
+            api_key=api_key,
+            version=self.__version__,
+            ep_version=ep_version,
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=max_retries,
+        )
+
     @pydantic_endpoint(DhenRunEndpointCreate)
     def create_endpoint(
         self,
@@ -41,7 +60,7 @@ class Client(_ClientBase):
         )
         payload = api_request.model_dump()
 
-        url = self.url_settings.get_full_url("devtime_dhenrun_ep")
+        url = self._url_settings.get_full_url("devtime_dhenrun_ep")
         response = self._sync_client.post(url=url, json=payload)
         return self._handle_response(response, DhenRunEndpoint)
 

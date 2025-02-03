@@ -20,7 +20,9 @@ class UrlSettings(BaseModel):
     base_url: str = Field(
         description="Base url",
     )
-
+    ep_version: str | None = Field(
+        description="version string in url",
+    )
     app_route: str = Field(
         default="api",
         description="Base application route segment",
@@ -61,8 +63,9 @@ class UrlSettings(BaseModel):
         if not urlsplit(cleaned_base).scheme:
             raise ValueError("Invalid base URL: missing scheme (http:// or https://)")
 
+        version_str = f"{self.ep_version}" if self.ep_version else ""
         path_url = self.get_path_url(url_name)
-        return urljoin(f"{cleaned_base}/", path_url)
+        return urljoin(f"{cleaned_base}/{version_str}/", path_url)
 
     class Config:
         """Pydantic model configuration."""

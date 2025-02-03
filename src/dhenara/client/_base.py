@@ -27,13 +27,17 @@ class _ClientBase:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.dhenara.com",
+        base_url: str,
+        version: str,
+        ep_version: str | None,
         timeout: int = 30,
         max_retries: int = 3,
     ) -> None:
         """Initialize the API client."""
-        self.config = ClientConfig(
+        self._config = ClientConfig(
             api_key=api_key,
+            version=version,
+            ep_version=ep_version,
             base_url=base_url.rstrip("/"),
             timeout=timeout,
             max_retries=max_retries,
@@ -49,13 +53,13 @@ class _ClientBase:
             headers=self._get_headers(),
             follow_redirects=True,
         )
-        self.url_settings = UrlSettings(base_url=base_url)
+        self._url_settings = UrlSettings(base_url=base_url, ep_version=ep_version)
 
     def _get_headers(self) -> dict[str, str]:
         """Get the headers for API requests."""
         return {
-            # "Authorization": f"Bearer {self.config.api_key}",
-            "X-Api-Key": self.config.api_key,
+            # "Authorization": f"Bearer {self._config.api_key}",
+            "X-Api-Key": self._config.api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": "dhenara-python-sdk/1.0",
@@ -115,7 +119,7 @@ class _ClientBase:
             action=action,
         )
 
-        url = self.url_settings.get_full_url(endpoint)
+        url = self._url_settings.get_full_url(endpoint)
         response = self._sync_client.post(
             url=url,
             json=api_request.model_dump(),
@@ -135,7 +139,7 @@ class _ClientBase:
             action=action,
         )
 
-        url = self.url_settings.get_full_url(endpoint)
+        url = self._url_settings.get_full_url(endpoint)
         response = await self._async_client.post(
             url=url,
             json=api_request.model_dump(),
