@@ -6,7 +6,7 @@ import httpx
 from typing_extensions import Self  # for Python <3.11
 
 from dhenara.client import DhenaraAPIError, DhenaraConnectionError, UrlSettings
-from dhenara.client.types import ClientConfig
+from dhenara.client._types import ClientConfig
 from dhenara.types.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,

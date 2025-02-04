@@ -1,8 +1,8 @@
-from typing import Any, NewType
 
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseEnum, BaseModel
+from dhenara.types.external_api import ChatResponse, ExternalApiCallStatus, ImageResponse
 from dhenara.types.flow import UserInput
 
 
@@ -186,10 +186,6 @@ class FlowNodeOutputActionEnum(BaseEnum):
     send_push_notification = "send_push_notification"
 
 
-# TODO: Match with Dataclasses in tsg lib
-FlowNodeOutputResult = NewType("FlowNodeOutputResult", dict)
-
-
 # -----------------------------------------------------------------------------
 class FlowExecutionStatusEnum(BaseEnum):
     PENDING = "pending"
@@ -215,15 +211,13 @@ class FlowNodeOutput(BaseModel):
         metadata: Optional metadata dictionary
     """
 
-    results: list[FlowNodeOutputResult | Any] = Field(  # TODO: Remove once TsgDcAiModelChatResponse classes are ported
-        default_factory=list,
-        description="List of outputs ",
-        min_items=0,
+    api_call_response: ChatResponse | ImageResponse = Field(
+        ...,
+        description="External Api call Response",
     )
-    errors: list[str] = Field(
-        default_factory=list,
-        description="List of outputs ",
-        min_items=0,
+    api_call_status: ExternalApiCallStatus = Field(
+        ...,
+        description="External Api call Status",
     )
     internal_data_objs: list[InternalDataObjParams] = Field(
         default_factory=list,

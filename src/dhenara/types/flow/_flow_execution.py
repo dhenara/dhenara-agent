@@ -10,7 +10,6 @@ from dhenara.types.flow import FlowDefinition, FlowExecutionStatusEnum, FlowNode
 class FlowNodeExecutionResult(BaseModel):
     node_identifier: FlowNodeIdentifier
     status: FlowNodeExecutionStatusEnum
-    status_info: Any | None  # TODO: convert dataclass/ai_model
     node_input: FlowNodeInput
     node_output: FlowNodeOutput
     created_at: datetime
