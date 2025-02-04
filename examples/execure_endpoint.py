@@ -1,7 +1,5 @@
-import asyncio
-
 from dhenara.client import Client
-from dhenara.types import FlowExecutionStatus
+from dhenara.types import FlowNodeInput, UserInput
 
 
 def get_api_key():
@@ -10,18 +8,49 @@ def get_api_key():
 
 
 api_key = get_api_key()
-workspace_id = "aaa"
+
+_refnum = "22182349"
 
 
+def main():
+    client = Client(
+        api_key=api_key,
+        base_url="http://localhost:8000",
+    )
+
+    user_input = UserInput(
+        content="What is ephatha",
+    )
+    node_input = FlowNodeInput(user_input=user_input)
+    # Execute endpoint normally
+    response = client.execute_endpoint(
+        refnum=_refnum,
+        node_input=node_input,
+    )
+
+    if response.is_success:
+        execution = response.data
+        print(f"Execution ID: {execution.execution_id}")
+        print(f"Status: {execution.status}")
+    else:
+        print(f"Error: {response.first_message.message}")
+
+
+if __name__ == "__main__":
+    main()
+
+"""
 async def main():
     async with Client(
         api_key=api_key,
         base_url="http://localhost:8000",
     ) as client:
-        # Execute flow normally
-        response = await client.execute_flow_async(
-            flow_id="flow123",
-            input_data={"prompt": "Hello"},
+        endpoint_id = ("endpoint123",)
+
+        # Execute endpoint normally
+        response = await client.execute_endpoint_async(
+            endpoint_id=endpoint_id,
+            input_data={"prompt": "What is ephatha?"},
         )
 
         if response.is_success:
@@ -31,24 +60,7 @@ async def main():
         else:
             print(f"Error: {response.first_message.message}")
 
-        # Execute flow with streaming
-        async for chunk in await client.execute_flow_async(
-            flow_id="flow123",
-            input_data={"prompt": "Hello"},
-            stream=True,
-        ):
-            print(chunk.decode(), end="", flush=True)
-
-        # Check status
-        status_response = await client.get_flow_status_async("execution123")
-        if status_response.is_success:
-            status = status_response.data
-            print(f"Execution status: {status.status}")
-            if status.status == FlowExecutionStatus.COMPLETED:
-                print(f"Result: {status.result}")
-            elif status.status == FlowExecutionStatus.FAILED:
-                print(f"Error: {status.error}")
-
 
 if __name__ == "__main__":
     asyncio.run(main())
+"""

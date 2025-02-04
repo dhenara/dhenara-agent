@@ -1,3 +1,4 @@
+import logging
 from types import TracebackType
 from typing import Any, TypeVar
 
@@ -11,10 +12,13 @@ from dhenara.types.api import (
     ApiRequestActionTypeEnum,
     ApiResponse,
     ApiResponseMessageStatusCode,
+    ApiResponseStatus,
 )
 from dhenara.types.base import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
+
+logger = logging.getLogger(__name__)
 
 
 class _ClientBase:
@@ -70,24 +74,45 @@ class _ClientBase:
         response_data: dict[str, Any],
         model_class: type[T] | None = None,
     ) -> ApiResponse[T]:
-        """
-        Parse raw response into ApiResponse object.
+        """Parse raw response data into a typed ApiResponse object.
+
+        This function handles the conversion of raw API response data into a structured
+        ApiResponse object, optionally validating the data payload against a specified
+        Pydantic model.
 
         Args:
-            response_data: Raw response data from the API
-            model_class: Optional Pydantic model class for data validation
+            response_data: Raw response dictionary from the API
+            model_class: Optional Pydantic model class for data payload validation
 
         Returns:
-            Parsed API response
+            ApiResponse[T]: Parsed and validated API response object
 
         Raises:
-            DhenaraAPIError: If response parsing fails
+            DhenaraAPIError: If response parsing or validation fails
+
+        Example:
+            ```python
+            response_data = {"status": "success", "data": {"id": 1, "name": "test"}, "messages": []}
+            result = _parse_response(response_data, UserModel)
+            ```
         """
         try:
-            if response_data.get("data") and model_class:
-                parsed_data = model_class.model_validate(response_data["data"])
-                response_data["data"] = parsed_data
-            return ApiResponse[T].model_validate(response_data)
+            status_str = response_data.get("status", None)
+            status = ApiResponseStatus(status_str) if status_str else None
+            if status in [ApiResponseStatus.SUCCESS, ApiResponseStatus.PENDING]:
+                if response_data.get("data") and model_class:
+                    parsed_data = model_class.model_validate(response_data["data"])
+                    response_data["data"] = parsed_data
+                return ApiResponse[T].model_validate(response_data)
+            elif status in [ApiResponseStatus.ERROR, ApiResponseStatus.FAIL]:
+                return ApiResponse.model_validate(response_data)
+            else:
+                raise DhenaraAPIError(
+                    message=f"Invalid response data: {response_data}",
+                    status_code=ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
+                    response=response_data,
+                )
+
         except ValueError as e:
             raise DhenaraAPIError(
                 message=f"Failed to parse API response: {e}",
@@ -154,7 +179,11 @@ class _ClientBase:
         """Handle API response and raise appropriate exceptions."""
         try:
             response.raise_for_status()
-            return self._parse_response(response.json(), model_class)
+            parsed_response = self._parse_response(response.json(), model_class)
+            error_msg = parsed_response.check_for_status_errors()
+            if error_msg:
+                logger.error(error_msg)
+            return parsed_response
         except httpx.HTTPStatusError as e:
             error_detail = {}
             try:

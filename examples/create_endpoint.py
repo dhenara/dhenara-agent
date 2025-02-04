@@ -10,11 +10,9 @@ def get_api_key():
 
 
 api_key = get_api_key()
-workspace_id = "aaa"
 
 
 async def main():
-    # Create developer client
     client = Client(
         api_key=api_key,
         base_url="http://localhost:8000",
@@ -36,16 +34,12 @@ async def main():
             allowed_domains=["localhost:8000"],
         )
 
-        print(f"response: {response}")
         if response.is_success:
             endpoint = response.data
-            print(f"Endpoint created: {endpoint}")
+            print(f"Endpoint created with reference number {endpoint.reference_number}: Endpoint is : {endpoint}")
         else:
             print(f"Failed to create endpoint: {response.first_message.message}")
 
-        ## List all endpoints
-        # endpoints = client.list_endpoints(workspace_id=workspace_id)
-        # print(f"Available endpoints: {json.dumps(endpoints, indent=2)}")
     except Exception as e:
         print(f"Development setup failed: {e}")
     finally:

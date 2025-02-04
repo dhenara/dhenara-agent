@@ -8,11 +8,13 @@ from dhenara.types.api import (
     ApiRequestActionTypeEnum,
     ApiResponse,
     ApiResponseMessageStatusCode,
-    DhenRunEndpoint,
-    DhenRunEndpointCreate,
+    DhenRunEndpointReq,
+    DhenRunEndpointRes,
+    ExecuteDhenRunEndpointReq,
+    ExecuteDhenRunEndpointRes,
 )
 from dhenara.types.base import BaseModel, pydantic_endpoint
-from dhenara.types.flow import FlowExecutionResult
+from dhenara.types.flow import FlowExecutionResult, FlowNodeInput
 
 from ._base import _ClientBase
 
@@ -45,16 +47,16 @@ class Client(_ClientBase):
             max_retries=max_retries,
         )
 
-    @pydantic_endpoint(DhenRunEndpointCreate)
+    @pydantic_endpoint(DhenRunEndpointReq)
     def create_endpoint(
         self,
-        model_instance: DhenRunEndpointCreate,
-    ) -> ApiResponse[DhenRunEndpoint]:
+        model_instance: DhenRunEndpointReq,
+    ) -> ApiResponse[DhenRunEndpointRes]:
         """Create a new DhenRun endpoint."""
         data = model_instance.model_dump()
 
         # Ensure the response data is JSON serializable
-        api_request = ApiRequest[DhenRunEndpointCreate](
+        api_request = ApiRequest[DhenRunEndpointReq](
             data=data,
             action=ApiRequestActionTypeEnum.create,
         )
@@ -62,38 +64,61 @@ class Client(_ClientBase):
 
         url = self._url_settings.get_full_url("devtime_dhenrun_ep")
         response = self._sync_client.post(url=url, json=payload)
-        return self._handle_response(response, DhenRunEndpoint)
+        return self._handle_response(response, DhenRunEndpointRes)
 
-    def execute_flow(
+    def execute_endpoint(
         self,
-        flow_id: str,
-        input_data: Any,
+        refnum: str,
+        node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
     ) -> Union[ApiResponse[FlowExecutionResult], AsyncGenerator[bytes, None]]:
-        """Execute a flow synchronously"""
+        """Execute a endpoint synchronously.
 
-        url = self.url_settinurl_settinggs.get_full_url("runtime_dhenrun_ep")
+        Args:
+            refnum: Reference number for the execution
+            node_input: Input data as either FlowNodeInput model or dictionary
+            stream: Whether to stream the response (async only)
+
+        Returns:
+            ApiResponse containing FlowExecutionResult or AsyncGenerator for streaming
+
+        Raises:
+            ValueError: If streaming is attempted in sync mode
+        """
+
         if stream:
             raise ValueError("Streaming is only supported in async mode")
 
-        response = self._sync_client.post(
-            url,
-            json={"input": input_data},
-        )
-        return self._handle_response(response, FlowExecutionResult)
+        # Convert input to dict if it's a Pydantic model
+        input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
 
-    async def execute_flow_async(
+        data = {
+            "refnum": refnum,
+            "input": input_data,
+        }
+
+        api_request = ApiRequest[ExecuteDhenRunEndpointReq](
+            data=data,
+            action=ApiRequestActionTypeEnum.run,
+        )
+        payload = api_request.model_dump()
+
+        url = self._url_settings.get_full_url("runtime_dhenrun_ep")
+        response = self._sync_client.post(url=url, json=payload)
+        return self._handle_response(response, ExecuteDhenRunEndpointRes)
+
+    async def execute_endpoint_async(
         self,
-        flow_id: str,
+        endpoint_id: str,
         input_data: Any,
         stream: bool = False,
     ) -> Union[ApiResponse[FlowExecutionResult], AsyncIterator[bytes]]:
         """
-        Execute a flow asynchronously.
+        Execute a endpoint asynchronously.
 
         Args:
-            flow_id: The ID of the flow to execute
-            input_data: The input data for the flow
+            endpoint_id: The ID of the endpoint to execute
+            input_data: The input data for the endpoint
             stream: Whether to stream the response
 
         Returns:
@@ -101,7 +126,7 @@ class Client(_ClientBase):
         """
         if not stream:
             response = await self._async_client.post(
-                f"{self.config.base_url}/api/flows/{flow_id}/execute/",
+                f"{self.config.base_url}/api/endpoints/{endpoint_id}/execute/",
                 json={"input": input_data},
             )
             return self._handle_response(response, FlowExecutionResult)
@@ -109,7 +134,7 @@ class Client(_ClientBase):
         async def stream_response() -> AsyncGenerator[bytes, None]:
             async with self._async_client.stream(
                 "POST",
-                f"{self.config.base_url}/api/flows/{flow_id}/execute/",
+                f"{self.config.base_url}/api/endpoints/{endpoint_id}/execute/",
                 json={"input": input_data},
             ) as response:
                 if response.status_code != 200:
@@ -129,12 +154,12 @@ class Client(_ClientBase):
 
         return stream_response()
 
-    def get_flow_status(self, execution_id: str) -> ApiResponse[FlowExecutionResult]:
+    def get_endpoint_status(self, execution_id: str) -> ApiResponse[FlowExecutionResult]:
         """
-        Get the status of a flow execution
+        Get the status of a endpoint execution
 
         Args:
-            execution_id: The ID of the flow execution to check
+            execution_id: The ID of the endpoint execution to check
 
         Returns:
             ApiResponse containing the FlowExecutionResult
@@ -144,15 +169,15 @@ class Client(_ClientBase):
         )
         return self._handle_response(response, FlowExecutionResult)
 
-    async def get_flow_status_async(
+    async def get_endpoint_status_async(
         self,
         execution_id: str,
     ) -> ApiResponse[FlowExecutionResult]:
         """
-        Get the status of a flow execution asynchronously
+        Get the status of a endpoint execution asynchronously
 
         Args:
-            execution_id: The ID of the flow execution to check
+            execution_id: The ID of the endpoint execution to check
 
         Returns:
             ApiResponse containing the FlowExecutionResult

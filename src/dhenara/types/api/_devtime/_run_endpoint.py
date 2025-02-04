@@ -42,13 +42,23 @@ class DhenRunEndpointBase(BaseModel):
 
 
 # -----------------------------------------------------------------------------
-class DhenRunEndpointCreate(DhenRunEndpointBase):
+class DhenRunEndpointReq(DhenRunEndpointBase):
     """
     Model for creating a new Run Endpoint.
 
     This model is used when creating a new endpoint and includes either
     a flow_id reference or the complete flow data.
     """
+
+    id: str | None = Field(
+        default=None,
+        description="Unique identifier for the endpoint",
+    )
+
+    reference_number: str | None = Field(
+        default=None,
+        description="Unique reference_number for the endpoint",
+    )
 
     flow_id: str | None = Field(
         default=None,
@@ -62,7 +72,7 @@ class DhenRunEndpointCreate(DhenRunEndpointBase):
     )
 
     @model_validator(mode="after")
-    def validate_flow_references(self) -> "DhenRunEndpointCreate":
+    def validate_flow_references(self) -> "DhenRunEndpointReq":
         """Validate that either flow or flow_id is provided, but not both."""
         if self.flow and self.flow_id:
             raise ValueError("Cannot specify both 'flow' and 'flow_id'")
@@ -72,7 +82,7 @@ class DhenRunEndpointCreate(DhenRunEndpointBase):
 
 
 # -----------------------------------------------------------------------------
-class DhenRunEndpoint(DhenRunEndpointBase):
+class DhenRunEndpointRes(DhenRunEndpointBase):
     """
     Complete Run Endpoint model representing stored data.
 
@@ -83,6 +93,11 @@ class DhenRunEndpoint(DhenRunEndpointBase):
     id: str = Field(
         ...,
         description="Unique identifier for the endpoint",
+    )
+
+    reference_number: str = Field(
+        ...,
+        description="Unique reference_number for the endpoint",
     )
 
     workspace_id: str = Field(

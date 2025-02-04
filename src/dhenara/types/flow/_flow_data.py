@@ -1,6 +1,7 @@
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseEnum, BaseModel
+from dhenara.types.flow import UserInput
 
 
 class InternalDataObjectTypeEnum(BaseEnum):
@@ -118,26 +119,6 @@ class FlowNodeInputActionEnum(BaseEnum):
     delete_conversation_node = "delete_conversation_node"
 
 
-class UserInput(BaseModel):
-    """
-    User input model for AI model calls.
-
-    Attributes:
-        text_content: Optional question text
-        options: Optional dictionary of AI model specific options
-    """
-
-    text_content: str | None = Field(
-        default=None,
-        description="Question text for the AI model",
-    )
-    options: dict | None = Field(
-        default=None,
-        description="Additional options for the AI model",
-    )
-    # TODO files:
-
-
 class FlowNodeInput(BaseModel):
     """
     Input model for execution nodes with validation rules for different actions.
@@ -155,16 +136,16 @@ class FlowNodeInput(BaseModel):
     )
 
     internal_data_objs: list[InternalDataObjParams] = Field(
-        ...,
+        default_factory=list,
         description="List of internal data objects",
     )
     resources: list[Resource] = Field(
-        ...,
+        default_factory=list,
         description="List of resources to be used",
     )
-    action: FlowNodeInputActionEnum = Field(
-        ...,
-        description="Type of API action to perform",
+    action: FlowNodeInputActionEnum | None = Field(
+        default=None,
+        description="Type of API action to perform, if any",
     )
 
     # NOTE:

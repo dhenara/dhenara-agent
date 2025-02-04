@@ -19,6 +19,8 @@ class ApiRequestActionTypeEnum(BaseEnum):
     delete = "delete"
     activate = "activate"
     deactivate = "deactivate"
+    # Run
+    run = "run"
 
 
 # -----------------------------------------------------------------------------

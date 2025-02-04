@@ -73,18 +73,20 @@ class ApiResponse(BaseModel, Generic[T]):
     def first_message(self) -> Optional[ApiResponseMessage]:
         return self.messages[0] if self.messages else None
 
-    def raise_for_status(self) -> None:
+    def check_for_status_errors(self) -> None:
         """Raises an exception if the response indicates an error"""
         if not self.is_success:
-            message = self.first_message
-            if message:
-                raise DhenaraAPIError(
-                    message=message.message,
-                    status_code=message.status_code,
-                    response=message.message_data or {},
-                )
+            if self.first_message:
+                return self.first_message
+            return "Unknown error occurred"
+        return None
+
+    def raise_for_status(self) -> None:
+        """Raises an exception if the response indicates an error"""
+        error_msg = self.check_for_status_errors()
+        if error_msg:
             raise DhenaraAPIError(
                 message="Unknown error occurred",
-                status_code=ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
+                status_code=self.first_message.status_code or ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
                 response={},
             )
