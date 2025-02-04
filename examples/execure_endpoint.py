@@ -29,9 +29,8 @@ def main():
     )
 
     if response.is_success:
-        execution = response.data
-        print(f"Execution ID: {execution.execution_id}")
-        print(f"Status: {execution.status}")
+        # execution = response.data
+        print(f"Resposne is: {response}")
     else:
         print(f"Error: {response.first_message.message}")
 

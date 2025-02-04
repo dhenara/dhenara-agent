@@ -1,7 +1,7 @@
 import asyncio
 
 from dhenara.client import Client
-from dhenara.types import FlowExecutionStatus
+from dhenara.types import FlowExecutionStatusEnum
 
 
 def get_api_key():
@@ -32,9 +32,9 @@ async def main():
         if status_response.is_success:
             status = status_response.data
             print(f"Execution status: {status.status}")
-            if status.status == FlowExecutionStatus.COMPLETED:
+            if status.status == FlowExecutionStatusEnum.COMPLETED:
                 print(f"Result: {status.result}")
-            elif status.status == FlowExecutionStatus.FAILED:
+            elif status.status == FlowExecutionStatusEnum.FAILED:
                 print(f"Error: {status.error}")
 
 

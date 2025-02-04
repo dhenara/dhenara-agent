@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, NewType
 
 from pydantic import Field, field_validator, model_validator
 
@@ -158,6 +158,9 @@ class PromptOptionsSettings(BaseModel):
     }
 
 
+FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
+
+
 class FlowNode(BaseModel):
     """Model representing a single node in the flow.
 
@@ -172,7 +175,7 @@ class FlowNode(BaseModel):
         subflow: Optional nested flow for complex operations
     """
 
-    identifier: str = Field(
+    identifier: FlowNodeIdentifier = Field(
         ...,
         description="Unique human readable identifier for the node",
         min_length=1,

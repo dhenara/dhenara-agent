@@ -73,8 +73,8 @@ class UserInput(BaseModel):
         max_length=1000,  # Maximum number of JSONL entries
     )
 
-    options: dict[str, Any] | None = Field(
-        default=None,
+    options: dict[str, Any] = Field(
+        default_factory=dict,
         description="Configuration options for the AI model behavior",
         example={
             "temperature": 0.7,

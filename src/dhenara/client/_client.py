@@ -14,7 +14,7 @@ from dhenara.types.api import (
     ExecuteDhenRunEndpointRes,
 )
 from dhenara.types.base import BaseModel, pydantic_endpoint
-from dhenara.types.flow import FlowExecutionResult, FlowNodeInput
+from dhenara.types.flow import FlowNodeInput
 
 from ._base import _ClientBase
 
@@ -71,7 +71,7 @@ class Client(_ClientBase):
         refnum: str,
         node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
-    ) -> Union[ApiResponse[FlowExecutionResult], AsyncGenerator[bytes, None]]:
+    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncGenerator[bytes, None]]:
         """Execute a endpoint synchronously.
 
         Args:
@@ -80,7 +80,7 @@ class Client(_ClientBase):
             stream: Whether to stream the response (async only)
 
         Returns:
-            ApiResponse containing FlowExecutionResult or AsyncGenerator for streaming
+            ApiResponse containing ExecuteDhenRunEndpointRes or AsyncGenerator for streaming
 
         Raises:
             ValueError: If streaming is attempted in sync mode
@@ -112,7 +112,7 @@ class Client(_ClientBase):
         endpoint_id: str,
         input_data: Any,
         stream: bool = False,
-    ) -> Union[ApiResponse[FlowExecutionResult], AsyncIterator[bytes]]:
+    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncIterator[bytes]]:
         """
         Execute a endpoint asynchronously.
 
@@ -122,14 +122,14 @@ class Client(_ClientBase):
             stream: Whether to stream the response
 
         Returns:
-            Either an ApiResponse with FlowExecutionResult or an async iterator of bytes for streaming
+            Either an ApiResponse with ExecuteDhenRunEndpointRes or an async iterator of bytes for streaming
         """
         if not stream:
             response = await self._async_client.post(
                 f"{self.config.base_url}/api/endpoints/{endpoint_id}/execute/",
                 json={"input": input_data},
             )
-            return self._handle_response(response, FlowExecutionResult)
+            return self._handle_response(response, ExecuteDhenRunEndpointRes)
 
         async def stream_response() -> AsyncGenerator[bytes, None]:
             async with self._async_client.stream(
@@ -154,7 +154,7 @@ class Client(_ClientBase):
 
         return stream_response()
 
-    def get_endpoint_status(self, execution_id: str) -> ApiResponse[FlowExecutionResult]:
+    def get_endpoint_status(self, execution_id: str) -> ApiResponse[ExecuteDhenRunEndpointRes]:
         """
         Get the status of a endpoint execution
 
@@ -162,17 +162,17 @@ class Client(_ClientBase):
             execution_id: The ID of the endpoint execution to check
 
         Returns:
-            ApiResponse containing the FlowExecutionResult
+            ApiResponse containing the ExecuteDhenRunEndpointRes
         """
         response = self._sync_client.get(
             f"{self.config.base_url}/api/executions/{execution_id}/status/",
         )
-        return self._handle_response(response, FlowExecutionResult)
+        return self._handle_response(response, ExecuteDhenRunEndpointRes)
 
     async def get_endpoint_status_async(
         self,
         execution_id: str,
-    ) -> ApiResponse[FlowExecutionResult]:
+    ) -> ApiResponse[ExecuteDhenRunEndpointRes]:
         """
         Get the status of a endpoint execution asynchronously
 
@@ -180,9 +180,9 @@ class Client(_ClientBase):
             execution_id: The ID of the endpoint execution to check
 
         Returns:
-            ApiResponse containing the FlowExecutionResult
+            ApiResponse containing the ExecuteDhenRunEndpointRes
         """
         response = await self._async_client.get(
             f"{self.config.base_url}/api/executions/{execution_id}/status/",
         )
-        return self._handle_response(response, FlowExecutionResult)
+        return self._handle_response(response, ExecuteDhenRunEndpointRes)

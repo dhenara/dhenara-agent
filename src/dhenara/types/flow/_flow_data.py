@@ -1,3 +1,5 @@
+from typing import Any, NewType
+
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseEnum, BaseModel
@@ -166,14 +168,6 @@ class FlowNodeInput(BaseModel):
         return self
 
 
-class FlowNodeExecutionStatusEnum(BaseEnum):
-    """Enumeration of possible execution statuses."""
-
-    success = "success"
-    failed = "failed"
-    pending = "pending"
-
-
 class FlowNodeOutputActionEnum(BaseEnum):
     """Enumeration of available API call actions."""
 
@@ -192,6 +186,24 @@ class FlowNodeOutputActionEnum(BaseEnum):
     send_push_notification = "send_push_notification"
 
 
+# TODO: Match with Dataclasses in tsg lib
+FlowNodeOutputResult = NewType("FlowNodeOutputResult", dict)
+
+
+# -----------------------------------------------------------------------------
+class FlowExecutionStatusEnum(BaseEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+# -----------------------------------------------------------------------------
+# Instead of inheritance, use type alias
+FlowNodeExecutionStatusEnum = FlowExecutionStatusEnum
+
+
 class FlowNodeOutput(BaseModel):
     """
     Output model for execution nodes.
@@ -203,27 +215,28 @@ class FlowNodeOutput(BaseModel):
         metadata: Optional metadata dictionary
     """
 
-    raw_output: list[str] = Field(
-        ...,
-        description="List of raw output strings",
+    results: list[FlowNodeOutputResult | Any] = Field(  # TODO: Remove once TsgDcAiModelChatResponse classes are ported
+        default_factory=list,
+        description="List of outputs ",
+        min_items=0,
+    )
+    errors: list[str] = Field(
+        default_factory=list,
+        description="List of outputs ",
         min_items=0,
     )
     internal_data_objs: list[InternalDataObjParams] = Field(
-        ...,
+        default_factory=list,
         description="List of internal data objects",
         min_items=0,
     )
 
-    action: FlowNodeOutputActionEnum = Field(
-        ...,
-        description="Type of action to perform",
-    )
+    # action: FlowNodeOutputActionEnum = Field(
+    #    ...,
+    #    description="Type of action to perform",
+    # )
 
-    execution_status: FlowNodeExecutionStatusEnum = Field(
-        ...,
-        description="Status of the execution",
-    )
-    metadata: dict | None = Field(
-        default=None,
+    metadata: dict = Field(
+        default_factory=dict,
         description="Additional metadata about the execution",
     )
