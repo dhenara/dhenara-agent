@@ -72,7 +72,7 @@ SIMPLE_CHATBOT_FLOW = {
                 ],
                 "ai_settings": {
                     "system_instructions": [
-                        "You are a summarizer which generate a title text under 60 characters from the promts",
+                        "You are a summarizer which generate a title text under 60 characters from the prompts",
                     ],
                     "node_prompt": {
                         "pre_prompt": None,

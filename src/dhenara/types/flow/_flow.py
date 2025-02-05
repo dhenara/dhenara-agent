@@ -283,7 +283,7 @@ class FlowDefinition(BaseModel):
 
     # node_prompt: NodePrompt | None = Field(
     #    default=None,
-    #    description="Flow wide promts generation sinstruction/option parameters",
+    #    description="Flow wide prompts generation sinstruction/option parameters",
     # )
 
     # ai_settings: AISettings | None = Field(

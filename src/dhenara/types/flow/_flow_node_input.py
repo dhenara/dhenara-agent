@@ -118,7 +118,7 @@ class AISettings(BaseModel):
 
     node_prompt: NodePrompt | None = Field(
         default=None,
-        description="Node specific promts generation sinstruction/option parameters",
+        description="Node specific prompts generation sinstruction/option parameters",
     )
     options_overrides: dict[str, Any] | None = Field(
         default=None,
