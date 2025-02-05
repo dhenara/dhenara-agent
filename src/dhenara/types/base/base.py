@@ -13,6 +13,15 @@ class BaseEnum(str, Enum):
     def __str__(self):
         return self.value
 
+    @classmethod
+    def values(cls) -> set[str]:
+        """Get all values.
+
+        Returns:
+            set[str]: Set of all values
+        """
+        return {member.value for member in cls}
+
 
 class BaseModel(PydanticBaseModel):
     """Base model class with enhanced configuration and serialization capabilities.

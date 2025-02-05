@@ -56,7 +56,7 @@ class ExternalApiCallStatus(BaseModel):
     )
 
     @property
-    def completed_successfully(self) -> bool:
+    def successful(self) -> bool:
         """Check if the API call completed successfully."""
         return self.status == ExternalApiCallStatusEnum.RESPONSE_RECEIVED_SUCCESS
 

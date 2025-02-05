@@ -1,24 +1,19 @@
-
 from pydantic import Field, model_validator
 
-from dhenara.types.base import BaseEnum, BaseModel
-from dhenara.types.external_api import ChatResponse, ExternalApiCallStatus, ImageResponse
-from dhenara.types.flow import UserInput
-
-
-class InternalDataObjectTypeEnum(BaseEnum):
-    """Enumeration of available internal data model types."""
-
-    conversation = "conversation"
-    conversation_node = "conversation_node"
-    conversation_space = "conversation_space"
-
-
-class InternalDataObjParamsScopeEnum(BaseEnum):
-    """Enumeration of object scope types for internal data."""
-
-    current = "current"
-    parent = "parent"
+from dhenara.types.base import BaseModel
+from dhenara.types.external_api import (
+    ChatResponse,
+    ExternalApiCallStatus,
+    ImageResponse,
+)
+from dhenara.types.flow import (
+    FlowExecutionStatusEnum,
+    FlowNodeUserInputActionEnum,
+    InternalDataObjectTypeEnum,
+    InternalDataObjParamsScopeEnum,
+    ResourceObjectTypeEnum,
+    UserInput,
+)
 
 
 class InternalDataObjParams(BaseModel):
@@ -53,14 +48,6 @@ class InternalDataObjParams(BaseModel):
             if self.object_scope != InternalDataObjParamsScopeEnum.current:
                 raise ValueError(f"{self.object_type} must have 'current' scope")
         return self
-
-
-class ResourceObjectTypeEnum(BaseEnum):
-    """Enumeration of available resource model types."""
-
-    ai_model_endpoint = "ai_model_endpoint"
-    rag_endpoint = "rag_endpoint"
-    search_endpoint = "search_endpoint"
 
 
 RESOURCE_MODEL_QUERY_MAPPING = {
@@ -113,14 +100,6 @@ class Resource(BaseModel):
         return self
 
 
-class FlowNodeInputActionEnum(BaseEnum):
-    """Enumeration of available API call actions."""
-
-    generate_conversation_node = "generate_conversation_node"
-    regenerate_conversation_node = "regenerate_conversation_node"
-    delete_conversation_node = "delete_conversation_node"
-
-
 class FlowNodeInput(BaseModel):
     """
     Input model for execution nodes with validation rules for different actions.
@@ -145,10 +124,6 @@ class FlowNodeInput(BaseModel):
         default_factory=list,
         description="List of resources to be used",
     )
-    action: FlowNodeInputActionEnum | None = Field(
-        default=None,
-        description="Type of API action to perform, if any",
-    )
 
     # NOTE:
     # `is_default` validations for resoures are added inside flow models,
@@ -158,7 +133,7 @@ class FlowNodeInput(BaseModel):
     def validate_action_requirements(self) -> "FlowNodeInput":
         node_objects = [obj for obj in self.internal_data_objs if obj.object_type == InternalDataObjectTypeEnum.conversation_node]
 
-        if self.action == FlowNodeInputActionEnum.regenerate_conversation_node:
+        if self.user_input.action == FlowNodeUserInputActionEnum.regenerate_conversation_node:
             current_nodes = [obj for obj in node_objects if obj.object_scope == InternalDataObjParamsScopeEnum.current]
             parent_nodes = [obj for obj in node_objects if obj.object_scope == InternalDataObjParamsScopeEnum.parent]
 
@@ -166,33 +141,6 @@ class FlowNodeInput(BaseModel):
                 raise ValueError("Regenerate action requires exactly one current and one parent node")
 
         return self
-
-
-class FlowNodeOutputActionEnum(BaseEnum):
-    """Enumeration of available API call actions."""
-
-    def __str__(self):
-        return self.value
-
-    # Conversation Node Actions
-    save_to_conversation_node = "save_to_conversation_node"
-    update_conversation_node_title = "update_conversation_node_title"
-    delete_conversation_node = "delete_conversation_node"
-    # Response
-    send_result = "send_result"
-    send_status = "send_status"
-    send_result_and_status = "send_result_and_status"
-    send_ack = "send_ack"
-    send_push_notification = "send_push_notification"
-
-
-# -----------------------------------------------------------------------------
-class FlowExecutionStatusEnum(BaseEnum):
-    PENDING = "pending"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 # -----------------------------------------------------------------------------

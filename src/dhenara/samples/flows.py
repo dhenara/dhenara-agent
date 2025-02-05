@@ -2,11 +2,15 @@ SIMPLE_CHATBOT_FLOW = {
     "name": "Simple Chatbot Flow",
     "description": "This flow will call a text-generation AI model in sync mode and return output",
     "definition": {
+        "system_instructions": [
+            "Always respond in markdown format.",
+        ],
+        "execution_strategy": "sequential",
         "nodes": [
             {
-                "identifier": "ai_model_call_1",
-                "type": "ai_model_sync",
                 "order": 0,
+                "identifier": "ai_model_call_1",
+                "type": "ai_model_call",
                 "resources": [
                     {
                         "object_type": "ai_model_endpoint",
@@ -30,13 +34,35 @@ SIMPLE_CHATBOT_FLOW = {
                         "query": {"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
                     },
                 ],
-                "prompt_options_settings": None,
-                "output_actions": ["save_to_conversation_node", "send_result_and_status"],
+                "ai_settings": {
+                    "system_instructions": [],
+                    "node_prompt": None,
+                    "options_overrides": None,
+                },
+                "input_settings": {
+                    "input_source": {
+                        "user_input_sources": ["full"],
+                        "node_output_sources": [],
+                    },
+                },
+                "storage_settings": {
+                    "save": {
+                        "conversation": ["title"],
+                        "conversation_node": ["inputs", "outputs"],
+                    },
+                    "delete": {},
+                },
+                "response_settings": {
+                    "enabled": True,
+                    "protocol": "http",  # http_streaming
+                },
+                "pre_actions": [],
+                "post_actions": [],
             },
             {
-                "identifier": "generate_conversation_title",
-                "type": "ai_model_sync",
                 "order": 1,
+                "identifier": "generate_conversation_title",
+                "type": "ai_model_call",
                 "resources": [
                     {
                         "object_type": "ai_model_endpoint",
@@ -44,24 +70,39 @@ SIMPLE_CHATBOT_FLOW = {
                         "query": {"ai_model__api_model_name": "gpt-4o-mini"},
                     },
                 ],
-                "prompt_options_settings": {
+                "ai_settings": {
                     "system_instructions": [
                         "You are a summarizer which generate a title text under 60 characters from the promts",
                     ],
-                    "pre_prompt": None,
-                    "prompt": [
-                        "Summarize in plane text under 60 characters.",
-                    ],
-                    "options_overrides": {},
+                    "node_prompt": {
+                        "pre_prompt": None,
+                        "prompt": [
+                            "Summarize in plane text under 60 characters.",
+                        ],
+                        "post_prompt": None,
+                    },
+                    "options_overrides": None,
                 },
-                "output_actions": ["update_conversation_node_title", "send_push_notification"],
+                "input_settings": {
+                    "input_source": {
+                        "user_input_sources": [],
+                        "node_output_sources": ["previous"],
+                    },
+                },
+                "storage_settings": {
+                    "save": {
+                        "conversation": ["title"],
+                        "conversation_node": [],
+                    },
+                    "delete": {},
+                },
+                "response_settings": {
+                    "enabled": True,
+                    "protocol": "http_sse",  # push vis SSE
+                },
+                "pre_actions": [],  # call truncation fn
+                "post_actions": [],
             },
         ],
-        "execution_strategy": "sequential",
-        "prompt_options_settings": {
-            "system_instructions": [
-                "Always respond in markdown format.",
-            ],
-        },
     },
 }

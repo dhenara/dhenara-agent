@@ -4,18 +4,11 @@ from typing import Any
 # from urllib.request import urlopen
 from pydantic import AnyUrl, Field
 
-from dhenara.types.base import BaseEnum, BaseModel
+from dhenara.types.base import BaseModel
+from dhenara.types.flow import ContentType, FlowNodeUserInputActionEnum
 
 
-class ContentType(BaseEnum):
-    """Enumeration of content types that can be returned."""
-
-    TEXT = "text"
-    LIST = "list"
-    DICT = "dict"
-    JSONL = "jsonl"
-
-
+# TODO: Implement Option to pass User Input to each node
 class UserInput(BaseModel):
     """Represents user input data for AI model processing.
 
@@ -39,11 +32,22 @@ class UserInput(BaseModel):
         ```
     """
 
+    action: FlowNodeUserInputActionEnum | None = Field(
+        default=None,
+        description="Type of API action to perform, if any",
+    )
+
+    meta: dict = Field(
+        default_factory=dict,
+        description="Inputs metadata",
+        example={"sub_action": "my_custom_acion"},
+    )
+
     content: str | None = Field(
         default=None,
         description="Primary text content to be processed",
         example="What is the capital of France?",
-        max_length=8192,  # Assuming a reasonable max length
+        # max_length=8192,
     )
 
     contents: list[str] | None = Field(

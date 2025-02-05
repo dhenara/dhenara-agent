@@ -2,41 +2,22 @@ from typing import Any, NewType
 
 from pydantic import Field, field_validator, model_validator
 
-from dhenara.types.base import BaseEnum, BaseModel
-from dhenara.types.flow import FlowNodeOutputActionEnum, Resource
+from dhenara.types.base import BaseModel
+from dhenara.types.flow import (
+    AISettings,
+    ExecutionStrategyEnum,
+    FlowNodePostActionEnum,
+    FlowNodePreActionEnum,
+    FlowNodeTypeEnum,
+    NodeInputSettings,
+    NodeResponseSettings,
+    Resource,
+    SpecialNodeIdEnum,
+    StorageSettings,
+    SystemInstructions,
+)
 
-
-class ExecutionStrategyEnum(BaseEnum):
-    """Enum defining execution strategy for flow nodes.
-
-    Attributes:
-        sequential: FlowNodes execute one after another in sequence
-        parallel: FlowNodes execute simultaneously in parallel
-    """
-
-    sequential = "sequential"
-    parallel = "parallel"
-
-
-class FlowNodeTypeEnum(BaseEnum):
-    """Enum defining types of flow nodes.
-
-    Attributes:
-        ai_model_sync: Synchronous AI model inference
-        ai_model_stream: AI model inference with streaming
-        ai_model_async: Asynchronous AI model inference
-        rag_index: RAG index creation operation
-        rag_query: RAG query/retrieval operation
-        stream: Generic streaming operation
-    """
-
-    ai_model_sync = "ai_model_sync"
-    ai_model_stream = "ai_model_stream"
-    ai_model_async = "ai_model_async"
-    rag_index = "rag_index"
-    rag_query = "rag_query"
-    stream = "stream"
-
+''' TODO
 
 class PromptOptionsSettings(BaseModel):
     """Configuration for an AI resource including prompts and options.
@@ -157,6 +138,7 @@ class PromptOptionsSettings(BaseModel):
         }
     }
 
+'''
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
 
@@ -175,6 +157,13 @@ class FlowNode(BaseModel):
         subflow: Optional nested flow for complex operations
     """
 
+    order: int = Field(
+        ...,
+        description="Execution sequence number",
+        ge=0,
+        examples=[1],
+    )
+
     identifier: FlowNodeIdentifier = Field(
         ...,
         description="Unique human readable identifier for the node",
@@ -186,13 +175,7 @@ class FlowNode(BaseModel):
     type: FlowNodeTypeEnum = Field(
         ...,
         description="Type of operation this node performs",
-        examples=["ai_model_sync", "rag_query"],
-    )
-    order: int = Field(
-        ...,
-        description="Execution sequence number",
-        ge=0,
-        examples=[1],
+        examples=["ai_model_call", "rag_query"],
     )
 
     resources: list[Resource] | None = Field(
@@ -200,19 +183,31 @@ class FlowNode(BaseModel):
         description="List of resources to be used",
     )
 
-    # config: dict[str, Any] = Field(
-    #    ...,
-    #    description="FlowNode-specific configuration parameters",
-    #    examples=[{"model_name": "gpt-4", "temperature": 0.7}],
-    # )
-    prompt_options_settings: PromptOptionsSettings | None = Field(
+    ai_settings: AISettings | None = Field(
         default=None,
-        description="FlowNode-specific promt/instruction/option parameters",
+        description="Node specific AP API settings/ options ",
     )
-    output_actions: list[FlowNodeOutputActionEnum] = Field(
+    input_settings: NodeInputSettings | None = Field(
         ...,
+        description="Input Settings",
+    )
+    storage_settings: StorageSettings = Field(
+        default_factory=dict,
+        description="DataBase Storage settings",
+    )
+    response_settings: NodeResponseSettings = Field(
+        ...,
+        description="Response Settings",
+    )
+    pre_actions: list[FlowNodePreActionEnum] = Field(
+        default_factory=list,
         description="Output actions",
     )
+    post_actions: list[FlowNodePostActionEnum] = Field(
+        default_factory=list,
+        description="Output actions",
+    )
+
     subflow: "FlowDefinition | None" = Field(
         default=None,
         description="Optional nested flow definition for complex operations",
@@ -259,34 +254,6 @@ class FlowNode(BaseModel):
                 raise ValueError("One resource should be set as default")
             return v
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "identifier": "initial_model_call",
-                    "type": "ai_model_sync",
-                    "order": 1,
-                    "prompt_options_settings": {
-                        "system_instructions": ["You are a helpful assistant"],
-                        "pre_prompt": ["Please answer the following question:"],
-                        "options_overrides": {"temperature": 0.7},
-                    },
-                    "subflow": {
-                        "nodes": [
-                            {
-                                "identifier": "preprocessing",
-                                "type": "stream",
-                                "order": 0,
-                                "prompt_options_settings": {"prompt": ["Process the following text"]},
-                            },
-                        ],
-                        "execution_strategy": "sequential",
-                    },
-                },
-            ],
-        },
-    }
-
 
 class FlowDefinition(BaseModel):
     """Model representing a complete flow definition.
@@ -309,10 +276,20 @@ class FlowDefinition(BaseModel):
         description="Execution strategy for top-level nodes",
         examples=["sequential"],
     )
-    prompt_options_settings: PromptOptionsSettings | None = Field(
+    system_instructions: SystemInstructions | None = Field(
         default=None,
-        description="Flow wide promt/instruction/option parameters",
+        description="Flow wide system instructions",
     )
+
+    # node_prompt: NodePrompt | None = Field(
+    #    default=None,
+    #    description="Flow wide promts generation sinstruction/option parameters",
+    # )
+
+    # ai_settings: AISettings | None = Field(
+    #    default=None,
+    #    description="Flow wide AP API settings/ options ",
+    # )
 
     def _collect_all_identifiers(self, node: FlowNode, identifiers: set[str]) -> None:
         """Recursively collect all node identifiers including subflows.
@@ -377,6 +354,11 @@ class FlowDefinition(BaseModel):
         ids = [node.identifier for node in v]
         if len(ids) != len(set(ids)):
             raise ValueError("FlowNode IDs must be unique within the same flow level")
+
+        for node_id in ids:
+            if node_id in SpecialNodeIdEnum.values():
+                raise ValueError(f"FlowNode IDs `{v}` is a reserved identifier")
+
         return v
 
     def validate_all_identifiers(self) -> None:
@@ -400,40 +382,13 @@ class FlowDefinition(BaseModel):
         """
         self.validate_all_identifiers()
 
-    model_config = {
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "nodes": [
-                        {
-                            "identifier": "create_index",
-                            "type": "rag_index",
-                            "order": 0,
-                            "config": {"index_name": "docs"},
-                            "subflow": {
-                                "nodes": [
-                                    {
-                                        "identifier": "process_documents",
-                                        "type": "stream",
-                                        "order": 0,
-                                        "config": {"chunk_size": 1000},
-                                    },
-                                ],
-                                "execution_strategy": "sequential",
-                            },
-                        },
-                        {
-                            "identifier": "generate_summary",
-                            "type": "ai_model_sync",
-                            "order": 1,
-                            "config": {"model_name": "gpt-4"},
-                        },
-                    ],
-                    "execution_strategy": "sequential",
-                },
-            ],
-        },
-    }
+    @model_validator(mode="after")
+    def validate_node_identifies(self):
+        all_node_identifies = {node.identifier for node in self.nodes}
+        for node in self.nodes:
+            node.input_settings.input_source.validate_node_references(list(all_node_identifies))
+
+        return self
 
 
 class Flow(BaseModel):
