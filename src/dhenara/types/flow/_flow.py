@@ -178,8 +178,8 @@ class FlowNode(BaseModel):
         examples=["ai_model_call", "rag_query"],
     )
 
-    resources: list[Resource] | None = Field(
-        default=None,
+    resources: list[Resource] = Field(
+        default_factory=list,
         description="List of resources to be used",
     )
 
@@ -187,7 +187,7 @@ class FlowNode(BaseModel):
         default=None,
         description="Node specific AP API settings/ options ",
     )
-    input_settings: NodeInputSettings | None = Field(
+    input_settings: NodeInputSettings = Field(
         ...,
         description="Input Settings",
     )
@@ -253,6 +253,33 @@ class FlowNode(BaseModel):
             if default_count < 1:
                 raise ValueError("One resource should be set as default")
             return v
+
+    @model_validator(mode="after")
+    def validate_input_settings(self) -> "FlowNode":
+        """Validates that input settings and AI settings are not conflicting.
+
+        This validator ensures that user input sources and node prompts are not
+        configured simultaneously, which would create ambiguous input handling.
+
+        Returns:
+            Self instance if validation passes
+
+        Raises:
+            ValueError: If conflicting settings are detected
+        """
+        has_prompt = self.ai_settings and self.ai_settings.node_prompt and self.ai_settings.node_prompt.prompt
+
+        has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
+
+        if has_prompt and has_user_input:
+            raise ValueError(
+                "Illegal input settings configuration: "
+                "`input_source.user_input_sources` and `ai_settings.node_prompt.prompt` "
+                "cannot be set simultaneously. To modify user inputs for this node, "
+                "use the `pre` and `post` fields of `node_prompt`, not the `prompt` field.",
+            )
+
+        return self
 
 
 class FlowDefinition(BaseModel):
@@ -389,6 +416,54 @@ class FlowDefinition(BaseModel):
             node.input_settings.input_source.validate_node_references(list(all_node_identifies))
 
         return self
+
+    def get_previous_node_identifier(self, node_identifier: str) -> str | None:
+        """Returns the identifier of the node that precedes the specified node.
+
+        This method performs various sanity checks to ensure the node exists and
+        has a valid previous node in the sequence.
+
+        Args:
+            node_identifier: The identifier of the current node
+
+        Returns:
+            Optional[str]: The identifier of the previous node, or None if:
+                - The specified node is the first node in the flow
+                - The specified node doesn't exist in the flow
+
+        Raises:
+            ValueError: If the provided node_identifier is empty or invalid
+
+        Examples:
+            >>> flow = FlowDefinition(nodes=[
+            ...     FlowNode(identifier="node1", ...),
+            ...     FlowNode(identifier="node2", ...),
+            ... ])
+            >>> flow.get_previous_node_identifier("node2")
+            'node1'
+            >>> flow.get_previous_node_identifier("node1")
+            None
+        """
+        if not node_identifier:
+            raise ValueError("Node identifier cannot be empty")
+
+        # Create a list of node identifiers
+        node_ids = [node.identifier for node in self.nodes]
+
+        try:
+            # Find the index of the current node
+            current_index = node_ids.index(node_identifier)
+
+            # Return None if it's the first node
+            if current_index == 0:
+                return None
+
+            # Return the previous node's identifier
+            return node_ids[current_index - 1]
+
+        except ValueError:
+            # Node identifier not found in the flow
+            return None
 
 
 class Flow(BaseModel):

@@ -19,6 +19,11 @@ class FlowNodeExecutionResult(BaseModel):
 
 
 # -----------------------------------------------------------------------------
+
+FlowExecutionResults = dict[FlowNodeIdentifier, FlowNodeExecutionResult]
+
+
+# -----------------------------------------------------------------------------
 class FlowContext(BaseModel):
     endpoint_id: str
     flow_definition: FlowDefinition
@@ -26,7 +31,7 @@ class FlowContext(BaseModel):
     execution_status: FlowExecutionStatusEnum = FlowExecutionStatusEnum.PENDING
     current_node_index: int = 0
     # execution_results: list[FlowNodeExecutionResult] = []
-    execution_results: dict[FlowNodeIdentifier, FlowNodeExecutionResult] = []
+    execution_results: FlowExecutionResults = {}
     # final_output: FlowNodeOutput : Not reuired as it can be found from execution_results
     metadata: dict[str, Any] = {}
     created_at: datetime

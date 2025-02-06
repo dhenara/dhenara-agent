@@ -1,7 +1,7 @@
 from typing import Any
 
 from dhenara.types.base import BaseModel
-from dhenara.types.flow import FlowExecutionStatusEnum, FlowNodeExecutionResult, FlowNodeInput
+from dhenara.types.flow import FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeInput
 from pydantic import Field
 
 
@@ -21,5 +21,5 @@ class ExecuteDhenRunEndpointReq(BaseModel):
 # -----------------------------------------------------------------------------
 class ExecuteDhenRunEndpointRes(BaseModel):
     execution_status: FlowExecutionStatusEnum
-    execution_results: list[FlowNodeExecutionResult] = []
+    execution_results: FlowExecutionResults = {}
     metadata: dict[str, Any] = {}

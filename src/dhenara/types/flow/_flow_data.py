@@ -159,9 +159,9 @@ class FlowNodeOutput(BaseModel):
         metadata: Optional metadata dictionary
     """
 
-    api_call_response: ChatResponse | ImageResponse = Field(
+    api_call_response: ChatResponse | ImageResponse | None = Field(
         ...,
-        description="External Api call Response",
+        description="External Api call Response or None",
     )
     api_call_status: ExternalApiCallStatus = Field(
         ...,
