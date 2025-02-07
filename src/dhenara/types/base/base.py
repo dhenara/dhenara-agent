@@ -33,9 +33,11 @@ class BaseModel(PydanticBaseModel):
     - Strict validation by default
     """
 
-    def model_dump(self) -> dict:
+    def model_dump(self, exclude: list | None = None) -> dict:
+        if exclude is None:
+            exclude = []
         return super().model_dump(
-            exclude=[None],
+            exclude=[None, *exclude],
             exclude_unset=True,
             # mode="json",
         )

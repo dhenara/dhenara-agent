@@ -19,7 +19,7 @@ def main():
     )
 
     user_input = UserInput(
-        content="What is ephatha. Explain",  # "When bible was written",
+        content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
     )
     node_input = FlowNodeInput(user_input=user_input)
     # Execute endpoint normally

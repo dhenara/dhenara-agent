@@ -281,6 +281,9 @@ class FlowNode(BaseModel):
 
         return self
 
+    def is_streaming(self):
+        return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
+
 
 class FlowDefinition(BaseModel):
     """Model representing a complete flow definition.
