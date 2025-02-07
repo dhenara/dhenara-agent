@@ -1,7 +1,5 @@
-import asyncio
-
 from dhenara.client import Client
-from dhenara.types import FlowExecutionStatusEnum
+from dhenara.types import FlowNodeInput, UserInput
 
 
 def get_api_key():
@@ -11,32 +9,31 @@ def get_api_key():
 
 api_key = get_api_key()
 
+_refnum = "22158308"  #  Streaming
 
-async def main():
-    async with Client(
+
+def main():
+    client = Client(
         api_key=api_key,
         base_url="http://localhost:8000",
-    ) as client:
-        flow_id = ("flow123",)
+    )
 
-        # Execute flow with streaming
-        async for chunk in await client.execute_flow_async(
-            flow_id=flow_id,
-            input_data={"prompt": "Hello"},
-            stream=True,
-        ):
-            print(chunk.decode(), end="", flush=True)
+    user_input = UserInput(
+        content="What is ephatha. Explain",  # "When bible was written",
+    )
+    node_input = FlowNodeInput(user_input=user_input)
+    # Execute endpoint normally
 
-        # Check status
-        status_response = await client.get_flow_status_async("execution123")
-        if status_response.is_success:
-            status = status_response.data
-            print(f"Execution status: {status.status}")
-            if status.status == FlowExecutionStatusEnum.COMPLETED:
-                print(f"Result: {status.result}")
-            elif status.status == FlowExecutionStatusEnum.FAILED:
-                print(f"Error: {status.error}")
+    response = client.execute_endpoint(
+        refnum=_refnum,
+        node_input=node_input,
+        stream=True,
+    )
+
+    print(f"Resposne is: {response}")
+    for chunk in response:
+        print(chunk)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

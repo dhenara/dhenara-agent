@@ -63,26 +63,48 @@ class ChatResponseUsage(BaseModel):
         }
 
 
-class ChatResponseMetaDataOpenAi(BaseModel):
+class ChatResponseMetaDataBase(BaseModel):
+    streaming: bool = False
+    duration_seconds: int | float | None = None
+    token_count: int | None = None
+
+
+class ChatResponseMetaDataOpenAi(ChatResponseMetaDataBase):
     """OpenAI specific metadata for chat responses"""
 
     id: str
-    object: str
-    created: int
+    object: str  # object type : chat.completion
+    created: int | None = None  # Unix timestamp (in seconds) of creation
     system_fingerprint: str
+    finish_reason: str | None = None
 
 
-class ChatResponseMetaDataGoogleAi(BaseModel):
+class ChatResponseMetaDataGoogleAi(ChatResponseMetaDataBase):
     """Google AI specific metadata for chat responses"""
 
     prompt_feedback: dict | None = None
 
 
-class ChatResponseMetaDataAnthropic(BaseModel):
+class ChatResponseMetaDataAnthropic(ChatResponseMetaDataBase):
     """Anthropic specific metadata for chat responses"""
 
     id: str
     type: str
+
+
+# -----------------------------------------------------------------------------
+class StreamingChatResponse(BaseModel):
+    """Model for streaming response chunks
+    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
+    """
+
+    event: str | None = None
+    index: int = 0
+    content: str
+    done: bool = False
+
+    def to_event_data(self):
+        return f"data: {self.model_dump()}\n\n"
 
 
 class ChatResponse(BaseModel):

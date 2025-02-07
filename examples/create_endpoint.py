@@ -1,7 +1,7 @@
 import asyncio
 
 from dhenara.client import Client
-from dhenara.samples.flows import SIMPLE_CHATBOT_FLOW
+from dhenara.samples import STREAMING_CHATBOT_FLOW
 
 
 def get_api_key():
@@ -19,7 +19,7 @@ async def main():
     )
 
     try:
-        flow_data = {**SIMPLE_CHATBOT_FLOW}
+        flow_data = {**STREAMING_CHATBOT_FLOW}
 
         # Create the flow
         # flow = client.create_flow(**flow_data)

@@ -9,7 +9,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22169394"  #  "22182349"
+_refnum = "22169394"  # Non streaming
 
 
 def main():

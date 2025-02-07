@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator, Iterator
 from types import TracebackType
 from typing import Any, TypeVar
 
@@ -15,6 +16,8 @@ from dhenara.types.api import (
     ApiResponseStatus,
 )
 from dhenara.types.base import BaseModel
+
+from ._stream import StreamProcessor
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -198,6 +201,57 @@ class _ClientBase:
             )
         except httpx.RequestError as e:
             raise DhenaraConnectionError(f"Connection error: {e}")
+
+    def _prepare_streaming_headers(self) -> dict[str, str]:
+        """Prepare headers for streaming requests."""
+        headers = self._get_headers()
+        headers["Accept"] = "text/event-stream"
+        return headers
+
+    def _make_streaming_request(
+        self,
+        model_instance: BaseModel,
+        action: ApiRequestActionTypeEnum,
+        endpoint: str,
+    ) -> Iterator[dict]:
+        """Make a synchronous streaming request."""
+        api_request = ApiRequest[type(model_instance)](
+            data=model_instance.model_dump(),
+            action=action,
+        )
+
+        url = self._url_settings.get_full_url(endpoint)
+        with self._sync_client.stream(
+            "POST",
+            url=url,
+            json=api_request.model_dump(),
+            headers=self._prepare_streaming_headers(),
+        ) as response:
+            response.raise_for_status()
+            yield from StreamProcessor.handle_sync_stream(response)
+
+    async def _make_streaming_request_async(
+        self,
+        model_instance: BaseModel,
+        action: ApiRequestActionTypeEnum,
+        endpoint: str,
+    ) -> AsyncIterator[dict]:
+        """Make an asynchronous streaming request."""
+        api_request = ApiRequest[type(model_instance)](
+            data=model_instance.model_dump(),
+            action=action,
+        )
+
+        url = self._url_settings.get_full_url(endpoint)
+        async with self._async_client.stream(
+            "POST",
+            url=url,
+            json=api_request.model_dump(),
+            headers=self._prepare_streaming_headers(),
+        ) as response:
+            response.raise_for_status()
+            async for chunk in StreamProcessor.handle_async_stream(response):
+                yield chunk
 
     # Context manager support
     def __enter__(self) -> Self:

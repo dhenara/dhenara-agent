@@ -1,5 +1,4 @@
-import json
-from collections.abc import AsyncGenerator, AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeVar, Union
 
 from dhenara.client import DhenaraAPIError
@@ -7,7 +6,6 @@ from dhenara.types.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
-    ApiResponseMessageStatusCode,
     DhenRunEndpointReq,
     DhenRunEndpointRes,
     ExecuteDhenRunEndpointReq,
@@ -24,7 +22,6 @@ T = TypeVar("T", bound=BaseModel)
 class Client(_ClientBase):
     """
     Dhenara API client for making API requests.
-
     Supports both synchronous and asynchronous operations with proper resource management.
     """
 
@@ -54,8 +51,6 @@ class Client(_ClientBase):
     ) -> ApiResponse[DhenRunEndpointRes]:
         """Create a new DhenRun endpoint."""
         data = model_instance.model_dump()
-
-        # Ensure the response data is JSON serializable
         api_request = ApiRequest[DhenRunEndpointReq](
             data=data,
             action=ApiRequestActionTypeEnum.create,
@@ -71,89 +66,78 @@ class Client(_ClientBase):
         refnum: str,
         node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
-    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncGenerator[bytes, None]]:
-        """Execute a endpoint synchronously.
-
-        Args:
-            refnum: Reference number for the execution
-            node_input: Input data as either FlowNodeInput model or dictionary
-            stream: Whether to stream the response (async only)
-
-        Returns:
-            ApiResponse containing ExecuteDhenRunEndpointRes or AsyncGenerator for streaming
-
-        Raises:
-            ValueError: If streaming is attempted in sync mode
-        """
-
-        if stream:
-            raise ValueError("Streaming is only supported in async mode")
-
-        # Convert input to dict if it's a Pydantic model
+    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[dict]]:
+        """Execute an endpoint synchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
-
         data = {
             "refnum": refnum,
             "input": input_data,
         }
 
-        api_request = ApiRequest[ExecuteDhenRunEndpointReq](
-            data=data,
-            action=ApiRequestActionTypeEnum.run,
+        request_data = ExecuteDhenRunEndpointReq(
+            refnum=refnum,
+            input=input_data,
         )
-        payload = api_request.model_dump()
 
-        url = self._url_settings.get_full_url("runtime_dhenrun_ep")
-        response = self._sync_client.post(url=url, json=payload)
-        return self._handle_response(response, ExecuteDhenRunEndpointRes)
+        if stream:
+            return self._make_streaming_request(
+                model_instance=request_data,
+                action=ApiRequestActionTypeEnum.run,
+                endpoint="runtime_dhenrun_ep",
+            )
+
+        return self._make_request(
+            model_instance=request_data,
+            action=ApiRequestActionTypeEnum.run,
+            endpoint="runtime_dhenrun_ep",
+            response_model=ExecuteDhenRunEndpointRes,
+        )
 
     async def execute_endpoint_async(
         self,
-        endpoint_id: str,
-        input_data: Any,
+        refnum: str,
+        node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
-    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncIterator[bytes]]:
-        """
-        Execute a endpoint asynchronously.
+    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncIterator[dict]]:
+        """Execute an endpoint asynchronously."""
+        input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
+        request_data = ExecuteDhenRunEndpointReq(
+            refnum=refnum,
+            input=input_data,
+        )
 
-        Args:
-            endpoint_id: The ID of the endpoint to execute
-            input_data: The input data for the endpoint
-            stream: Whether to stream the response
-
-        Returns:
-            Either an ApiResponse with ExecuteDhenRunEndpointRes or an async iterator of bytes for streaming
-        """
-        if not stream:
-            response = await self._async_client.post(
-                f"{self.config.base_url}/api/endpoints/{endpoint_id}/execute/",
-                json={"input": input_data},
+        if stream:
+            return self._make_streaming_request_async(
+                model_instance=request_data,
+                action=ApiRequestActionTypeEnum.run,
+                endpoint="runtime_dhenrun_ep",
             )
-            return self._handle_response(response, ExecuteDhenRunEndpointRes)
 
-        async def stream_response() -> AsyncGenerator[bytes, None]:
-            async with self._async_client.stream(
-                "POST",
-                f"{self.config.base_url}/api/endpoints/{endpoint_id}/execute/",
-                json={"input": input_data},
-            ) as response:
-                if response.status_code != 200:
-                    error_detail = await response.aread()
-                    try:
-                        error_json = json.loads(error_detail)
-                    except:
-                        error_json = {"detail": error_detail.decode("utf-8")}
+        return await self._make_request_async(
+            model_instance=request_data,
+            action=ApiRequestActionTypeEnum.run,
+            endpoint="runtime_dhenrun_ep",
+            response_model=ExecuteDhenRunEndpointRes,
+        )
 
-                    raise DhenaraAPIError(
-                        message="Stream request failed",
-                        status_code=ApiResponseMessageStatusCode.FAIL_SERVER_ERROR,
-                        response=error_json,
-                    )
-                async for chunk in response.aiter_bytes():
-                    yield chunk
+    async def _handle_response_async(
+        self,
+        response: Any,
+        response_model: type[T],
+    ) -> ApiResponse[T]:
+        """Handle async API response and convert to appropriate type."""
+        if response.status_code != 200:
+            error_data = await response.json()
+            raise DhenaraAPIError(
+                f"Request failed with status {response.status_code}",
+                status_code=response.status_code,
+                error_data=error_data,
+            )
 
-        return stream_response()
+        response_data = await response.json()
+        return ApiResponse[T].model_validate(response_data)
 
+    # TODO
     def get_endpoint_status(self, execution_id: str) -> ApiResponse[ExecuteDhenRunEndpointRes]:
         """
         Get the status of a endpoint execution
@@ -169,6 +153,7 @@ class Client(_ClientBase):
         )
         return self._handle_response(response, ExecuteDhenRunEndpointRes)
 
+    # TODO
     async def get_endpoint_status_async(
         self,
         execution_id: str,
