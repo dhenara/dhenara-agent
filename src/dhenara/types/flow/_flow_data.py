@@ -1,11 +1,8 @@
+from typing import Generic, TypeVar
+
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
-from dhenara.types.external_api import (
-    ChatResponse,
-    ExternalApiCallStatus,
-    ImageResponse,
-)
 from dhenara.types.flow import (
     FlowExecutionStatusEnum,
     FlowNodeUserInputActionEnum,
@@ -148,25 +145,16 @@ class FlowNodeInput(BaseModel):
 FlowNodeExecutionStatusEnum = FlowExecutionStatusEnum
 
 
-class FlowNodeOutput(BaseModel):
-    """
-    Output model for execution nodes.
+T = TypeVar("T", bound=BaseModel)
 
-    Attributes:
-        raw_output: List of raw output strings
-        output_objects: List of output objects
-        execution_status: Status of the execution
-        metadata: Optional metadata dictionary
+
+# -----------------------------------------------------------------------------
+class FlowNodeOutput(BaseModel, Generic[T]):
+    """
+    Base Output model for execution nodes.
+
     """
 
-    api_call_response: ChatResponse | ImageResponse | None = Field(
-        ...,
-        description="External Api call Response or None",
-    )
-    api_call_status: ExternalApiCallStatus = Field(
-        ...,
-        description="External Api call Status",
-    )
     internal_data_objs: list[InternalDataObjParams] = Field(
         default_factory=list,
         description="List of internal data objects",

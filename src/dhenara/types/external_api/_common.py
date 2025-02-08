@@ -1,7 +1,8 @@
 # Copyright 2024-2025 Dhenara Inc. All rights reserved.
 
-from dhenara.types.base import BaseEnum, BaseModel
 from pydantic import Field
+
+from dhenara.types.base import BaseEnum, BaseModel
 
 
 class ExternalApiCallStatusEnum(BaseEnum):

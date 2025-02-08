@@ -1,7 +1,5 @@
+# Independent from other types. Not imported to top `types` package
+
 from ._providers import *
 from ._role import *
-
-# Ai model APIs
-from ._ai_model._common import *
-from ._ai_model._chat import *
-from ._ai_model._image import *
+from ._common import *

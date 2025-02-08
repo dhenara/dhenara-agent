@@ -1,9 +1,9 @@
 # Copyright 2024-2025 Dhenara Inc. All rights reserved.
 
-import json
 from typing import Any, Union
 
-from dhenara.types.base import BaseEnum, BaseModel
+from dhenara.types.api import SSEDataChunk, SSEEventType, SSEResponse
+from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AiModelProvider
 
 
@@ -93,72 +93,26 @@ class ChatResponseMetaDataAnthropic(ChatResponseMetaDataBase):
     type: str
 
 
-class StreamEventType(BaseEnum):
-    """Types of streaming events (SSE Events)"""
+# Streaming
+class TokenStreamChunk(SSEDataChunk):
+    """Specialized chunk for token streaming"""
 
-    TOKEN = "token"  # New token/content in streaming mode chunk
-    ERROR = "error"  # Error occurred
-    # META = "meta"  # Metadata update
+    pass
+    # token_count: int | None = Field(
+    #    default=None,
+    #    description="Number of tokens in this chunk",
+    # )
+    # model: str | None = Field(
+    #    default=None,
+    #    description="Model generating the tokens",
+    # )
 
 
-class StreamingChatResponse(BaseModel):
-    """Model for streaming response chunks
-    https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
-    """
+class StreamingChatResponse(SSEResponse[TokenStreamChunk]):
+    """Specialized SSE response for chat streaming"""
 
-    event: StreamEventType = StreamEventType.TOKEN
-    id: str | None = None  # Optional event ID for reconnection
-    retry: str | None = None
-    # Data-fields
-    index: int = 0
-    content: str
-    done: bool = False
-    metadata: dict | None = None
-
-    def to_sse_format(self) -> str:
-        """Convert to SSE format string"""
-        lines = []
-
-        # Add event type if present
-        if self.event:
-            lines.append(f"event: {self.event}")
-
-        # Add ID if present
-        if self.id:
-            lines.append(f"id: {self.id}")
-
-        # Add ID if present
-        if self.retry:
-            lines.append(f"retry: {self.retry}")
-
-        # Prepare data payload
-        data = {
-            "index": self.index,
-            "content": self.content,
-            "done": self.done,
-            "metadata": self.metadata,
-            # Passing some SSE fields as well
-            "event": self.event,
-        }
-        if self.metadata:
-            data["metadata"] = self.metadata
-
-        # Add data (can be multiple lines)
-        lines.append(f"data: {json.dumps(data)}")
-
-        # End with double newline
-        return "\n".join(lines) + "\n\n"
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "event": self.event,
-            "id": self.id,
-            "index": self.index,
-            "content": self.content,
-            "done": self.done,
-            "metadata": self.metadata,
-        }
+    event: SSEEventType = SSEEventType.TOKEN_STREAM
+    data: TokenStreamChunk
 
 
 class ChatResponse(BaseModel):

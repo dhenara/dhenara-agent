@@ -1,5 +1,6 @@
 from dhenara.client import Client
 from dhenara.types import FlowNodeInput, UserInput
+from dhenara.types.api import SSEEventType, SSEResponse
 
 
 def get_api_key():
@@ -33,6 +34,23 @@ def main():
     print(f"Resposne is: {response}")
     for chunk in response:
         print(chunk)
+
+    for chunk in response:
+        if type(chunk) is not SSEResponse:
+            print(f"ERROR: iunknonw type {type(chunk)}")
+
+        if chunk.event == SSEEventType.ERROR:
+            print(f"Error: {chunk}")
+            break
+
+        if chunk.event == SSEEventType.TOKEN_STREAM:
+            if chunk.data.done:
+                print("Stream completed")
+                break
+
+            # Process chunk data
+            print(chunk.data.content)
+            # print(f"Received: {chunk.data}")
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from dhenara.types.api import (
     ApiResponse,
     ApiResponseMessageStatusCode,
     ApiResponseStatus,
+    SSEResponse,
 )
 from dhenara.types.base import BaseModel
 
@@ -213,7 +214,7 @@ class _ClientBase:
         model_instance: BaseModel,
         action: ApiRequestActionTypeEnum,
         endpoint: str,
-    ) -> Iterator[dict]:
+    ) -> Iterator[SSEResponse]:
         """Make a synchronous streaming request."""
         api_request = ApiRequest[type(model_instance)](
             data=model_instance.model_dump(),
@@ -235,7 +236,7 @@ class _ClientBase:
         model_instance: BaseModel,
         action: ApiRequestActionTypeEnum,
         endpoint: str,
-    ) -> AsyncIterator[dict]:
+    ) -> AsyncIterator[SSEResponse]:
         """Make an asynchronous streaming request."""
         api_request = ApiRequest[type(model_instance)](
             data=model_instance.model_dump(),
