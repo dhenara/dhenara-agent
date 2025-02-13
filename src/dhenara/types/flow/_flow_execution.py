@@ -1,11 +1,11 @@
 # flow_execution.py
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import Field, RootModel
 
 from dhenara.types.base import BaseModel
-from dhenara.types.flow import FlowDefinition, FlowExecutionStatusEnum, FlowNodeExecutionStatusEnum, FlowNodeIdentifier, FlowNodeInput, FlowNodeOutput, StorageEntityTypeEnum, UserInput
+from dhenara.types.flow import FlowNodeExecutionStatusEnum, FlowNodeIdentifier, FlowNodeOutput, StorageEntityTypeEnum, UserInput
 
 StorageEntityDBData = list[str]  # list of strings
 
@@ -52,16 +52,4 @@ class FlowExecutionResults(RootModel[T]):  # Note: RootModel
     )
 
 
-# -----------------------------------------------------------------------------
-class FlowContext(BaseModel):
-    endpoint_id: str
-    flow_definition: FlowDefinition
-    initial_input: FlowNodeInput
-    execution_status: FlowExecutionStatusEnum = FlowExecutionStatusEnum.PENDING
-    current_node_index: int = 0
-    execution_results: FlowExecutionResults[Any] = {}
-    # final_output: FlowNodeOutput : Not reuired as it can be found from execution_results
-    metadata: dict[str, Any] = {}
-    created_at: datetime
-    updated_at: datetime | None = None
-    completed_at: datetime | None = None
+#
