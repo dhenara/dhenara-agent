@@ -120,7 +120,7 @@ class SSEResponse(BaseModel, Generic[T]):
 
         # Handle multi-line data
         for line in data_str.splitlines():
-            lines.append(f"data: {line}")
+            lines.append(f"data: {line}")  # noqa: PERF401
 
         return "\n".join(lines) + "\n\n"
 
@@ -128,37 +128,44 @@ class SSEResponse(BaseModel, Generic[T]):
     def parse_sse(cls, sse_str: str) -> "SSEResponse[Any]":
         """Parse SSE format string into response object"""
         lines = sse_str.strip().split("\n")
-        data = {}
-        event = None
-        event_id = None
-        retry = None
+        event_data = {
+            "event": None,
+            "id": None,
+            "retry": None,
+            "data": None,
+        }
+
+        data_lines = []
 
         for line in lines:
-            if not line:
+            if not line.strip():
                 continue
+
             if ":" not in line:
                 continue
 
             field, value = line.split(":", 1)
+            field = field.strip()
             value = value.lstrip()
 
-            if field == "event":
-                event = SSEEventType(value)
-            elif field == "data":
-                try:
-                    data = json.loads(value)
-                except json.JSONDecodeError:
-                    data = value
-            elif field == "id":
-                event_id = value
-            elif field == "retry":
-                retry = int(value)
+            if field == "data":
+                data_lines.append(value)
+            elif field in event_data:
+                event_data[field] = value
 
+        # Join and parse data
+        if data_lines:
+            try:
+                event_data["data"] = json.loads("".join(data_lines))
+            except json.JSONDecodeError:
+                event_data["data"] = "".join(data_lines)
+
+        # Create response
         return cls(
-            event=event or SSEEventType.ERROR,
-            data=data,
-            id=event_id,
-            retry=retry,
+            event=SSEEventType(event_data["event"]) if event_data["event"] else SSEEventType.ERROR,
+            id=event_data["id"],
+            retry=int(event_data["retry"]) if event_data["retry"] else None,
+            data=event_data["data"],
         )
 
 

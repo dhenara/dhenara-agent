@@ -5,6 +5,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, alias_generators
 
 T = TypeVar("T", bound="BaseModel")
+# logger.debug(f"Pydantic version: {pydantic.__version__}")
 
 
 class BaseEnum(str, Enum):
@@ -34,13 +35,16 @@ class BaseModel(PydanticBaseModel):
     """
 
     def model_dump(self, exclude: list | None = None) -> dict:
-        if exclude is None:
-            exclude = []
-        return super().model_dump(
-            exclude=[None, *exclude],
+        result = super().model_dump(
+            exclude=exclude,
             exclude_unset=True,
             # mode="json",
+            by_alias=True,
+            exclude_none=True,
+            round_trip=False,
         )
+
+        return result
 
     model_config = ConfigDict(
         alias_generator=alias_generators.to_camel,

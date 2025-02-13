@@ -2,6 +2,7 @@ from typing import Any
 
 from dhenara.types.base import BaseModel
 from dhenara.types.flow import FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeInput
+from dhenara.types.functional_types import AiModelCallNodeOutputData
 from pydantic import Field
 
 
@@ -19,7 +20,18 @@ class ExecuteDhenRunEndpointReq(BaseModel):
 
 
 # -----------------------------------------------------------------------------
+
+
 class ExecuteDhenRunEndpointRes(BaseModel):
+    """
+    Represents the response from executing a Dhen run endpoint.
+
+    Attributes:
+        execution_status: Status of the execution
+        execution_results: Dictionary of node execution results specifically for AI model calls
+        metadata: Additional metadata about the execution
+    """
+
     execution_status: FlowExecutionStatusEnum
-    execution_results: FlowExecutionResults = {}
+    execution_results: FlowExecutionResults[AiModelCallNodeOutputData] = {}
     metadata: dict[str, Any] = {}

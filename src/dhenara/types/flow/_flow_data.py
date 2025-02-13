@@ -155,6 +155,14 @@ class FlowNodeOutput(BaseModel, Generic[T]):
 
     """
 
+    data: T = Field(
+        ...,
+        description="Data",
+    )
+    metadata: dict = Field(
+        default_factory=dict,
+        description="Additional metadata about the execution",
+    )
     internal_data_objs: list[InternalDataObjParams] = Field(
         default_factory=list,
         description="List of internal data objects",
@@ -165,8 +173,3 @@ class FlowNodeOutput(BaseModel, Generic[T]):
     #    ...,
     #    description="Type of action to perform",
     # )
-
-    metadata: dict = Field(
-        default_factory=dict,
-        description="Additional metadata about the execution",
-    )

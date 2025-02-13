@@ -6,13 +6,15 @@ from dhenara.types.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
+)
+from dhenara.types.base import BaseModel, pydantic_endpoint
+from dhenara.types.flow import FlowNodeInput
+from dhenara.types.functional_types import (
     DhenRunEndpointReq,
     DhenRunEndpointRes,
     ExecuteDhenRunEndpointReq,
     ExecuteDhenRunEndpointRes,
 )
-from dhenara.types.base import BaseModel, pydantic_endpoint
-from dhenara.types.flow import FlowNodeInput
 
 from ._base import _ClientBase
 
@@ -31,7 +33,7 @@ class Client(_ClientBase):
         self,
         api_key: str,
         base_url: str = "https://api.dhenara.com",
-        timeout: int = 30,
+        timeout: int = 300,
         max_retries: int = 3,
         ep_version: str | None = "v1",
     ) -> None:
@@ -69,10 +71,6 @@ class Client(_ClientBase):
     ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[dict]]:
         """Execute an endpoint synchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
-        data = {
-            "refnum": refnum,
-            "input": input_data,
-        }
 
         request_data = ExecuteDhenRunEndpointReq(
             refnum=refnum,

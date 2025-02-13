@@ -38,8 +38,8 @@ class _ClientBase:
         base_url: str,
         version: str,
         ep_version: str | None,
-        timeout: int = 30,
-        max_retries: int = 3,
+        timeout: int,
+        max_retries: int,
     ) -> None:
         """Initialize the API client."""
         self._config = ClientConfig(
@@ -47,7 +47,6 @@ class _ClientBase:
             version=version,
             ep_version=ep_version,
             base_url=base_url.rstrip("/"),
-            timeout=timeout,
             max_retries=max_retries,
         )
 

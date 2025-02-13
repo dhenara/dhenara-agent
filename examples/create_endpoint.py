@@ -1,7 +1,7 @@
 import asyncio
 
 from dhenara.client import Client
-from dhenara.samples import STREAMING_CHATBOT_FLOW
+from dhenara.samples import chatbot_with_summarizer_as_pydantic
 
 
 def get_api_key():
@@ -19,7 +19,8 @@ async def main():
     )
 
     try:
-        flow_data = {**STREAMING_CHATBOT_FLOW}
+        # flow_data = {**streaming_chatbot_flow}
+        flow_data = chatbot_with_summarizer_as_pydantic
 
         # Create the flow
         # flow = client.create_flow(**flow_data)
@@ -29,7 +30,8 @@ async def main():
         response = client.create_endpoint(
             name="Production Chatbot Endpoint",
             flow_id=None,
-            flow={**flow_data},
+            # flow={**flow_data},
+            flow=flow_data.model_dump(),
             description="Endpoint for production chatbot",
             allowed_domains=["localhost:8000"],
         )

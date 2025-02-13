@@ -1,4 +1,4 @@
-CHATBOT_WITH_SUMMARIZER_FLOW = {
+chatbot_with_summarizer_flow = {
     "name": "Simple Chatbot Flow",
     "description": "This flow will call a text-generation AI model in sync mode and return output",
     "definition": {

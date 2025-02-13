@@ -1,10 +1,9 @@
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import Field
 
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api import ExternalApiCallStatus
-from dhenara.types.flow import FlowNodeOutput
 from dhenara.types.functional_types import ChatResponse, ImageResponse
 
 # -----------------------------------------------------------------------------
@@ -12,7 +11,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 # -----------------------------------------------------------------------------
-class ExternalApiCallNodeOutput(FlowNodeOutput):
+class ExternalApiCallNodeData(BaseModel, Generic[T]):
     """
     Base Output model for execution nodes.
 
@@ -29,7 +28,7 @@ class ExternalApiCallNodeOutput(FlowNodeOutput):
 
 
 # -----------------------------------------------------------------------------
-class AiModelCallNodeOutput(ExternalApiCallNodeOutput[ChatResponse | ImageResponse]):
+class AiModelCallNodeOutputData(ExternalApiCallNodeData[ChatResponse | ImageResponse]):
     """
     Output model for `ai_model_call` and `ai_model_call_stream` nodes
 

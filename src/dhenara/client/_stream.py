@@ -1,6 +1,6 @@
 # stream_processor.py
 from collections.abc import AsyncIterator, Iterator
-from typing import Optional, Union
+from typing import Optional, TypeVar, Union
 
 import httpx
 
@@ -8,8 +8,14 @@ from dhenara.types import (
     SSEErrorCode,
     SSEErrorData,
     SSEErrorResponse,
+    SSEEventType,
     SSEResponse,
+    StreamingChatResponse,
+    TokenStreamChunk,
 )
+from dhenara.types.base import BaseModel
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class StreamProcessor:
@@ -29,11 +35,36 @@ class StreamProcessor:
             return None
 
         try:
-            return SSEResponse.parse_sse(event_str)
+            parsed = SSEResponse.parse_sse(event_str)
+
+            # If it's a token stream event, convert to StreamingChatResponse
+            if parsed.event == SSEEventType.TOKEN_STREAM:
+                chunk_data = TokenStreamChunk(**parsed.data)
+                return StreamingChatResponse(
+                    event=parsed.event,
+                    data=chunk_data,
+                    id=parsed.id,
+                    retry=parsed.retry,
+                )
+            elif parsed.event == SSEEventType.ERROR:
+                error_data = SSEErrorResponse(**parsed.data)
+                return SSEErrorResponse(
+                    data=error_data,
+                )
+            else:
+                SSEErrorResponse(
+                    data=SSEErrorData(
+                        error_code=SSEErrorCode.client_decode_error,
+                        message=f"Unknonw event {parsed.event}",
+                    ),
+                )
+
+            return parsed
+
         except Exception as e:
             return SSEErrorResponse(
                 data=SSEErrorData(
-                    error_code=SSEErrorCode.server_error,
+                    error_code=SSEErrorCode.client_decode_error,
                     message=f"Failed to parse SSE event: {e}",
                 ),
             )
