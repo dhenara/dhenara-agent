@@ -6,6 +6,7 @@ from dhenara.types.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
+    SSEResponse,
 )
 from dhenara.types.base import BaseModel, pydantic_endpoint
 from dhenara.types.flow import FlowNodeInput
@@ -68,7 +69,7 @@ class Client(_ClientBase):
         refnum: str,
         node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
-    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[dict]]:
+    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[SSEResponse]]:
         """Execute an endpoint synchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
 

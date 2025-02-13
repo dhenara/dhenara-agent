@@ -47,6 +47,7 @@ class SSEDataChunk(BaseModel):
 class SSEErrorCode(BaseEnum):
     server_error = "server_error"
     external_api_error = "external_api_error"
+    client_decode_error = "client_decode_error"
 
 
 class SSEErrorData(BaseModel):
@@ -153,20 +154,81 @@ class SSEResponse(BaseModel, Generic[T]):
             elif field in event_data:
                 event_data[field] = value
 
+        # Parse event type first
+        try:
+            event_type = SSEEventType(event_data["event"]) if event_data["event"] else SSEEventType.ERROR
+        except ValueError:
+            return SSEErrorResponse(
+                data=SSEErrorData(
+                    error_code=SSEErrorCode.client_decode_error,
+                    message=f"Invalid event type: {event_data['event']}",
+                ),
+            )
+
         # Join and parse data
         if data_lines:
             try:
-                event_data["data"] = json.loads("".join(data_lines))
-            except json.JSONDecodeError:
-                event_data["data"] = "".join(data_lines)
+                raw_data = json.loads("".join(data_lines))
 
-        # Create response
-        return cls(
-            event=SSEEventType(event_data["event"]) if event_data["event"] else SSEEventType.ERROR,
-            id=event_data["id"],
-            retry=int(event_data["retry"]) if event_data["retry"] else None,
-            data=event_data["data"],
-        )
+                # Handle different event types
+                if event_type == SSEEventType.ERROR:
+                    data = SSEErrorData(
+                        error_code=SSEErrorCode(raw_data.get("error_code", SSEErrorCode.server_error)),
+                        message=raw_data.get("message", "Unknown error"),
+                        details=raw_data.get("details"),
+                    )
+                else:
+                    # For normal events, create SSEDataChunk
+                    data = SSEDataChunk(
+                        index=raw_data.get("index", 0),
+                        content=raw_data.get("content", ""),
+                        done=raw_data.get("done", False),
+                        metadata=raw_data.get("metadata"),
+                    )
+            except json.JSONDecodeError:
+                return SSEErrorResponse(
+                    data=SSEErrorData(
+                        error_code=SSEErrorCode.client_decode_error,
+                        message="Invalid JSON in stream data",
+                    ),
+                )
+            except Exception as e:
+                return SSEErrorResponse(
+                    data=SSEErrorData(
+                        error_code=SSEErrorCode.client_decode_error,
+                        message=f"Failed to parse stream data: {e!s}",
+                    ),
+                )
+        else:
+            return SSEErrorResponse(
+                data=SSEErrorData(
+                    error_code=SSEErrorCode.client_decode_error,
+                    message="No data found in SSE event",
+                ),
+            )
+
+        # Create response with proper typing
+        try:
+            if event_type == SSEEventType.ERROR:
+                return SSEErrorResponse(
+                    data=data,
+                    id=event_data["id"],
+                    retry=int(event_data["retry"]) if event_data["retry"] else None,
+                )
+            else:
+                return cls(
+                    event=event_type,
+                    data=data,
+                    id=event_data["id"],
+                    retry=int(event_data["retry"]) if event_data["retry"] else None,
+                )
+        except Exception as e:
+            return SSEErrorResponse(
+                data=SSEErrorData(
+                    error_code=SSEErrorCode.client_decode_error,
+                    message=f"Failed to create SSE response: {e!s}",
+                ),
+            )
 
 
 class SSEErrorResponse(SSEResponse[SSEErrorData]):

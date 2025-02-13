@@ -10,8 +10,6 @@ from dhenara.types import (
     SSEErrorResponse,
     SSEEventType,
     SSEResponse,
-    StreamingChatResponse,
-    TokenStreamChunk,
 )
 from dhenara.types.base import BaseModel
 
@@ -37,20 +35,11 @@ class StreamProcessor:
         try:
             parsed = SSEResponse.parse_sse(event_str)
 
-            # If it's a token stream event, convert to StreamingChatResponse
             if parsed.event == SSEEventType.TOKEN_STREAM:
-                chunk_data = TokenStreamChunk(**parsed.data)
-                return StreamingChatResponse(
-                    event=parsed.event,
-                    data=chunk_data,
-                    id=parsed.id,
-                    retry=parsed.retry,
-                )
+                return parsed
+
             elif parsed.event == SSEEventType.ERROR:
-                error_data = SSEErrorResponse(**parsed.data)
-                return SSEErrorResponse(
-                    data=error_data,
-                )
+                return parsed
             else:
                 SSEErrorResponse(
                     data=SSEErrorData(

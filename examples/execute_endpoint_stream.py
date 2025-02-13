@@ -32,8 +32,6 @@ def main():
     )
 
     print(f"Resposne is: {response}")
-    for chunk in response:
-        print(chunk)
 
     for chunk in response:
         if type(chunk) is not SSEResponse:
@@ -44,13 +42,19 @@ def main():
             break
 
         if chunk.event == SSEEventType.TOKEN_STREAM:
-            if chunk.data.done:
-                print("Stream completed")
-                break
+            #     chat_response = StreamingChatResponse(
+            #         event=parsed.event,
+            #         data=parsed.data,
+            #         id=parsed.id,
+            #         retry=parsed.retry,
+            #     )
 
+            text = chunk.data.content
             # Process chunk data
-            print(chunk.data.content)
-            # print(f"Received: {chunk.data}")
+            print(text, end="", flush=True)
+
+            if chunk.data.done:
+                break
 
 
 if __name__ == "__main__":
