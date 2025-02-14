@@ -1,7 +1,15 @@
 from dhenara.types.base import BaseEnum
 
 
-class AiModelProvider(BaseEnum):
+class AIModelFunctionalType(BaseEnum):
+    TEXT_GENERATION = "text_generation"
+    IMAGE_GENERATION = "image_generation"
+    VIDEO_GENERATION = "video_generation"
+    TEXT_TO_SPEECH = "text_to_speech"
+    SPEECH_TO_TEXT = "speech_to_text"
+
+
+class AIModelProvider(BaseEnum):
     CUSTOM = "custom"
     OPEN_AI = "open_ai"
     GOOGLE_AI = "google_ai"
@@ -11,7 +19,7 @@ class AiModelProvider(BaseEnum):
     COHERE = "cohere"
 
 
-class AiModelAPIProvider(BaseEnum):
+class AIModelAPIProvider(BaseEnum):
     OPEN_AI = "openai"
     GOOGLE_AI = "google_gemini_api"
     ANTHROPIC = "anthropic"
