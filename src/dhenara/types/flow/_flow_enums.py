@@ -95,6 +95,7 @@ class FlowExecutionStatusEnum(BaseEnum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    TIMEOUT = "timeout"
 
 
 class ExecutionStrategyEnum(BaseEnum):

@@ -4,7 +4,7 @@ from typing import Any, Union
 
 from dhenara.types.api import SSEDataChunk, SSEEventType, SSEResponse
 from dhenara.types.base import BaseModel
-from dhenara.types.external_api._providers import AIModelProvider
+from dhenara.types.external_api._providers import AIModelAPIProviderEnum, AIModelProviderEnum
 
 
 class ChatResponseContentItem(BaseModel):
@@ -122,7 +122,8 @@ class ChatResponse(BaseModel):
     """
 
     model: str
-    provider: AIModelProvider
+    provider: AIModelProviderEnum
+    api_provider: AIModelAPIProviderEnum | None = None
     usage: ChatResponseUsage
     cost_in_usd: str
     choices: list[ChatResponseChoice]

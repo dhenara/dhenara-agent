@@ -3,7 +3,7 @@
 from typing import Union
 
 from dhenara.types.base import BaseModel
-from dhenara.types.external_api._providers import AIModelProvider
+from dhenara.types.external_api._providers import AIModelProviderEnum
 
 
 class ImageResponseContentItem(BaseModel):
@@ -93,7 +93,7 @@ class ImageResponse(BaseModel):
     """
 
     model: str
-    provider: AIModelProvider
+    provider: AIModelProviderEnum
     usage: ImageResponseUsage
     cost_in_usd: str
     choices: list[ImageResponseChoice]

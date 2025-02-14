@@ -4,7 +4,7 @@ from typing import Any, Optional
 from pydantic import Field
 
 from dhenara.types.base import BaseModel
-from dhenara.types.external_api import AIModelAPIProvider
+from dhenara.types.external_api import AIModelAPIProviderEnum
 
 
 class AIModelAPI(BaseModel):
@@ -12,7 +12,7 @@ class AIModelAPI(BaseModel):
     Pydantic model representing API credentials for AI model providers.
     """
 
-    provider: AIModelAPIProvider = Field(
+    provider: AIModelAPIProviderEnum = Field(
         ...,
         description="The AI model provider",
     )

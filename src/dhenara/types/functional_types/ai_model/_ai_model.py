@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import Field
 
 from dhenara.types.base import BaseModel
-from dhenara.types.external_api._providers import AIModelFunctionalType, AIModelProvider
+from dhenara.types.external_api._providers import AIModelFunctionalTypeEnum, AIModelProviderEnum
 
 
 class AIModel(BaseModel):
@@ -11,11 +11,11 @@ class AIModel(BaseModel):
     Pydantic model representing an AI model configuration.
     """
 
-    provider: AIModelProvider = Field(
+    provider: AIModelProviderEnum = Field(
         ...,
         description="The AI model provider",
     )
-    functional_type: AIModelFunctionalType = Field(
+    functional_type: AIModelFunctionalTypeEnum = Field(
         ...,
         description="Type of AI model functionality",
     )

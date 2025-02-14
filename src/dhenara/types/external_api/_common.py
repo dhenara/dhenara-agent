@@ -3,6 +3,7 @@
 from pydantic import Field
 
 from dhenara.types.base import BaseEnum, BaseModel
+from dhenara.types.external_api import AIModelAPIProviderEnum
 
 
 class ExternalApiCallStatusEnum(BaseEnum):
@@ -27,7 +28,7 @@ class ExternalApiCallStatus(BaseModel):
         ...,
         description="Current status of the API call",
     )
-    api_provider: str = Field(
+    api_provider: AIModelAPIProviderEnum | str = Field(
         ...,
         description="Name of the AI API provider (e.g. 'OpenAI', 'Anthropic')",
         min_length=1,
@@ -41,8 +42,8 @@ class ExternalApiCallStatus(BaseModel):
         ...,
         description="Human readable status/error message",
     )
-    code: str = Field(
-        ...,
+    code: str | None = Field(
+        None,
         description="Provider-specific status/error code",
     )
     http_status_code: int | None = Field(
