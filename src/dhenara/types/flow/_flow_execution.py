@@ -28,6 +28,37 @@ class FlowNodeExecutionResult(BaseModel, Generic[T]):
 # INFO:
 #  Below root model definition is to create an object field like
 #  ---      FlowExecutionResults[T] = dict[FlowNodeIdentifier, FlowNodeExecutionResult[Generic[T]]]
+
+
+class FlowExecutionResults(RootModel[T], Generic[T]):
+    """
+    Represents the execution results of a flow, mapping node identifiers to their execution results.
+
+    This model provides dictionary-like access to execution results while maintaining type safety.
+
+    Attributes:
+        root: Dictionary mapping node identifiers to their execution results
+    """
+
+    root: dict[FlowNodeIdentifier, FlowNodeExecutionResult[T]] = Field(
+        default_factory=dict,
+        description="Mapping of node identifiers to their execution results",
+    )
+
+    def items(self):
+        """Provide dictionary-like items() access to the root dictionary."""
+        return self.root.items()
+
+    def __getitem__(self, key: str) -> "FlowNodeExecutionResult[T]":
+        """Enable dictionary-like access to results."""
+        return self.root[key]
+
+    def __iter__(self):
+        """Enable iteration over the root dictionary."""
+        return iter(self.root)
+
+
+''' TODO: Delete
 class FlowExecutionResults(RootModel[T]):  # Note: RootModel
     """
     Represents the execution results of a flow, mapping node identifiers to their execution results.
@@ -50,6 +81,7 @@ class FlowExecutionResults(RootModel[T]):  # Note: RootModel
             }
         },
     )
+'''
 
 
 #

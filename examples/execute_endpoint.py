@@ -1,5 +1,6 @@
 from dhenara.client import Client
 from dhenara.types import FlowNodeInput, UserInput
+from dhenara.types.flow import Resource, ResourceObjectTypeEnum
 
 
 def get_api_key():
@@ -21,7 +22,19 @@ def main():
     user_input = UserInput(
         content="What is ephatha.  Respond in 300 chars.",
     )
-    node_input = FlowNodeInput(user_input=user_input)
+    # node_input = FlowNodeInput(
+    #    user_input=user_input,
+    # )
+    node_input = FlowNodeInput(
+        user_input=user_input,
+        resources=[
+            Resource(
+                object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                object_id=None,
+                query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
+            ),
+        ],
+    )
     # Execute endpoint normally
     response = client.execute_endpoint(
         refnum=_refnum,
@@ -29,8 +42,14 @@ def main():
     )
 
     if response.is_success:
-        # execution = response.data
-        print(f"Resposne is: {response}")
+        # print(f"Resposne is: {response}")
+        print("\n")
+        print(f"--------Status: {response.data.execution_status}--------\n")
+        print("--------Node Outputs are --------\n")
+        for node_id, result in response.data.execution_results.items():
+            print(f"{node_id}:")
+            print(f"{result.node_output.data.api_call_response.choices[0]}")
+            print("\n")
     else:
         print(f"Error: {response.first_message.message}")
 
