@@ -16,7 +16,7 @@ T = TypeVar("T", bound=BaseModel)
 class FlowNodeExecutionResult(BaseModel, Generic[T]):
     node_identifier: FlowNodeIdentifier
     status: FlowNodeExecutionStatusEnum
-    user_inputs: list[UserInput]
+    user_inputs: list[UserInput] | None
     node_output: FlowNodeOutput[T]
     storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime

@@ -135,7 +135,8 @@ class ChatResponse(BaseModel):
     ] = {}
 
     def get_visible_fields(self) -> dict:
-        return self.model_dump(exclude=["choices"])
+        # return self.model_dump(exclude=["choices"])
+        return self.model_dump()
 
     class Config:
         json_schema_extra = {

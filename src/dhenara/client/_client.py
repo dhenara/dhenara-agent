@@ -1,7 +1,6 @@
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeVar, Union
 
-from dhenara.client import DhenaraAPIError
 from dhenara.types.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
@@ -16,6 +15,7 @@ from dhenara.types.functional_types import (
     ExecuteDhenRunEndpointReq,
     ExecuteDhenRunEndpointRes,
 )
+from dhenara.types.platform import DhenaraAPIError
 
 from ._base import _ClientBase
 

@@ -16,8 +16,12 @@ class StreamingStatusEnum(BaseEnum):
 class StreamingContext(BaseModel):
     status: StreamingStatusEnum = StreamingStatusEnum.NOT_STARTED
     completion_event: Event | None = None
-    final_content: str | None = None  # TODO
+    result: FlowExecutionResults | None = None  # TODO
     error: Exception | None = None
+
+    @property
+    def successfull(self) -> bool:
+        return self.status == StreamingStatusEnum.COMPLETED
 
 
 class FlowContext(BaseModel):
@@ -40,10 +44,12 @@ class FlowContext(BaseModel):
         self.current_node_identifier = self.flow_definition.nodes[index].identifier
 
     async def notify_streaming_complete(self, identifier: FlowNodeIdentifier, streaming_status: StreamingStatusEnum, result: FlowNodeExecutionResult) -> None:
+        print(f"AJJJL identifier={identifier}, self.streaming_contexts={self.streaming_contexts}\n\nresult={result}")
         streaming_context = self.streaming_contexts[identifier]
         if not streaming_context:
             raise ValueError(f"notify_streaming_complete: Failed to get streaming_context for id {identifier}")
 
-        self.execution_results[identifier] = result
         streaming_context.status = streaming_status
+        streaming_context.result = result
+        self.execution_results[identifier] = result
         streaming_context.completion_event.set()

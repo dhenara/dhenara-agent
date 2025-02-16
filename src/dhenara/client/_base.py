@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 import httpx
 from typing_extensions import Self  # for Python <3.11
 
-from dhenara.client import DhenaraAPIError, DhenaraConnectionError, UrlSettings
+from dhenara.client import UrlSettings
 from dhenara.client._types import ClientConfig
 from dhenara.types.api import (
     ApiRequest,
@@ -17,6 +17,7 @@ from dhenara.types.api import (
     SSEResponse,
 )
 from dhenara.types.base import BaseModel
+from dhenara.types.platform import DhenaraAPIError, DhenaraConnectionError
 
 from ._stream import StreamProcessor
 

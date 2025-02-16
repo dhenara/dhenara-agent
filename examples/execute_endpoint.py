@@ -42,6 +42,7 @@ def main():
         node_input=node_input,
     )
 
+    print(f'AJJ: reponse is"\n\n{response}\n\n')
     if response.is_success:
         # print(f"Resposne is: {response}")
         print("\n")
@@ -49,7 +50,10 @@ def main():
         print("--------Node Outputs are --------\n")
         for node_id, result in response.data.execution_results.items():
             print(f"{node_id}:")
-            print(f"{result.node_output.data.api_call_response.choices[0]}")
+            if result.node_output.data.response.status.successful:
+                print(f"{result.node_output.data.response.full_response.choices[0]}")
+            else:
+                print(f"{result.node_output.data.response.status}")
             print("\n")
     else:
         print(f"Error: {response.first_message.message}")
