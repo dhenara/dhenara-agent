@@ -52,6 +52,16 @@ chatbot_with_summarizer_as_pydantic = Flow(
                         object_id=None,
                         query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
                     ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={"ai_model__api_model_name": "gemini-1.5-pro-002"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={"ai_model__api_model_name": "gemini-1.5-flash-002"},
+                    ),
                 ],
                 ai_settings=AISettings(
                     system_instructions=[],

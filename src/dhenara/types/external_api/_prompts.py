@@ -20,11 +20,12 @@ class BasePromptFileContent(BaseModel):
     type: str
     text: str | None = None
 
-    @field_validator("text")
-    def validate_text_content(cls, v, values):
-        if values.get("type") == "text" and not v:
-            raise ValueError("text is required for text type content")
-        return v
+    # @field_validator("text")
+    # @classmethod
+    # def validate_text_content(cls, v, values):
+    #    if values.get("type") == "text" and not v:
+    #        raise ValueError("text is required for text type content")
+    #    return v
 
 
 # OpenAI Specific Models
@@ -82,7 +83,7 @@ class GoogleAIPromptFileContent(BasePromptFileContent):
 
 class GoogleAIPromptMessage(BaseModel):
     role: GoogleAiMessageRoleEnum
-    parts: list[GoogleAIPromptFileContent]
+    parts: Union[str, list[dict], list[GoogleAIPromptFileContent]]
 
 
 # # Configuration Models

@@ -32,6 +32,8 @@ class FlowContext(BaseModel):
     current_node_index: int = 0
     current_node_identifier: FlowNodeIdentifier | None = None
     execution_results: FlowExecutionResults[Any] = {}
+    execution_failed: bool = False
+    execution_failed_message: str | None = None
     # final_output: FlowNodeOutput : Not reuired as it can be found from execution_results
     metadata: dict[str, Any] = {}
     created_at: datetime
