@@ -31,8 +31,9 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
+                query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
                 # query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
-                query={"ai_model__api_model_name": "gpt-4o-mini"},
+                # query={"ai_model__api_model_name": "gpt-4o-mini"},
             ),
         ],
     )

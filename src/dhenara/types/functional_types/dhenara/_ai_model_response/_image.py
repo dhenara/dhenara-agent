@@ -1,9 +1,10 @@
 # Copyright 2024-2025 Dhenara Inc. All rights reserved.
 
-from typing import Union
 
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelProviderEnum
+
+from ._chat import AIModelCallResponseMetaData
 
 
 class ImageResponseContentItem(BaseModel):
@@ -64,28 +65,6 @@ class ImageResponseUsage(BaseModel):
         }
 
 
-class ImageResponseMetaDataOpenAi(BaseModel):
-    """OpenAI specific metadata for image responses"""
-
-    id: str
-    object: str
-    created: int
-    system_fingerprint: str
-
-
-class ImageResponseMetaDataGoogleAi(BaseModel):
-    """Google AI specific metadata for image responses"""
-
-    prompt_feedback: dict | None = None
-
-
-class ImageResponseMetaDataAnthropic(BaseModel):
-    """Anthropic specific metadata for image responses"""
-
-    id: str
-    type: str
-
-
 class ImageResponse(BaseModel):
     """Complete response from an AI image generation model
 
@@ -97,12 +76,7 @@ class ImageResponse(BaseModel):
     usage: ImageResponseUsage
     cost_in_usd: str
     choices: list[ImageResponseChoice]
-    metadata: Union[
-        ImageResponseMetaDataOpenAi,
-        ImageResponseMetaDataGoogleAi,
-        ImageResponseMetaDataAnthropic,
-        dict,
-    ] = {}
+    metadata: AIModelCallResponseMetaData | dict = {}
 
     class Config:
         json_schema_extra = {

@@ -1,10 +1,16 @@
 # Copyright 2024-2025 Dhenara Inc. All rights reserved.
 
-from typing import Any, Union
+from typing import Any
 
 from dhenara.types.api import SSEDataChunk, SSEEventType, SSEResponse
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelAPIProviderEnum, AIModelProviderEnum
+
+
+class AIModelCallResponseMetaData(BaseModel):
+    streaming: bool = False
+    duration_seconds: int | float | None = None
+    provider_data: dict
 
 
 class ChatResponseContentItem(BaseModel):
@@ -64,13 +70,7 @@ class ChatResponseUsage(BaseModel):
         }
 
 
-class ChatResponseMetaDataBase(BaseModel):
-    streaming: bool = False
-    duration_seconds: int | float | None = None
-    token_count: int | None = None
-
-
-class ChatResponseMetaDataOpenAi(ChatResponseMetaDataBase):
+class ChatResponseMetaDataOpenAi(BaseModel):
     """OpenAI specific metadata for chat responses"""
 
     id: str
@@ -80,13 +80,13 @@ class ChatResponseMetaDataOpenAi(ChatResponseMetaDataBase):
     finish_reason: str | None = None
 
 
-class ChatResponseMetaDataGoogleAi(ChatResponseMetaDataBase):
+class ChatResponseMetaDataGoogleAi(BaseModel):
     """Google AI specific metadata for chat responses"""
 
     prompt_feedback: dict | None = None
 
 
-class ChatResponseMetaDataAnthropic(ChatResponseMetaDataBase):
+class ChatResponseMetaDataAnthropic(BaseModel):
     """Anthropic specific metadata for chat responses"""
 
     id: str
@@ -127,12 +127,7 @@ class ChatResponse(BaseModel):
     usage: ChatResponseUsage
     cost_in_usd: str
     choices: list[ChatResponseChoice]
-    metadata: Union[
-        ChatResponseMetaDataOpenAi,
-        ChatResponseMetaDataGoogleAi,
-        ChatResponseMetaDataAnthropic,
-        dict,
-    ] = {}
+    metadata: AIModelCallResponseMetaData | dict = {}
 
     def get_visible_fields(self) -> dict:
         return self.model_dump(exclude=["choices"])

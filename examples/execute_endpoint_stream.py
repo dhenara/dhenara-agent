@@ -1,6 +1,7 @@
 from dhenara.client import Client
 from dhenara.types import FlowNodeInput, UserInput
 from dhenara.types.api import SSEEventType, SSEResponse
+from dhenara.types.flow import Resource, ResourceObjectTypeEnum
 
 
 def get_api_key():
@@ -22,8 +23,18 @@ def main():
     user_input = UserInput(
         content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
     )
-    node_input = FlowNodeInput(user_input=user_input)
-    # Execute endpoint normally
+    node_input = FlowNodeInput(
+        user_input=user_input,
+        resources=[
+            Resource(
+                object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                object_id=None,
+                query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
+                # query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
+                # query={"ai_model__api_model_name": "gpt-4o-mini"},
+            ),
+        ],
+    )
 
     response = client.execute_endpoint(
         refnum=_refnum,
