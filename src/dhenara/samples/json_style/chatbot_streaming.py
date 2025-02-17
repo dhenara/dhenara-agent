@@ -1,4 +1,4 @@
-streaming_chatbot_flow = {
+chatbot_streaming_json = {
     "name": "Streaming Chatbot Flow",
     "description": "This flow will call a text-generation AI model in sync mode and return output",
     "definition": {

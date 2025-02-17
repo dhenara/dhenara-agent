@@ -1,7 +1,7 @@
 import asyncio
 
 from dhenara.client import Client
-from dhenara.samples import chatbot_with_summarizer_as_pydantic
+from dhenara.samples import chatbot_streaming_with_summarizer
 
 
 def get_api_key():
@@ -19,8 +19,8 @@ async def main():
     )
 
     try:
-        # flow_data = {**streaming_chatbot_flow}
-        flow_data = chatbot_with_summarizer_as_pydantic
+        # flow_data = {**chatbot_streaming_json}
+        flow_data = chatbot_streaming_with_summarizer
 
         # Create the flow
         # flow = client.create_flow(**flow_data)

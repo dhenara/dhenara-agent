@@ -19,7 +19,7 @@ from dhenara.types import (
     StorageSettings,
 )
 
-chatbot_with_summarizer_as_pydantic = Flow(
+chatbot_streaming_with_summarizer = Flow(
     name="Simple Chatbot Flow",
     description="This flow will call a text-generation AI model in sync mode and return output",
     definition=FlowDefinition(
@@ -29,7 +29,7 @@ chatbot_with_summarizer_as_pydantic = Flow(
             FlowNode(
                 order=0,
                 identifier="ai_model_call_1",
-                type=FlowNodeTypeEnum.ai_model_call,
+                type=FlowNodeTypeEnum.ai_model_call_stream,
                 resources=[
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
@@ -85,7 +85,7 @@ chatbot_with_summarizer_as_pydantic = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP,
+                    protocol=ResponseProtocolEnum.HTTP_STREAM,
                 ),
                 pre_actions=[],
                 post_actions=[],
@@ -127,7 +127,7 @@ chatbot_with_summarizer_as_pydantic = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP,  # TODO: SSE
+                    protocol=ResponseProtocolEnum.HTTP_SSE,
                 ),
                 pre_actions=[],
                 post_actions=[],
