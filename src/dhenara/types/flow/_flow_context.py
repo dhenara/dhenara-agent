@@ -16,7 +16,7 @@ class StreamingStatusEnum(BaseEnum):
 class StreamingContext(BaseModel):
     status: StreamingStatusEnum = StreamingStatusEnum.NOT_STARTED
     completion_event: Event | None = None
-    result: FlowExecutionResults | None = None  # TODO
+    result: FlowNodeExecutionResult | None = None
     error: Exception | None = None
 
     @property
