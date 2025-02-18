@@ -25,6 +25,7 @@ chatbot_streaming_with_summarizer = Flow(
     definition=FlowDefinition(
         system_instructions=["Always respond in markdown format."],
         execution_strategy=ExecutionStrategyEnum.sequential,
+        response_protocol=ResponseProtocolEnum.HTTP_SSE,
         nodes=[
             FlowNode(
                 order=0,
@@ -85,7 +86,6 @@ chatbot_streaming_with_summarizer = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP_STREAM,
                 ),
                 pre_actions=[],
                 post_actions=[],
@@ -127,7 +127,6 @@ chatbot_streaming_with_summarizer = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP_SSE,
                 ),
                 pre_actions=[],
                 post_actions=[],

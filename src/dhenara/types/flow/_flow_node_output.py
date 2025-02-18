@@ -10,10 +10,11 @@ from dhenara.types.base import BaseEnum, BaseModel
 class ResponseProtocolEnum(BaseEnum):
     """Enumeration of available response protocols for node outputs."""
 
-    HTTP = "http"  # Standard HTTP response
-    HTTP_STREAM = "http_stream"  # Streaming HTTP response
-    HTTP_SSE = "http_sse"  # Server-Sent Events : Eg:  push notification
-    WEBSOCKET = "websocket"  # WebSocket messages
+    HTTP = "http"  # One-time request/response
+    HTTP_SSE = "http_sse"  # Server pushes events, client only receives. Eg: Streaming and Push-notification
+    WEBSOCKET = "websocket"  # Full-duplex, bi-directional
+    GRPC = "grpc"  # Bi-directional streaming, high performance
+    MQTT = "mqtt"  # Pub/sub messaging, IoT focused
 
 
 class ResponseContentEnum(BaseEnum):

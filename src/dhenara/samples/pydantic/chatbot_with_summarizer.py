@@ -25,6 +25,7 @@ chatbot_with_summarizer = Flow(
     definition=FlowDefinition(
         system_instructions=["Always respond in markdown format."],
         execution_strategy=ExecutionStrategyEnum.sequential,
+        response_protocol=ResponseProtocolEnum.HTTP,
         nodes=[
             FlowNode(
                 order=0,
@@ -85,7 +86,6 @@ chatbot_with_summarizer = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP,
                 ),
                 pre_actions=[],
                 post_actions=[],
@@ -127,7 +127,6 @@ chatbot_with_summarizer = Flow(
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
-                    protocol=ResponseProtocolEnum.HTTP,  # TODO: SSE
                 ),
                 pre_actions=[],
                 post_actions=[],

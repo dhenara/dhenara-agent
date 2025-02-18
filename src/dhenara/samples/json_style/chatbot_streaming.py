@@ -4,6 +4,7 @@ chatbot_streaming_json = {
     "definition": {
         "system_instructions": ["Always respond in markdown format."],
         "execution_strategy": "sequential",
+        "response_protocol": "http_sse",
         "nodes": [
             {
                 "order": 0,
@@ -17,7 +18,6 @@ chatbot_streaming_json = {
                 },
                 "response_settings": {
                     "enabled": True,
-                    "protocol": "http_stream",
                 },
             },
         ],

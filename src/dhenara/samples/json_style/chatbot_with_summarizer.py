@@ -6,6 +6,7 @@ chatbot_with_summarizer_json = {
             "Always respond in markdown format.",
         ],
         "execution_strategy": "sequential",
+        "response_protocol": "http",  # http_sse
         "nodes": [
             {
                 "order": 0,
@@ -54,7 +55,6 @@ chatbot_with_summarizer_json = {
                 },
                 "response_settings": {
                     "enabled": True,
-                    "protocol": "http",  # http_streaming
                 },
                 "pre_actions": [],
                 "post_actions": [],
@@ -98,7 +98,6 @@ chatbot_with_summarizer_json = {
                 },
                 "response_settings": {
                     "enabled": True,
-                    "protocol": "http_sse",  # push vis SSE
                 },
                 "pre_actions": [],  # call truncation fn
                 "post_actions": [],

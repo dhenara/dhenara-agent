@@ -11,7 +11,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22169324"  #  Streaming
+_refnum = "22164676"  #  Streaming
 
 
 def main():
@@ -29,8 +29,8 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
-                query={"ai_model__api_model_name": "gemini-1.5-pro-002"},
-                # query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
+                # query={"ai_model__api_model_name": "gemini-1.5-pro-002"},
+                query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
                 # query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                 # query={"ai_model__api_model_name": "gpt-4o-mini"},
             ),
