@@ -24,6 +24,7 @@ class AIModelAPIProviderEnum(BaseEnum):
     GOOGLE_AI = "google_gemini_api"
     ANTHROPIC = "anthropic"
     GOOGLE_VERTEX_AI = "google_vertex_ai"
+    MICROSOFT_OPENAI = "microsoft_openai"
     MICROSOFT_AZURE_AI = "microsoft_azure_ai"
     AMAZON_BEDROCK = "amazon_bedrock"
     DEEPSEEK = "deepseek"
