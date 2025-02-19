@@ -39,7 +39,7 @@ class BaseModel(PydanticBaseModel):
             exclude=exclude,
             exclude_unset=True,
             # mode="json",
-            by_alias=True,
+            by_alias=False,  # Not to use camel case in dict keys
             exclude_none=True,
             round_trip=False,
         )

@@ -40,6 +40,39 @@ class ResourceObjectTypeEnum(BaseEnum):
     search_endpoint = "search_endpoint"
 
 
+class ResourceQueryFieldsEnum(BaseEnum):
+    """Enum defining all possible query fields for resources."""
+
+    model_name = "model_name"
+    model_display_name = "model_display_name"
+    api_provider = "api_provider"
+
+
+class ResourceQueryMapping:
+    """Static Class defining the mapping between resource types and their allowed query fields."""
+
+    MAPPINGS: dict[ResourceObjectTypeEnum, list[ResourceQueryFieldsEnum]] = {
+        ResourceObjectTypeEnum.ai_model_endpoint: [
+            ResourceQueryFieldsEnum.model_name,
+            ResourceQueryFieldsEnum.model_display_name,
+            ResourceQueryFieldsEnum.api_provider,
+        ],
+    }
+
+    @classmethod
+    def get_allowed_fields(cls, resource_type: ResourceObjectTypeEnum) -> list[str]:
+        """
+        Get allowed query fields for a resource type.
+
+        Args:
+            resource_type: The type of resource
+
+        Returns:
+            List of allowed field names
+        """
+        return [field.value for field in cls.MAPPINGS.get(resource_type, [])]
+
+
 class FlowNodeUserInputActionEnum(BaseEnum):
     """Additional actions on the node ( on top of the ones in the node."""
 

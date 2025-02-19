@@ -9,6 +9,7 @@ from dhenara.types.flow import (
     InternalDataObjectTypeEnum,
     InternalDataObjParamsScopeEnum,
     ResourceObjectTypeEnum,
+    ResourceQueryMapping,
     UserInput,
 )
 
@@ -47,13 +48,6 @@ class InternalDataObjParams(BaseModel):
         return self
 
 
-RESOURCE_MODEL_QUERY_MAPPING = {
-    ResourceObjectTypeEnum.ai_model_endpoint: [
-        "ai_model__api_model_name",
-    ]
-}
-
-
 class Resource(BaseModel):
     """
     Resource configuration model with mutually exclusive fields for object parameters
@@ -63,6 +57,7 @@ class Resource(BaseModel):
         object_type: Type of the resource model
         object_id: Unique identifier for the resource
         query: Optional query string for fetching resource details
+        is_default: Flag to mark default resource
     """
 
     object_type: ResourceObjectTypeEnum = Field(
@@ -75,8 +70,14 @@ class Resource(BaseModel):
     )
     query: dict | None = Field(
         default=None,
-        description="Query dict for fetching resource details",
-        examples=["{'api_model_name': 'claude-sonet-3.5-v2'}"],
+        description="Query dict or list of query dicts for fetching resource details",
+        examples=[
+            {"model_name": "claude-sonet-3.5-v2"},
+            {
+                "model_name": "claude-sonet-3.5-v2",
+                "api_provider": "anthropic",
+            },
+        ],
     )
     is_default: bool = Field(
         default=False,
@@ -85,13 +86,14 @@ class Resource(BaseModel):
 
     @model_validator(mode="after")
     def validate_exclusive_fields(self) -> "Resource":
+        """Validates mutually exclusive fields and query structure."""
         if self.object_id and self.query:
             raise ValueError("Exactly one of object_type+object_id, or query is allowed")
 
         # Validate query keys based on model type
         for key in self.query.keys():
-            query_mapping = RESOURCE_MODEL_QUERY_MAPPING.get(self.object_type)
-            if key not in query_mapping:
+            allowed_fields = ResourceQueryMapping.get_allowed_fields(self.object_type)
+            if key not in allowed_fields:
                 raise ValueError(f"Unsupported query key `{key}`")
 
         return self

@@ -1,4 +1,5 @@
 from dhenara.types import (
+    AIModelAPIProviderEnum,
     AISettings,
     ConversationFieldEnum,
     ConversationNodeFieldEnum,
@@ -13,6 +14,7 @@ from dhenara.types import (
     NodeResponseSettings,
     Resource,
     ResourceObjectTypeEnum,
+    ResourceQueryFieldsEnum,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
     StorageEntityTypeEnum,
@@ -35,33 +37,48 @@ chatbot_with_summarizer = Flow(
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "gpt-4o-mini"},
+                        query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                         is_default=True,
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "gpt-4o"},
+                        query={ResourceQueryFieldsEnum.model_name: "gpt-4o"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
+                        query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
+                        query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "gemini-1.5-pro-002"},
+                        query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "gemini-1.5-flash-002"},
+                        query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku-20241022"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro-002"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash-002"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash-002"},
                     ),
                 ],
                 ai_settings=AISettings(
@@ -98,7 +115,10 @@ chatbot_with_summarizer = Flow(
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={"ai_model__api_model_name": "gpt-4o-mini"},
+                        query={
+                            ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
+                            ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
+                        },
                     ),
                 ],
                 ai_settings=AISettings(

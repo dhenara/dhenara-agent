@@ -184,29 +184,8 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
         ],
         config_optional_fields=[
             CredentialFieldConfig(
-                field_name="location",
-                error_msg="Location must be a non-empty string",
-            ),
-        ],
-    ),
-    AIModelAPIProviderEnum.MICROSOFT_AZURE_AI: ProviderCredentialsConfig(
-        api_key_required=True,
-        credentials_required_fields=[],
-        credentials_optional_fields=[],
-        config_required_fields=[
-            CredentialFieldConfig(
-                field_name="endpoint",
-                error_msg="endpoint must be a non-empty string",
-            ),
-        ],
-        config_optional_fields=[
-            CredentialFieldConfig(
                 field_name="api_version",
-                error_msg="api_version must be a non-empty string. Eg: '2024-10-21'",
-            ),
-            CredentialFieldConfig(
-                field_name="location",
-                error_msg="Location must be a non-empty string",
+                error_msg="api_version must be a non-empty string",
             ),
         ],
         output_mappings=[
@@ -225,11 +204,28 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
                 output_key="api_version",
                 default_value="2024-10-21",
             ),
+        ],
+    ),
+    AIModelAPIProviderEnum.MICROSOFT_AZURE_AI: ProviderCredentialsConfig(
+        api_key_required=True,
+        credentials_required_fields=[],
+        credentials_optional_fields=[],
+        config_required_fields=[
+            CredentialFieldConfig(
+                field_name="endpoint",
+                error_msg="endpoint must be a non-empty string",
+            ),
+        ],
+        config_optional_fields=[],
+        output_mappings=[
+            CredentialOutputMapping(
+                source="api_key",
+                output_key="api_key",
+            ),
             CredentialOutputMapping(
                 source="config",
-                source_key="location",
-                output_key="location",
-                default_value="us-central1",
+                source_key="endpoint",
+                output_key="azure_endpoint",
             ),
         ],
     ),

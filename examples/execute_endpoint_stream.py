@@ -1,7 +1,7 @@
 from dhenara.client import Client
 from dhenara.types import FlowNodeInput, UserInput
 from dhenara.types.api import SSEErrorResponse, SSEEventType, SSEResponse
-from dhenara.types.flow import Resource, ResourceObjectTypeEnum
+from dhenara.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
 
 
 def get_api_key():
@@ -29,10 +29,10 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
-                # query={"ai_model__api_model_name": "gemini-1.5-pro-002"},
-                query={"ai_model__api_model_name": "claude-3-5-haiku-20241022"},
-                # query={"ai_model__api_model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
-                # query={"ai_model__api_model_name": "gpt-4o-mini"},
+                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro-002"},
+                query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku-20241022"},
+                # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
+                # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
             ),
         ],
     )
