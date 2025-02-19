@@ -162,6 +162,21 @@ class FlowNode(BaseModel):
     def is_streaming(self):
         return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
 
+    def check_resource_in_node(self, resource: Resource) -> bool:
+        """
+        Checks if a given resource exists in the node's resource list.
+
+        Args:
+            resource: Resource object to check for
+
+        Returns:
+            bool: True if the resource exists in the node's resources, False otherwise
+        """
+        if not self.resources:
+            return False
+
+        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+
 
 class FlowDefinition(BaseModel):
     """Model representing a complete flow definition.

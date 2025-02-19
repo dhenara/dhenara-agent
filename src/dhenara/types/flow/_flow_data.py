@@ -96,6 +96,31 @@ class Resource(BaseModel):
 
         return self
 
+    def is_same_as(self, other: "Resource") -> bool:
+        """
+        Compares two Resource objects for equality based on their type and identifiers.
+
+        Args:
+            other: Another Resource object to compare with
+
+        Returns:
+            bool: True if the resources represent the same entity, False otherwise
+        """
+        # First check if object types match
+        if self.object_type != other.object_type:
+            return False
+
+        # Case 1: Both have object_id
+        if self.object_id and other.object_id:
+            return self.object_id == other.object_id
+
+        # Case 2: Both have query
+        if self.query and other.query:
+            return self.query == other.query
+
+        # Case 3: Mixed cases are considered different
+        return False
+
 
 class FlowNodeInput(BaseModel):
     """

@@ -121,7 +121,7 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
             CredentialOutputMapping(
                 source="dict_credentials",
                 source_key="service_account_json",
-                output_key="credentials",
+                output_key="service_account_json",
             ),
             CredentialOutputMapping(
                 source="config",
@@ -158,17 +158,17 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
             CredentialOutputMapping(
                 source="dict_credentials",
                 source_key="access_key_id",
-                output_key="access_key_id",
+                output_key="aws_access_key",
             ),
             CredentialOutputMapping(
                 source="dict_credentials",
                 source_key="secret_access_key",
-                output_key="secret_access_key",
+                output_key="aws_secret_key",
             ),
             CredentialOutputMapping(
                 source="config",
                 source_key="region",
-                output_key="region",
+                output_key="aws_region",
             ),
         ],
     ),
@@ -201,8 +201,35 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
         ],
         config_optional_fields=[
             CredentialFieldConfig(
+                field_name="api_version",
+                error_msg="api_version must be a non-empty string. Eg: '2024-10-21'",
+            ),
+            CredentialFieldConfig(
                 field_name="location",
                 error_msg="Location must be a non-empty string",
+            ),
+        ],
+        output_mappings=[
+            CredentialOutputMapping(
+                source="api_key",
+                output_key="api_key",
+            ),
+            CredentialOutputMapping(
+                source="config",
+                source_key="endpoint",
+                output_key="azure_endpoint",
+            ),
+            CredentialOutputMapping(
+                source="config",
+                source_key="api_version",
+                output_key="api_version",
+                default_value="2024-10-21",
+            ),
+            CredentialOutputMapping(
+                source="config",
+                source_key="location",
+                output_key="location",
+                default_value="us-central1",
             ),
         ],
     ),

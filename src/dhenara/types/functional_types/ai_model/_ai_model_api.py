@@ -118,7 +118,6 @@ class AIModelAPI(BaseModel):
             Dictionary mapping provider names to their form configurations.
         """
         providers_config = {}
-        print(f"AJJ cls.PROVIDER_CONFIGS={PROVIDER_CONFIGS}")
 
         for provider, config in PROVIDER_CONFIGS.items():
             credentials_fields = []
@@ -215,8 +214,9 @@ class AIModelAPI(BaseModel):
         Raises:
             ValueError: If updates are invalid
         """
+        print(f"AJJ: Going to update with current_model={current_model}")
         # Start with current model's data
-        current_data = current_model.model_dump(exclude_unset=True)
+        current_data = current_model.model_dump()
 
         # Update only the fields that are provided
         updated_data = current_data.copy()
@@ -236,6 +236,7 @@ class AIModelAPI(BaseModel):
                 **config,
             }
 
+        print(f"AJJ: Going to update with updated_data={updated_data}")
         # Create and validate new model with all fields
         try:
             updated_model = cls(**updated_data)
