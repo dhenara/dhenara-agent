@@ -35,7 +35,8 @@ def main():
                 # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku-20241022"},
                 # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                 # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
-                query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
+                # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
+                query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
             ),
         ],
     )

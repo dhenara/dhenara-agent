@@ -39,6 +39,8 @@ class ChatResponseChoice(BaseModel):
     """A single choice/completion in the chat response"""
 
     index: int
+    finish_reason: Any | None = None
+    stop_sequence: Any | None = None
     content: ChatResponseContentItem
 
     class Config:
@@ -77,7 +79,6 @@ class ChatResponseMetaDataOpenAi(BaseModel):
     object: str  # object type : chat.completion
     created: int | None = None  # Unix timestamp (in seconds) of creation
     system_fingerprint: str
-    finish_reason: str | None = None
 
 
 class ChatResponseMetaDataGoogleAi(BaseModel):

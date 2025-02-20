@@ -214,7 +214,6 @@ class AIModelAPI(BaseModel):
         Raises:
             ValueError: If updates are invalid
         """
-        print(f"AJJ: Going to update with current_model={current_model}")
         # Start with current model's data
         current_data = current_model.model_dump()
 
@@ -236,7 +235,6 @@ class AIModelAPI(BaseModel):
                 **config,
             }
 
-        print(f"AJJ: Going to update with updated_data={updated_data}")
         # Create and validate new model with all fields
         try:
             updated_model = cls(**updated_data)
