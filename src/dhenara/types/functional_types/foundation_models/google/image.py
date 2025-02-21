@@ -1,0 +1,71 @@
+from dhenara.types.functional_types.ai_model import (
+    AIModelFunctionalTypeEnum,
+    AIModelProviderEnum,
+    FoundationModel,
+    ImageModelSettings,
+    ValidOptionValue,
+)
+
+_imagen_valid_options = {
+    "aspect_ratio": ValidOptionValue(
+        allowed_values=["1:1", "9:16", "16:9", "4:3", "3:4"],
+        default_value="1:1",
+        cost_sensitive=True,
+        description="Image aspect ratio",
+    ),
+    "n": ValidOptionValue(
+        allowed_values=list(range(1, 4)),
+        default_value=1,
+        cost_sensitive=True,
+        description="Number of images to generate",
+    ),
+    "add_watermark": ValidOptionValue(
+        allowed_values=[True, False],
+        default_value=False,
+        cost_sensitive=False,
+        description="Add watermark or not",
+    ),
+    "safety_filter_level": ValidOptionValue(
+        allowed_values=[None, "block_most", "block_some", "block_few", "block_fewest"],
+        default_value="block_fewest",
+        cost_sensitive=False,
+        description="safety_filter_level",
+    ),
+    "person_generation": ValidOptionValue(
+        allowed_values=[None, "dont_allow", "allow_adult", "allow_all"],
+        default_value="allow_all",
+        cost_sensitive=False,
+        description="person_generation",
+    ),
+}
+
+Imagen3 = FoundationModel(
+    model_name="imagen-3.0-generate",
+    display_name="imagen-3.0",
+    provider=AIModelProviderEnum.GOOGLE_AI,
+    functional_type=AIModelFunctionalTypeEnum.IMAGE_GENERATION,
+    settings=ImageModelSettings(),
+    valid_options=_imagen_valid_options,
+    metadata={
+        "details": "Imagen 3.0",
+    },
+    order=1,
+)
+
+
+Imagen3Fast = FoundationModel(
+    model_name="imagen-3.0-fast-generate",
+    display_name="imagen-3.0 Fast",
+    provider=AIModelProviderEnum.GOOGLE_AI,
+    functional_type=AIModelFunctionalTypeEnum.IMAGE_GENERATION,
+    settings=ImageModelSettings(),
+    valid_options=_imagen_valid_options,
+    metadata={
+        "details": "Imagen 3.0",
+        "display_order": 51,
+        "version_suffix": "-001",
+        "api_model_name": "imagen-3.0-generate-001",
+    },
+    order=2,
+)
+IMAGE_MODELS = [Imagen3, Imagen3Fast]

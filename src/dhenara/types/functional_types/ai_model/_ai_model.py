@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import Field, model_validator
 
@@ -38,7 +38,43 @@ class ValidOptionValue(BaseModel):
         return self
 
 
-class AIModel(BaseModel):
+class ChatModelSettings(BaseModel):
+    max_context_window_tokens: int | None = Field(
+        None,
+        description="Maximum context window size in tokens",
+    )
+    max_input_tokens: int | None = Field(
+        None,
+        description="Maximum input tokens allowed",
+    )
+    max_output_tokens: int | None = Field(
+        None,
+        description="Maximum output tokens allowed",
+    )
+
+    @model_validator(mode="after")
+    def _set_token_limits(self) -> "ChatModelSettings":
+        if not self.max_output_tokens:
+            raise ValueError("set_token_limits: max_output_tokens must be specified")
+        if not (self.max_input_tokens or self.max_context_window_tokens):
+            raise ValueError("set_token_limits: max_input_tokens or max_context_window_tokens must be specified")
+
+        if self.max_input_tokens:
+            self.max_context_window_tokens = self.max_input_tokens + self.max_output_tokens
+        else:
+            self.max_input_tokens = self.max_context_window_tokens - self.max_output_tokens
+
+        return self
+
+
+class ImageModelSettings(BaseModel):
+    max_words: int | None = Field(
+        None,
+        description="Maximum word count, if applicable",
+    )
+
+
+class BaseAIModel(BaseModel):
     """
     Pydantic model representing an AI model configuration with options validation.
     """
@@ -61,10 +97,7 @@ class AIModel(BaseModel):
         max_length=300,
         description="Display name for the model",
     )
-    foundation_model: Optional["FoundationModel"] = Field(
-        None,
-        description="Matching foundation model for parameter preloading",
-    )
+
     order: int = Field(
         0,
         description="Order for display purposes",
@@ -77,27 +110,16 @@ class AIModel(BaseModel):
         False,  # noqa: FBT003
         description="Whether the model is in beta",
     )
-    max_context_window_tokens: int | None = Field(
-        None,
-        description="Maximum context window size in tokens",
-    )
-    max_input_tokens: int | None = Field(
-        None,
-        description="Maximum input tokens allowed",
-    )
-    max_output_tokens: int | None = Field(
-        None,
-        description="Maximum output tokens allowed",
-    )
-    valid_options: dict[str, ValidOptionValue] = Field(
-        default_factory=dict,
-        description="Configured valid options and their allowed values",
-    )
-    settings: dict[str, ValidOptionValue] = Field(
-        default_factory=dict,
+
+    settings: ChatModelSettings | ImageModelSettings | None = Field(
+        default=None,
         description="Settings",
     )
-    meta: dict[str, Any] = Field(
+    valid_options: dict[str, ValidOptionValue] | None = Field(
+        default=None,
+        description="Configured valid options and their allowed values",
+    )
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="Additional metadata if needed",
     )
@@ -106,10 +128,14 @@ class AIModel(BaseModel):
         description="Optional unique reference number",
     )
 
+    @property
+    def is_foundation_model(self) -> bool:
+        return isinstance(self, FoundationModel)
+
     @model_validator(mode="after")
-    def _validate_model_options(self) -> "AIModel":
+    def _validate_model_options(self) -> "BaseAIModel":
         """Validates model options against foundation model if present."""
-        if isinstance(self, FoundationModel):
+        if self.is_foundation_model:
             return self
 
         if not self.foundation_model:
@@ -134,6 +160,26 @@ class AIModel(BaseModel):
                 raise ValueError(
                     f"Invalid values for option {option_name}: {invalid_values}",
                 )
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_settings(self) -> "BaseAIModel":
+        if not self.settings:
+            return self
+
+        if self.functional_type == AIModelFunctionalTypeEnum.TEXT_GENERATION and not isinstance(self.settings, ChatModelSettings):
+            raise ValueError("Settings should be instance of ChatModelSettings for chat models")
+
+        if self.functional_type == AIModelFunctionalTypeEnum.IMAGE_GENERATION and not isinstance(self.settings, ImageModelSettings):
+            raise ValueError("Settings should be instance of ImageModelSettings for image models")
+
+        return self
+
+    @model_validator(mode="after")
+    def _validate_names(self) -> "BaseAIModel":
+        if not self.display_name:
+            self.display_name = self.model_name
 
         return self
 
@@ -196,9 +242,16 @@ class AIModel(BaseModel):
         return complete_options
 
 
-class FoundationModel(AIModel):
+class FoundationModel(BaseAIModel):
     """
     Represents a foundation model that defines base capabilities and options.
     """
 
     pass
+
+
+class AIModel(BaseAIModel):
+    foundation_model: FoundationModel | None = Field(
+        None,
+        description="Matching foundation model for parameter preloading",
+    )
