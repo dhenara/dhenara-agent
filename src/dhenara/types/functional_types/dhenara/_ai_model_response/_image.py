@@ -3,30 +3,10 @@
 
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelProviderEnum
+from pydantic import Field
 
 from ._chat import AIModelCallResponseMetaData
-
-
-class ImageResponseContentItem(BaseModel):
-    """Content item in an image generation response
-
-    Contains the generated image information including file references and status
-    """
-
-    tsg_file_id: str | None = None
-    content_url_from_api: str | None = None
-    revised_prompt: str | None = None
-    rai_filtered_reason: str | None = None
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "tsg_file_id": "file_123abc",
-                "content_url_from_api": "https://api.example.com/images/123.jpg",
-                "revised_prompt": "A serene mountain landscape at sunset",
-                "rai_filtered_reason": None,
-            }
-        }
+from ._content_item import ImageResponseContentItem
 
 
 class ImageResponseChoice(BaseModel):
@@ -48,16 +28,22 @@ class ImageResponseChoice(BaseModel):
 
 
 class ImageResponseUsage(BaseModel):
-    """Usage information for image generation"""
+    """Usage information for image generation. Note that, for images, no usage data is received, so this class holds params required for usage/cost calculation"""
 
-    model: str
-    cost_affecting_options: dict
+    model: str = Field(
+        default_factory=dict,
+        description="Model Name",
+    )
+    options: dict = Field(
+        default_factory=dict,
+        description="Options send to API",
+    )
 
     class Config:
         json_schema_extra = {
             "example": {
                 "model": "dall-e-3",
-                "cost_affecting_options": {
+                "options": {
                     "size": "1024x1024",
                     "quality": "standard",
                 },

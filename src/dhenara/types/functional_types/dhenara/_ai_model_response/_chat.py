@@ -6,33 +6,13 @@ from dhenara.types.api import SSEDataChunk, SSEEventType, SSEResponse
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelAPIProviderEnum, AIModelProviderEnum
 
+from ._content_item import ChatResponseContentItem
+
 
 class AIModelCallResponseMetaData(BaseModel):
     streaming: bool = False
     duration_seconds: int | float | None = None
     provider_data: dict
-
-
-class ChatResponseContentItem(BaseModel):
-    """Content item in a chat response
-
-    Contains the role and text of a message, along with optional function calls and metadata
-    """
-
-    role: str
-    text: str
-    function_call: Any | None = None
-    metadata: dict | None = None
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "role": "assistant",
-                "text": "Hello! How can I help you today?",
-                "function_call": None,
-                "metadata": {"confidence": 0.95},
-            }
-        }
 
 
 class ChatResponseChoice(BaseModel):
@@ -132,32 +112,3 @@ class ChatResponse(BaseModel):
 
     def get_visible_fields(self) -> dict:
         return self.model_dump(exclude=["choices"])
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "model": "gpt-4",
-                "provider": "openai",
-                "usage": {
-                    "total_tokens": 100,
-                    "prompt_tokens": 50,
-                    "completion_tokens": 50,
-                },
-                "cost_in_usd": "0.002",
-                "choices": [
-                    {
-                        "index": 0,
-                        "content": {
-                            "role": "assistant",
-                            "text": "Hello! How can I help you today?",
-                        },
-                    }
-                ],
-                "metadata": {
-                    "id": "chatcmpl-123",
-                    "object": "chat.completion",
-                    "created": 1677649420,
-                    "system_fingerprint": "fp-123",
-                },
-            }
-        }

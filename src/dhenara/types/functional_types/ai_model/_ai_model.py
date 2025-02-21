@@ -1,14 +1,46 @@
-from typing import Any
+from typing import Any, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelFunctionalTypeEnum, AIModelProviderEnum
 
 
+class ValidOptionValue(BaseModel):
+    """
+    Represents a valid option configuration for an AI model parameter.
+    """
+
+    allowed_values: list[Any] = Field(
+        ...,
+        description="List of allowed values for this option",
+    )
+    default_value: Any = Field(
+        ...,
+        description="Default value for this option",
+    )
+    cost_sensitive: bool = Field(
+        ...,
+        description="Will this option affect api-cost or not",
+    )
+    description: str | None = Field(
+        None,
+        description="Optional description of what this option controls",
+    )
+
+    @model_validator(mode="after")
+    def validate_default_in_allowed_values(self) -> "ValidOptionValue":
+        """Ensures the default value is among allowed values."""
+        if self.default_value not in self.allowed_values:
+            raise ValueError(
+                f"Default value {self.default_value} must be one of {self.allowed_values}",
+            )
+        return self
+
+
 class AIModel(BaseModel):
     """
-    Pydantic model representing an AI model configuration.
+    Pydantic model representing an AI model configuration with options validation.
     """
 
     provider: AIModelProviderEnum = Field(
@@ -22,19 +54,18 @@ class AIModel(BaseModel):
     model_name: str = Field(
         ...,
         max_length=300,
-        description="model name used in API calls",
+        description="Model name used in API calls",
     )
     display_name: str = Field(
         ...,
         max_length=300,
         description="Display name for the model",
     )
-    notes: str | None = Field(
+    foundation_model: Optional["FoundationModel"] = Field(
         None,
-        max_length=500,
-        description="Optional notes about the model",
+        description="Matching foundation model for parameter preloading",
     )
-    display_order: int = Field(
+    order: int = Field(
         0,
         description="Order for display purposes",
     )
@@ -42,11 +73,10 @@ class AIModel(BaseModel):
         True,  # noqa: FBT003
         description="Whether the model is enabled",
     )
-    is_beta: bool = Field(
+    beta: bool = Field(
         False,  # noqa: FBT003
         description="Whether the model is in beta",
     )
-
     max_context_window_tokens: int | None = Field(
         None,
         description="Maximum context window size in tokens",
@@ -59,15 +89,116 @@ class AIModel(BaseModel):
         None,
         description="Maximum output tokens allowed",
     )
-    settings: dict[str, Any] = Field(
+    valid_options: dict[str, ValidOptionValue] = Field(
         default_factory=dict,
-        description="Additional settings for the model",
+        description="Configured valid options and their allowed values",
     )
-    is_instance_wide: bool = Field(
-        False,  # noqa: FBT003
-        description="Whether the model is available instance-wide",
+    settings: dict[str, ValidOptionValue] = Field(
+        default_factory=dict,
+        description="Settings",
+    )
+    meta: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata if needed",
     )
     reference_number: str | None = Field(
         None,
-        description="reference number. Should be unique if not None",
+        description="Optional unique reference number",
     )
+
+    @model_validator(mode="after")
+    def _validate_model_options(self) -> "AIModel":
+        """Validates model options against foundation model if present."""
+        if isinstance(self, FoundationModel):
+            return self
+
+        if not self.foundation_model:
+            return self
+
+        # Validate that all options are present in foundation model
+        invalid_options = set(self.valid_options.keys()) - set(
+            self.foundation_model.valid_options.keys(),
+        )
+        if invalid_options:
+            raise ValueError(
+                f"Invalid options found: {invalid_options}. Must be subset of foundation model options.",
+            )
+
+        # Validate option values against foundation model
+        for option_name, option_config in self.valid_options.items():
+            foundation_config = self.foundation_model.valid_options[option_name]
+            invalid_values = set(option_config.allowed_values) - set(
+                foundation_config.allowed_values,
+            )
+            if invalid_values:
+                raise ValueError(
+                    f"Invalid values for option {option_name}: {invalid_values}",
+                )
+
+        return self
+
+    def validate_options(self, options: dict[str, Any]) -> bool:
+        """
+        Validates if the provided options conform to the model's valid options.
+
+        Args:
+            options: Dictionary of option name to value mappings
+
+        Returns:
+            bool: True if options are valid, False otherwise
+        """
+        try:
+            self._validate_options_strict(options)
+            return True
+        except ValueError:
+            return False
+
+    def _validate_options_strict(self, options: dict[str, Any]) -> None:
+        """
+        Strictly validates options and raises ValueError for invalid options.
+
+        Args:
+            options: Dictionary of option name to value mappings
+
+        Raises:
+            ValueError: If any option is invalid
+        """
+        invalid_options = set(options.keys()) - set(self.valid_options.keys())
+        if invalid_options:
+            raise ValueError(f"Unknown options: {invalid_options}")
+
+        for option_name, value in options.items():
+            valid_values = self.valid_options[option_name].allowed_values
+            if value not in valid_values:
+                raise ValueError(
+                    f"Invalid value for {option_name}: {value}. Must be one of {valid_values}",
+                )
+
+    def get_options_with_defaults(self, options: dict[str, Any]) -> dict[str, Any]:
+        """
+        Returns a complete options dictionary with defaults for missing values.
+
+        Args:
+            options: Partial options dictionary
+
+        Returns:
+            dict: Complete options dictionary with defaults
+        """
+        self._validate_options_strict(options)
+
+        complete_options = {}
+        for option_name, option_config in self.valid_options.items():
+            complete_options[option_name] = options.get(
+                option_name,
+                option_config.default_value,
+            )
+
+        return complete_options
+
+
+class FoundationModel(AIModel):
+    """
+    Represents a foundation model that defines base capabilities and options.
+    """
+
+    pass

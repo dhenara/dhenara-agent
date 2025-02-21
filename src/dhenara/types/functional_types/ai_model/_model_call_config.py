@@ -1,4 +1,5 @@
 from dhenara.types.base import BaseModel
+from dhenara.types.functional_types.ai_model import AIModel
 
 
 class AIModelCallConfig(BaseModel):
@@ -20,3 +21,14 @@ class AIModelCallConfig(BaseModel):
             user = self.metadata.get("user_id", None)
 
         return user
+
+    def get_max_tokens(self, model: AIModel = None) -> int:
+        if self.max_tokens:
+            return self.max_tokens
+        if not model:
+            raise ValueError("Model should be passed when max_token is not set in the call-config")
+
+        if not model.max_output_tokens:
+            raise ValueError(f"max_output_tokens is not set in model {model.model_name} or call-config")
+
+        return model.max_output_tokens
