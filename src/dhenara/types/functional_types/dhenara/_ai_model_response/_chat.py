@@ -106,7 +106,6 @@ class ChatResponse(BaseModel):
     provider: AIModelProviderEnum
     api_provider: AIModelAPIProviderEnum | None = None
     usage: ChatResponseUsage
-    cost_in_usd: str
     choices: list[ChatResponseChoice]
     metadata: AIModelCallResponseMetaData | dict = {}
 

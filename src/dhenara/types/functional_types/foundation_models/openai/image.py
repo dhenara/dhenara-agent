@@ -1,11 +1,10 @@
 from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
-    FoundationModel,
-    ValidOptionValue,
-    ImageModelSettings,
     AIModelProviderEnum,
+    FoundationModel,
+    ImageModelSettings,
+    ValidOptionValue,
 )
-
 
 DallE2 = FoundationModel(
     model_name="dall-e-2",

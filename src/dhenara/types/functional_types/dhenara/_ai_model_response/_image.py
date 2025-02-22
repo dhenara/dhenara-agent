@@ -20,8 +20,8 @@ class ImageResponseChoice(BaseModel):
             "example": {
                 "index": 0,
                 "content": {
-                    "tsg_file_id": "file_123abc",
-                    "content_url_from_api": "https://api.example.com/images/123.jpg",
+                    "content_format": "url",
+                    "content_url": "https://api.example.com/images/123.jpg",
                 },
             }
         }
@@ -60,7 +60,6 @@ class ImageResponse(BaseModel):
     model: str
     provider: AIModelProviderEnum
     usage: ImageResponseUsage
-    cost_in_usd: str
     choices: list[ImageResponseChoice]
     metadata: AIModelCallResponseMetaData | dict = {}
 
@@ -76,13 +75,12 @@ class ImageResponse(BaseModel):
                         "quality": "standard",
                     },
                 },
-                "cost_in_usd": "0.040",
                 "choices": [
                     {
                         "index": 0,
                         "content": {
-                            "tsg_file_id": "file_123abc",
-                            "content_url_from_api": "https://api.example.com/images/123.jpg",
+                            "content_format": "url",
+                            "content_url": "https://api.example.com/images/123.jpg",
                         },
                     }
                 ],

@@ -1,5 +1,16 @@
-from dhenara.types.base import BaseModel
+import base64
+
+from dhenara.types.base import BaseEnum, BaseModel
 from pydantic import Field
+
+
+class ImageContentFormat(BaseEnum):
+    """Enum representing different formats of image content"""
+
+    URL = "url"
+    BASE64 = "base64"
+    BYTES = "bytes"
+    UNKNOWN = "unknown"
 
 
 class BaseResponseContentItem(BaseModel):
@@ -67,6 +78,10 @@ class ImageResponseContentItem(BaseResponseContentItem):
         size: Image dimensions
     """
 
+    content_format: ImageContentFormat = Field(
+        ...,
+        description="Response content format",
+    )
     content_bytes: bytes | None = Field(
         None,
         description="Raw image content in bytes",
@@ -80,14 +95,6 @@ class ImageResponseContentItem(BaseResponseContentItem):
         None,
         description="URL to access the generated image",
         pattern=r"^https?://.*$",
-    )
-    format: str = Field(
-        "PNG",
-        description="Image format (e.g., PNG, JPEG)",
-    )
-    size: tuple[int, int] | None = Field(
-        None,
-        description="Image dimensions (width, height)",
     )
 
     def validate_content(self) -> bool:
@@ -103,3 +110,13 @@ class ImageResponseContentItem(BaseResponseContentItem):
                 self.content_url is not None,
             ]
         )
+
+    def get_content_as_bytes(self) -> bytes:
+        if self.content_format == ImageContentFormat.BYTES:
+            byte_content = self.content_bytes
+        if self.content_format == ImageContentFormat.BASE64:
+            byte_content = base64.b64decode(self.content_b64_json)
+        else:
+            raise ValueError("get_content_as_bytes: only byte/b64_json format is supported now")
+
+        return byte_content
