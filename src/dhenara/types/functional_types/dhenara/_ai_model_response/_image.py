@@ -62,33 +62,3 @@ class ImageResponse(BaseModel):
     usage: ImageResponseUsage
     choices: list[ImageResponseChoice]
     metadata: AIModelCallResponseMetaData | dict = {}
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "model": "dall-e-3",
-                "provider": "openai",
-                "usage": {
-                    "model": "dall-e-3",
-                    "cost_affecting_options": {
-                        "size": "1024x1024",
-                        "quality": "standard",
-                    },
-                },
-                "choices": [
-                    {
-                        "index": 0,
-                        "content": {
-                            "content_format": "url",
-                            "content_url": "https://api.example.com/images/123.jpg",
-                        },
-                    }
-                ],
-                "metadata": {
-                    "id": "img-123abc",
-                    "object": "image.generation",
-                    "created": 1677649420,
-                    "system_fingerprint": "fp-123",
-                },
-            }
-        }

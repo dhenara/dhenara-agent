@@ -2,7 +2,7 @@
 from .fns import FoundationModelFns
 
 from .constants import (
-    ALL_MODELS,
+    ALL_FOUNDATION_MODELS,
     ALL_CHAT_MODELS,
     ALL_IMAGE_MODELS,
     # Provider specific

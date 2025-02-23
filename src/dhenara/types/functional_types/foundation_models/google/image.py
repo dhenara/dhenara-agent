@@ -2,6 +2,7 @@ from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
     FoundationModel,
+    ImageModelCostData,
     ImageModelSettings,
     ValidOptionValue,
 )
@@ -13,7 +14,7 @@ _imagen_valid_options = {
         cost_sensitive=True,
         description="Image aspect ratio",
     ),
-    "n": ValidOptionValue(
+    "number_of_images": ValidOptionValue(
         allowed_values=list(range(1, 4)),
         default_value=1,
         cost_sensitive=True,
@@ -39,6 +40,7 @@ _imagen_valid_options = {
     ),
 }
 
+
 Imagen3 = FoundationModel(
     model_name="imagen-3.0-generate",
     display_name="imagen-3.0",
@@ -50,6 +52,10 @@ Imagen3 = FoundationModel(
         "details": "Imagen 3.0",
     },
     order=1,
+    cost_data=ImageModelCostData(
+        flat_cost_per_image=0.04,
+        image_options_cost_data=None,
+    ),
 )
 
 
@@ -67,5 +73,9 @@ Imagen3Fast = FoundationModel(
         "api_model_name": "imagen-3.0-generate-001",
     },
     order=2,
+    cost_data=ImageModelCostData(
+        flat_cost_per_image=0.02,
+        image_options_cost_data=None,
+    ),
 )
 IMAGE_MODELS = [Imagen3, Imagen3Fast]

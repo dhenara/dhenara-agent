@@ -1,6 +1,7 @@
 from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
+    ChatModelCostData,
     ChatModelSettings,
     FoundationModel,
 )
@@ -20,6 +21,10 @@ Gemini15Flash = FoundationModel(
         "display_order": 10,
     },
     order=20,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=0.15,
+        output_token_cost_per_million=0.60,
+    ),
 )
 
 Gemini15Pro = FoundationModel(
@@ -37,6 +42,10 @@ Gemini15Pro = FoundationModel(
         "display_order": 11,
     },
     order=21,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=2.50,
+        output_token_cost_per_million=10.0,
+    ),
 )
 
 CHAT_MODELS = [Gemini15Flash, Gemini15Pro]

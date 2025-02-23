@@ -1,6 +1,7 @@
 from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
+    ChatModelCostData,
     ChatModelSettings,
     FoundationModel,
 )
@@ -19,6 +20,10 @@ DeepseekR1 = FoundationModel(
         "details": "DeepSeek-R1 model, optimized for reasoning.",
     },
     order=20,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=0.60,
+        output_token_cost_per_million=2.20,
+    ),
 )
 
 CHAT_MODELS = [DeepseekR1]

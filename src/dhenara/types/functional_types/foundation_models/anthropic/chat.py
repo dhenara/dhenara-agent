@@ -1,6 +1,7 @@
 from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
+    ChatModelCostData,
     ChatModelSettings,
     FoundationModel,
 )
@@ -19,6 +20,10 @@ Claude35Haiku = FoundationModel(
         "details": "Fastest, most cost-effective model.",
     },
     order=20,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=1.0,
+        output_token_cost_per_million=5.0,
+    ),
 )
 
 
@@ -36,6 +41,10 @@ Claude35Sonnet = FoundationModel(
         "details": "Model, with highest level of intelligence and capability.",
     },
     order=21,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=3.0,
+        output_token_cost_per_million=15.0,
+    ),
 )
 
 
@@ -53,6 +62,10 @@ Claude3Opus = FoundationModel(
         "details": "Powerful model for highly complex tasks",
     },
     order=12,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=15.0,
+        output_token_cost_per_million=75.0,
+    ),
 )
 
 CHAT_MODELS = [Claude35Sonnet, Claude35Haiku, Claude3Opus]

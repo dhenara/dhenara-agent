@@ -2,6 +2,7 @@ from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
     FoundationModel,
+    ImageModelCostData,
     ImageModelSettings,
     ValidOptionValue,
 )
@@ -41,6 +42,23 @@ DallE2 = FoundationModel(
     metadata={
         "details": "DALL·E model released in Nov 2023.",
     },
+    cost_data=ImageModelCostData(
+        flat_cost_per_image=None,  # Pricing is within options
+        image_options_cost_data=[
+            {
+                "size": ["256x256"],
+                "cost_per_image": 0.016,
+            },
+            {
+                "size": ["512x512"],
+                "cost_per_image": 0.018,
+            },
+            {
+                "size": ["1024x1024"],
+                "cost_per_image": 0.020,
+            },
+        ],
+    ),
 )
 
 
@@ -85,6 +103,31 @@ DallE3 = FoundationModel(
     metadata={
         "details": "DALL·E model released in Nov 2023.",
     },
+    cost_data=ImageModelCostData(
+        flat_cost_per_image=None,  # Pricing is within options
+        image_options_cost_data=[
+            {
+                "quality": ["standard"],
+                "size": ["1024x1024"],
+                "cost_per_image": 0.04,
+            },
+            {
+                "quality": ["standard"],
+                "size": ["1024x1792", "1792x1024"],
+                "cost_per_image": 0.08,
+            },
+            {
+                "quality": ["hd"],
+                "size": ["1024x1024"],
+                "cost_per_image": 0.08,
+            },
+            {
+                "quality": ["hd"],
+                "size": ["1024x1792", "1792x1024"],
+                "cost_per_image": 0.12,
+            },
+        ],
+    ),
 )
 
 IMAGE_MODELS = [DallE2, DallE3]

@@ -38,6 +38,55 @@ class ValidOptionValue(BaseModel):
         return self
 
 
+class BaseCostData(BaseModel):
+    # NOTE: Default should be None to avoid wrong cost calculation without proper overrides of standard foundation models in the package
+    cost_multiplier_percentage: float | None = Field(
+        default=None,
+        description="Cost multiplication %, if any.",
+    )
+
+    def calculate_cost(self, *args, **kwargs):
+        raise NotImplementedError("calculate_cost() not implemented")
+
+
+class ChatModelCostData(BaseCostData):
+    input_token_cost_per_million: float = Field(
+        ...,
+        description="",
+    )
+    output_token_cost_per_million: float = Field(
+        ...,
+        description="",
+    )
+
+    def calculate_cost(self, *args, **kwargs):
+        pass  # TODO
+
+
+class ImageModelCostData(BaseCostData):
+    flat_cost_per_image: float | None = Field(
+        default=None,
+        description="Flat per image cost",
+    )
+
+    image_options_cost_data: list[dict] | None = Field(
+        default=None,
+        description="Image options cost data",
+    )
+
+    @model_validator(mode="after")
+    def _validate_cost_factores(self) -> "ImageModelCostData":
+        if not (self.flat_cost_per_image or self.image_options_cost_data):
+            raise ValueError("Either of flat_cost_per_image / image_options_cost_data must be set")
+        if self.flat_cost_per_image and self.image_options_cost_data:
+            raise ValueError("Set only one of flat_cost_per_image / image_options_cost_data is allowed")
+
+        return self
+
+    def calculate_cost(self, *args, **kwargs):
+        pass  # TODO
+
+
 class ChatModelSettings(BaseModel):
     max_context_window_tokens: int | None = Field(
         None,
@@ -123,6 +172,12 @@ class BaseAIModel(BaseModel):
         default_factory=dict,
         description="Additional metadata if needed",
     )
+
+    cost_data: ChatModelCostData | ImageModelCostData | None = Field(
+        None,
+        description="Optional Cost data",
+    )
+
     reference_number: str | None = Field(
         None,
         description="Optional unique reference number",
@@ -168,11 +223,11 @@ class BaseAIModel(BaseModel):
         if not self.settings:
             return self
 
-        if self.functional_type == AIModelFunctionalTypeEnum.TEXT_GENERATION and not isinstance(self.settings, ChatModelSettings):
-            raise ValueError("Settings should be instance of ChatModelSettings for chat models")
-
-        if self.functional_type == AIModelFunctionalTypeEnum.IMAGE_GENERATION and not isinstance(self.settings, ImageModelSettings):
-            raise ValueError("Settings should be instance of ImageModelSettings for image models")
+        (setting_model, cost_model) = AIModel.get_pydantic_model_classes(self.functional_type)
+        if not isinstance(self.settings, setting_model):
+            raise ValueError(f"Settings should be instance of {setting_model} for {self.functional_type} models")
+        if self.is_foundation_model and not isinstance(self.cost_data, cost_model):
+            raise ValueError(f"For {self.functional_type} models, cost data must be set and of type {cost_model}")
 
         return self
 
@@ -241,12 +296,30 @@ class BaseAIModel(BaseModel):
 
         return complete_options
 
+    def get_cost_data(self):
+        if self.cost_data:
+            return self.cost_data
+        elif hasattr(self, "foundation_model"):
+            return self.foundation_model.cost_data
+        else:
+            return None
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def get_pydantic_model_classes(cls, functional_type):
+        if functional_type == AIModelFunctionalTypeEnum.TEXT_GENERATION:
+            setting_model = ChatModelSettings
+            cost_model = ChatModelCostData
+        elif functional_type == AIModelFunctionalTypeEnum.IMAGE_GENERATION:
+            setting_model = ImageModelSettings
+            cost_model = ImageModelCostData
+        else:
+            raise ValueError(f"Functional type {functional_type} is not implemented ")
+
+        return (setting_model, cost_model)
+
 
 class FoundationModel(BaseAIModel):
-    """
-    Represents a foundation model that defines base capabilities and options.
-    """
-
     pass
 
 

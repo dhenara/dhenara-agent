@@ -33,7 +33,7 @@ ALL_IMAGE_MODELS = [
     for model in provider_models
 ]
 
-ALL_MODELS = [
+ALL_FOUNDATION_MODELS= [
     model
     for functional_type in FOUNDATION_MODELS_MAPPINGS.values()
     for provider_models in functional_type.values()

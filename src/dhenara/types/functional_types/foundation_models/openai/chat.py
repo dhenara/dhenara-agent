@@ -1,6 +1,7 @@
 from dhenara.types.functional_types.ai_model import (
     AIModelFunctionalTypeEnum,
     AIModelProviderEnum,
+    ChatModelCostData,
     ChatModelSettings,
     FoundationModel,
 )
@@ -19,6 +20,10 @@ GPT4o = FoundationModel(
         "details": "OpenAI GPT-4o model, optimized for conversational AI.",
     },
     order=10,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=2.5,
+        output_token_cost_per_million=10.0,
+    ),
 )
 
 
@@ -36,6 +41,10 @@ GPT4oMini = FoundationModel(
         "details": "OpenAI's affordable and intelligent small model for fast, lightweight tasks.",
     },
     order=11,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=0.15,
+        output_token_cost_per_million=0.60,
+    ),
 )
 
 O1 = FoundationModel(
@@ -52,6 +61,10 @@ O1 = FoundationModel(
         "details": "OpenAI o1 model, optimized for reasoning.",
     },
     order=20,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=15.0,
+        output_token_cost_per_million=60.0,
+    ),
 )
 
 O1Mini = FoundationModel(
@@ -69,6 +82,10 @@ O1Mini = FoundationModel(
         "display_order": 20,
     },
     order=21,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=1.10,
+        output_token_cost_per_million=4.40,
+    ),
 )
 
 O3Mini = FoundationModel(
@@ -85,6 +102,10 @@ O3Mini = FoundationModel(
         "details": "OpenAI o3-mini model, optimized for reasoning.",
     },
     order=22,
+    cost_data=ChatModelCostData(
+        input_token_cost_per_million=1.10,
+        output_token_cost_per_million=4.40,
+    ),
 )
 
 CHAT_MODELS = [GPT4o, GPT4oMini, O1, O1Mini, O3Mini]

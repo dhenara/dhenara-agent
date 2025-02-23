@@ -17,13 +17,13 @@ class CredentialFieldConfig(BaseModel):
 class CredentialOutputMapping(BaseModel):
     """Mapping configuration for credential output"""
 
-    source: Literal["api_key", "dict_credentials", "config"] = Field(
+    source: Literal["api_key", "credentials", "config"] = Field(
         ...,
         description="Source of the credential value",
     )
     source_key: str | None = Field(
         None,
-        description="Key in the source dictionary (for dict_credentials and config)",
+        description="Key in the source dictionary (for credentials and config)",
     )
     output_key: str = Field(
         ...,
@@ -119,7 +119,7 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
         ],
         output_mappings=[
             CredentialOutputMapping(
-                source="dict_credentials",
+                source="credentials",
                 source_key="service_account_json",
                 output_key="service_account_json",
             ),
@@ -156,12 +156,12 @@ PROVIDER_CONFIGS: dict[AIModelAPIProviderEnum, ProviderCredentialsConfig] = {
         ],
         output_mappings=[
             CredentialOutputMapping(
-                source="dict_credentials",
+                source="credentials",
                 source_key="access_key_id",
                 output_key="aws_access_key",
             ),
             CredentialOutputMapping(
-                source="dict_credentials",
+                source="credentials",
                 source_key="secret_access_key",
                 output_key="aws_secret_key",
             ),

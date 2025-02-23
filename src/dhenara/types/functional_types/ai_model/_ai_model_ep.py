@@ -1,10 +1,7 @@
-from decimal import Decimal
-from typing import Any
-
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
-from dhenara.types.functional_types.ai_model import AIModel, AIModelAPI
+from dhenara.types.functional_types.ai_model import AIModel, AIModelAPI, ChatModelCostData, ImageModelCostData
 
 
 class AIModelEndpoint(BaseModel):
@@ -20,40 +17,33 @@ class AIModelEndpoint(BaseModel):
         ...,
         description="Reference to AI model",
     )
-    notes: str | None = Field(
-        None,
-        max_length=500,
-        description="Optional notes about the endpoint",
+    order: int = Field(
+        0,
+        description="Order for display purposes",
     )
     enabled: bool = Field(
         True,  # noqa: FBT003
         description="Whether the endpoint is enabled",
     )
-    is_instance_wide: bool = Field(
-        False,  # noqa: FBT003
-        description="Whether the endpoint is available instance-wide",
-    )
-    input_token_cost_per_million: Decimal | None = Field(
+    cost_data: ChatModelCostData | ImageModelCostData | None = Field(
         None,
-        description="Cost per million input tokens",
-    )
-    output_token_cost_per_million: Decimal | None = Field(
-        None,
-        description="Cost per million output tokens",
-    )
-    flat_cost_image_cost: Decimal | None = Field(
-        None,
-        description="Flat cost for image generation",
-    )
-    image_options_cost_data: list[Any] = Field(
-        default_factory=list,
-        description="Cost data for image generation options",
-    )
-    display_order: int = Field(
-        0,
-        description="Order for display purposes",
+        description="Matching foundation model for parameter preloading",
     )
     reference_number: str | None = Field(
         None,
         description="reference number. Should be unique if not None",
     )
+
+    @model_validator(mode="after")
+    def _validate_cost_data(self) -> "AIModelEndpoint":
+        if self.cost_data:
+            (setting_model, cost_model) = AIModel.get_pydantic_model_classes(self.functional_type)
+            if not isinstance(self.cost_data, cost_model):
+                raise ValueError(f"For {self.functional_type} model endpoins, cost data must be of type {cost_model}, if set.")
+            return self
+
+    def get_cost_data(self):
+        if self.cost_data:
+            return self.cost_data
+        else:
+            return self.ai_model.get_cost_data()

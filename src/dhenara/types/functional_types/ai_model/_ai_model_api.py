@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 
 from pydantic import Field, field_validator, model_validator
@@ -19,36 +18,27 @@ class AIModelAPI(BaseModel):
     )
     api_key: str | None = Field(
         None,
-        description="API key for authentication",
+        description="API key, if applicable ",
     )
-    dict_credentials: dict[str, Any] | None = Field(
+    credentials: dict[str, Any] | None = Field(
         None,
-        description="Dictionary of additional credentials",
+        description="Dictionary of sensitive credentials otherthan API key.",
     )
     config: dict[str, Any] = Field(
         default_factory=dict,
-        description="Configuration settings for the provider",
+        description="Non-sensitive credential configuration/parameters.",
+    )
+    order: int = Field(
+        0,
+        description="Order for display purposes",
     )
     enabled: bool = Field(
         True,  # noqa: FBT003
         description="Whether this API is enabled",
     )
-    is_instance_wide: bool = Field(
-        False,  # noqa: FBT003
-        description="Whether these credentials are available instance-wide",
-    )
     reference_number: str | None = Field(
         None,
         description="Reference number. Should be unique if not None",
-    )
-    notes: str | None = Field(
-        None,
-        max_length=500,
-        description="Optional notes about the credentials",
-    )
-    updated_at: datetime | None = Field(
-        None,
-        description="Last update timestamp",
     )
 
     @model_validator(mode="after")
@@ -63,9 +53,9 @@ class AIModelAPI(BaseModel):
             raise ValueError(f"API key is required for {self.provider}")
 
         # Validate required credentials
-        if self.dict_credentials:
+        if self.credentials:
             for field_config in provider_config.credentials_required_fields:
-                value = self.dict_credentials.get(field_config.field_name)
+                value = self.credentials.get(field_config.field_name)
                 if not value:
                     raise ValueError(f"Missing required credential: {field_config.field_name}")
                 if field_config.is_json_field and not isinstance(value, dict):
@@ -97,8 +87,8 @@ class AIModelAPI(BaseModel):
             value = None
             if mapping.source == "api_key":
                 value = self.api_key
-            elif mapping.source == "dict_credentials" and mapping.source_key:
-                value = self.dict_credentials.get(mapping.source_key) if self.dict_credentials else None
+            elif mapping.source == "credentials" and mapping.source_key:
+                value = self.credentials.get(mapping.source_key) if self.credentials else None
             elif mapping.source == "config" and mapping.source_key:
                 value = self.config.get(mapping.source_key)
 
@@ -185,8 +175,8 @@ class AIModelAPI(BaseModel):
         masked = {}
         if self.api_key:
             masked["api_key"] = f"{self.api_key[:4]}...{self.api_key[-4:]}"
-        if self.dict_credentials:
-            masked["credentials"] = {k: f"{str(v)[:4]}...{str(v)[-4:]}" if v else None for k, v in self.dict_credentials.items()}
+        if self.credentials:
+            masked["credentials"] = {k: f"{str(v)[:4]}...{str(v)[-4:]}" if v else None for k, v in self.credentials.items()}
         if self.config:
             masked["config"] = self.config
         return masked
@@ -224,8 +214,8 @@ class AIModelAPI(BaseModel):
             updated_data["api_key"] = api_key
 
         if credentials is not None:
-            updated_data["dict_credentials"] = {
-                **current_data.get("dict_credentials", {}),
+            updated_data["credentials"] = {
+                **current_data.get("credentials", {}),
                 **credentials,
             }
 
@@ -252,7 +242,7 @@ class AIModelAPI(BaseModel):
         return cls.validate_updates(
             current_model,
             credentials=credentials,
-        ).dict_credentials
+        ).credentials
 
     @classmethod
     def validate_config_update(
