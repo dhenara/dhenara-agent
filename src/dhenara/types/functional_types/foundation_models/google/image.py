@@ -27,8 +27,8 @@ _imagen_valid_options = {
         description="Add watermark or not",
     ),
     "safety_filter_level": ValidOptionValue(
-        allowed_values=[None, "block_most", "block_some", "block_few", "block_fewest"],
-        default_value="block_fewest",
+        allowed_values=[None, "block_low_and_above", "block_medium_and_above", "block_only_high"],
+        default_value="block_only_high",
         cost_sensitive=False,
         description="Safety Filter Level",
     ),
@@ -50,6 +50,7 @@ Imagen3 = FoundationModel(
     valid_options=_imagen_valid_options,
     metadata={
         "details": "Imagen 3.0",
+        "version_suffix": "-002",  # NOTE: This is required for google models
     },
     order=1,
     cost_data=ImageModelCostData(
@@ -68,9 +69,7 @@ Imagen3Fast = FoundationModel(
     valid_options=_imagen_valid_options,
     metadata={
         "details": "Imagen 3.0",
-        "display_order": 51,
-        "version_suffix": "-001",
-        "api_model_name": "imagen-3.0-generate-001",
+        "version_suffix": "-001",  # NOTE: This is required for google models
     },
     order=2,
     cost_data=ImageModelCostData(

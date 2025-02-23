@@ -245,6 +245,14 @@ class BaseAIModel(BaseModel):
     )
 
     @property
+    def model_name_in_api_calls(self):
+        version_suffix = self.metadata.get("version_suffix", None)
+        if version_suffix:
+            return f"{self.model_name}{version_suffix}"
+        else:
+            return self.model_name
+
+    @property
     def is_foundation_model(self) -> bool:
         return isinstance(self, FoundationModel)
 

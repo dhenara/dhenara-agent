@@ -114,10 +114,10 @@ class ImageResponseContentItem(BaseResponseContentItem):
     def get_content_as_bytes(self) -> bytes:
         if self.content_format == ImageContentFormat.BYTES:
             byte_content = self.content_bytes
-        if self.content_format == ImageContentFormat.BASE64:
+        elif self.content_format == ImageContentFormat.BASE64:
             byte_content = base64.b64decode(self.content_b64_json)
         else:
-            raise ValueError("get_content_as_bytes: only byte/b64_json format is supported now")
+            raise ValueError(f"get_content_as_bytes: Content format {self.content_format} not supported. Only byte and b64_json is supported now")
 
         return byte_content
 
