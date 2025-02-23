@@ -6,7 +6,7 @@ from dhenara.types.api import SSEDataChunk, SSEEventType, SSEResponse
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelAPIProviderEnum, AIModelProviderEnum
 
-from ._content_item import ChatResponseContentItem
+from ._content_item import ChatResponseContentItem, UsageCharge
 
 
 class AIModelCallResponseMetaData(BaseModel):
@@ -105,7 +105,8 @@ class ChatResponse(BaseModel):
     model: str
     provider: AIModelProviderEnum
     api_provider: AIModelAPIProviderEnum | None = None
-    usage: ChatResponseUsage
+    usage: ChatResponseUsage | None
+    usage_charge: UsageCharge | None
     choices: list[ChatResponseChoice]
     metadata: AIModelCallResponseMetaData | dict = {}
 

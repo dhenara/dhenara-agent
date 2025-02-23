@@ -12,13 +12,13 @@ _imagen_valid_options = {
         allowed_values=["1:1", "9:16", "16:9", "4:3", "3:4"],
         default_value="1:1",
         cost_sensitive=True,
-        description="Image aspect ratio",
+        description="Aspect ratio",
     ),
     "number_of_images": ValidOptionValue(
         allowed_values=list(range(1, 4)),
         default_value=1,
         cost_sensitive=True,
-        description="Number of images to generate",
+        description="Number of images",
     ),
     "add_watermark": ValidOptionValue(
         allowed_values=[True, False],
@@ -30,13 +30,13 @@ _imagen_valid_options = {
         allowed_values=[None, "block_most", "block_some", "block_few", "block_fewest"],
         default_value="block_fewest",
         cost_sensitive=False,
-        description="safety_filter_level",
+        description="Safety Filter Level",
     ),
     "person_generation": ValidOptionValue(
         allowed_values=[None, "dont_allow", "allow_adult", "allow_all"],
         default_value="allow_all",
         cost_sensitive=False,
-        description="person_generation",
+        description="Person generation settings",
     ),
 }
 

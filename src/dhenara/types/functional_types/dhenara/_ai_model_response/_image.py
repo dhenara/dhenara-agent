@@ -6,7 +6,7 @@ from dhenara.types.external_api._providers import AIModelProviderEnum
 from pydantic import Field
 
 from ._chat import AIModelCallResponseMetaData
-from ._content_item import ImageResponseContentItem
+from ._content_item import ImageResponseContentItem, UsageCharge
 
 
 class ImageResponseChoice(BaseModel):
@@ -30,6 +30,10 @@ class ImageResponseChoice(BaseModel):
 class ImageResponseUsage(BaseModel):
     """Usage information for image generation. Note that, for images, no usage data is received, so this class holds params required for usage/cost calculation"""
 
+    number_of_images: int = Field(
+        ...,
+        description="Number of Images generated",
+    )
     model: str = Field(
         default_factory=dict,
         description="Model Name",
@@ -59,6 +63,7 @@ class ImageResponse(BaseModel):
 
     model: str
     provider: AIModelProviderEnum
-    usage: ImageResponseUsage
+    usage: ImageResponseUsage | None
+    usage_charge: UsageCharge | None
     choices: list[ImageResponseChoice]
     metadata: AIModelCallResponseMetaData | dict = {}

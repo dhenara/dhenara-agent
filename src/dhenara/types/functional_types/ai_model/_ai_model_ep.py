@@ -1,7 +1,7 @@
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
-from dhenara.types.functional_types.ai_model import AIModel, AIModelAPI, ChatModelCostData, ImageModelCostData
+from dhenara.types.functional_types.ai_model import AIModel, AIModelAPI, ChatModelCostData, ChatResponseUsage, ImageModelCostData, ImageResponseUsage
 
 
 class AIModelEndpoint(BaseModel):
@@ -40,10 +40,18 @@ class AIModelEndpoint(BaseModel):
             (setting_model, cost_model) = AIModel.get_pydantic_model_classes(self.functional_type)
             if not isinstance(self.cost_data, cost_model):
                 raise ValueError(f"For {self.functional_type} model endpoins, cost data must be of type {cost_model}, if set.")
-            return self
+
+        return self
 
     def get_cost_data(self):
         if self.cost_data:
             return self.cost_data
         else:
             return self.ai_model.get_cost_data()
+
+    def calculate_usage_charge(
+        self,
+        usage: ChatResponseUsage | ImageResponseUsage,
+    ):
+        cost_data = self.get_cost_data()
+        return cost_data.calculate_usage_charge(usage)

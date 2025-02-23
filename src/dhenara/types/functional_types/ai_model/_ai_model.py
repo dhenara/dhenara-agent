@@ -4,6 +4,7 @@ from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
 from dhenara.types.external_api._providers import AIModelFunctionalTypeEnum, AIModelProviderEnum
+from dhenara.types.functional_types.dhenara import ChatResponseUsage, ImageResponseUsage, UsageCharge
 
 
 class ValidOptionValue(BaseModel):
@@ -42,11 +43,19 @@ class BaseCostData(BaseModel):
     # NOTE: Default should be None to avoid wrong cost calculation without proper overrides of standard foundation models in the package
     cost_multiplier_percentage: float | None = Field(
         default=None,
-        description="Cost multiplication %, if any.",
+        description="Cost multiplication percentage f any. Use this field to offset orgianl cost you paid to API provider with your additional expences/margin",
     )
 
-    def calculate_cost(self, *args, **kwargs):
-        raise NotImplementedError("calculate_cost() not implemented")
+    def calculate_usage_charge(self, usage) -> UsageCharge:
+        raise NotImplementedError("calculate_usage_charge() not implemented")
+
+    def get_charge(self, cost: float):
+        if self.cost_multiplier_percentage:
+            charge = cost * (1 + (self.cost_multiplier_percentage / 100))
+        else:
+            charge = None
+
+        return UsageCharge(cost=cost, charge=charge)
 
 
 class ChatModelCostData(BaseCostData):
@@ -59,8 +68,19 @@ class ChatModelCostData(BaseCostData):
         description="",
     )
 
-    def calculate_cost(self, *args, **kwargs):
-        pass  # TODO
+    def calculate_usage_charge(
+        self,
+        usage: ChatResponseUsage,
+    ) -> UsageCharge:
+        try:
+            input_per_token_cost = self.input_token_cost_per_million / 1000000
+            output_per_token_cost = self.output_token_cost_per_million / 1000000
+
+            cost = usage.prompt_tokens * input_per_token_cost + usage.completion_tokens * output_per_token_cost
+
+            return self.get_charge(cost)
+        except Exception as e:
+            raise ValueError(f"calculate_usage_charge: Error: {e}")
 
 
 class ImageModelCostData(BaseCostData):
@@ -69,7 +89,7 @@ class ImageModelCostData(BaseCostData):
         description="Flat per image cost",
     )
 
-    image_options_cost_data: list[dict] | None = Field(
+    image_options_cost_data: list[dict] | None = Field(  # TODO: rename var
         default=None,
         description="Image options cost data",
     )
@@ -83,8 +103,49 @@ class ImageModelCostData(BaseCostData):
 
         return self
 
-    def calculate_cost(self, *args, **kwargs):
-        pass  # TODO
+    def calculate_usage_charge(
+        self,
+        usage: ImageResponseUsage,
+    ) -> UsageCharge:
+        try:
+            cost_per_image = None
+            if self.flat_cost_per_image:
+                cost_per_image = self.flat_cost_per_image
+            elif self.image_options_cost_data:
+                cost_per_image = self.get_image_cost_with_options(
+                    used_options=usage.options,
+                )
+            else:
+                raise ValueError("calculate_image_charges: cost_per_image or cost options mapping is not set ")
+
+            if cost_per_image is None:
+                raise ValueError("calculate_image_charges: Failed to fix cost_per_image")
+
+            cost = cost_per_image * usage.number_of_images
+            return self.get_charge(cost)
+
+        except Exception as e:
+            raise ValueError(f"calculate_usage_charge: Error: {e}")
+
+    # -------------------------------------------------------------------------
+    def get_image_cost_with_options(self, used_options):
+        # Create a copy of used_options with standardized keys
+        standardized_options = used_options.copy()
+
+        # Remove keys that aren't used in cost data (like 'quality' )
+        valid_keys = {key for data in self.image_options_cost_data for key in data.keys() if key != "cost_per_image"}
+        standardized_options = {k: v for k, v in standardized_options.items() if k in valid_keys}
+
+        for cost_data in self.image_options_cost_data:
+            matches = True
+            for key, value in standardized_options.items():
+                if key not in cost_data or value not in cost_data[key]:
+                    matches = False
+                    break
+            if matches:
+                return cost_data["cost_per_image"]
+
+        raise ValueError(f"get_image_cost_with_options: Failed to get price. used_options={used_options}, image_options_cost_data={self.image_options_cost_data})")
 
 
 class ChatModelSettings(BaseModel):

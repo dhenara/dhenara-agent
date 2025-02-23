@@ -120,3 +120,14 @@ class ImageResponseContentItem(BaseResponseContentItem):
             raise ValueError("get_content_as_bytes: only byte/b64_json format is supported now")
 
         return byte_content
+
+
+class UsageCharge(BaseModel):
+    cost: float = Field(
+        ...,
+        description="Cost",
+    )
+    charge: float | None = Field(
+        ...,
+        description="Charge after considering internal expences and margins. Will be  None if  `cost_multiplier_percentage` is not set in cost data.",
+    )
