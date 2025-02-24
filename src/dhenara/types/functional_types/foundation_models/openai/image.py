@@ -64,7 +64,7 @@ DallE2 = FoundationModel(
 
 DallE3 = FoundationModel(
     model_name="dall-e-3",
-    display_name="dall-e-2",
+    display_name="dall-e-3",
     provider=AIModelProviderEnum.OPEN_AI,
     functional_type=AIModelFunctionalTypeEnum.IMAGE_GENERATION,
     settings=ImageModelSettings(max_words=4000),

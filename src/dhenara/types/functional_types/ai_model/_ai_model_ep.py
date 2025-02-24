@@ -1,7 +1,7 @@
 from pydantic import Field, model_validator
 
 from dhenara.types.base import BaseModel
-from dhenara.types.functional_types.ai_model import AIModel, AIModelAPI, ChatModelCostData, ChatResponseUsage, ImageModelCostData, ImageResponseUsage
+from dhenara.types.functional_types.ai_model import AIModelAPI, BaseAIModel, ChatModelCostData, ChatResponseUsage, ImageModelCostData, ImageResponseUsage
 
 
 class AIModelEndpoint(BaseModel):
@@ -13,7 +13,7 @@ class AIModelEndpoint(BaseModel):
         ...,
         description="Reference to API credentials",
     )
-    ai_model: AIModel = Field(
+    ai_model: BaseAIModel = Field(
         ...,
         description="Reference to AI model",
     )
@@ -37,7 +37,7 @@ class AIModelEndpoint(BaseModel):
     @model_validator(mode="after")
     def _validate_cost_data(self) -> "AIModelEndpoint":
         if self.cost_data:
-            (setting_model, cost_model) = AIModel.get_pydantic_model_classes(self.functional_type)
+            (setting_model, cost_model) = BaseAIModel.get_pydantic_model_classes(self.functional_type)
             if not isinstance(self.cost_data, cost_model):
                 raise ValueError(f"For {self.functional_type} model endpoins, cost data must be of type {cost_model}, if set.")
 

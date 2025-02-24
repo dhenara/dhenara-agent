@@ -31,7 +31,7 @@ class FileProcessingStatusEnum(BaseEnum):
 # -----------------------------------------------------------------------------
 class FileMetadata(BaseModel):
     file_name: str
-    file_size: str
+    file_size: int | float
     mime_type: str
     isinstance_of_dj_fileclass: bool | None = None
 

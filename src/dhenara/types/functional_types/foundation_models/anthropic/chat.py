@@ -18,6 +18,7 @@ Claude35Haiku = FoundationModel(
     valid_options={},
     metadata={
         "details": "Fastest, most cost-effective model.",
+        "version_suffix": "-latest",  # NOTE: Version is required for Anthropic API calls
     },
     order=20,
     cost_data=ChatModelCostData(
@@ -39,6 +40,7 @@ Claude35Sonnet = FoundationModel(
     valid_options={},
     metadata={
         "details": "Model, with highest level of intelligence and capability.",
+        "version_suffix": "-latest",  # NOTE: Version is required for Anthropic API calls
     },
     order=21,
     cost_data=ChatModelCostData(
@@ -60,6 +62,7 @@ Claude3Opus = FoundationModel(
     valid_options={},
     metadata={
         "details": "Powerful model for highly complex tasks",
+        "version_suffix": "-latest",  # NOTE: Version is required for Anthropic API calls
     },
     order=12,
     cost_data=ChatModelCostData(

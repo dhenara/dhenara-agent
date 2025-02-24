@@ -129,6 +129,9 @@ class ImageModelCostData(BaseCostData):
 
     # -------------------------------------------------------------------------
     def get_image_cost_with_options(self, used_options):
+        if not self.image_options_cost_data:
+            return None
+
         # Create a copy of used_options with standardized keys
         standardized_options = used_options.copy()
 
@@ -245,7 +248,7 @@ class BaseAIModel(BaseModel):
     )
 
     @property
-    def model_name_in_api_calls(self):
+    def model_name_with_version_suffix(self):
         version_suffix = self.metadata.get("version_suffix", None)
         if version_suffix:
             return f"{self.model_name}{version_suffix}"
@@ -259,11 +262,16 @@ class BaseAIModel(BaseModel):
     @model_validator(mode="after")
     def _validate_model_options(self) -> "BaseAIModel":
         """Validates model options against foundation model if present."""
+        # Option validation is not done for foundation models
         if self.is_foundation_model:
             return self
 
-        if not self.foundation_model:
-            return self
+        # If, not foundation model, ideally, options should be set, at least as an empty dict
+        if self.foundation_model is None or self.valid_options is None:
+            raise ValueError(
+                "Either set the foundation model, or set the `valid_options` for this model.\
+ If there are no options required for the models, set `valid_options` to an empty dict, but not as None"
+            )
 
         # Validate that all options are present in foundation model
         invalid_options = set(self.valid_options.keys()) - set(
@@ -333,12 +341,14 @@ class BaseAIModel(BaseModel):
         Raises:
             ValueError: If any option is invalid
         """
-        invalid_options = set(options.keys()) - set(self.valid_options.keys())
+        _valid_options = self.get_valid_options()
+
+        invalid_options = set(options.keys()) - set(_valid_options.keys())
         if invalid_options:
             raise ValueError(f"Unknown options: {invalid_options}")
 
         for option_name, value in options.items():
-            valid_values = self.valid_options[option_name].allowed_values
+            valid_values = _valid_options[option_name].allowed_values
             if value not in valid_values:
                 raise ValueError(
                     f"Invalid value for {option_name}: {value}. Must be one of {valid_values}",
@@ -354,10 +364,12 @@ class BaseAIModel(BaseModel):
         Returns:
             dict: Complete options dictionary with defaults
         """
+        _valid_options = self.get_valid_options()
+
         self._validate_options_strict(options)
 
         complete_options = {}
-        for option_name, option_config in self.valid_options.items():
+        for option_name, option_config in _valid_options.items():
             complete_options[option_name] = options.get(
                 option_name,
                 option_config.default_value,
@@ -365,13 +377,30 @@ class BaseAIModel(BaseModel):
 
         return complete_options
 
+    def _get_attribute(self, attr_name: str):
+        """Generic method to get attributes with foundation model fallback
+
+        Args:
+            attr_name: Name of the attribute to get
+        Returns:
+            Value of the attribute from this model or foundation model
+        """
+        if self.is_foundation_model:
+            return getattr(self, attr_name)
+
+        value = getattr(self, attr_name)
+        if not value:
+            return getattr(self.foundation_model, f"get_{attr_name}")()
+        return value
+
+    def get_settings(self):
+        return self._get_attribute("settings")
+
+    def get_valid_options(self):
+        return self._get_attribute("valid_options")
+
     def get_cost_data(self):
-        if self.cost_data:
-            return self.cost_data
-        elif hasattr(self, "foundation_model"):
-            return self.foundation_model.cost_data
-        else:
-            return None
+        return self._get_attribute("cost_data")
 
     # -------------------------------------------------------------------------
     @classmethod

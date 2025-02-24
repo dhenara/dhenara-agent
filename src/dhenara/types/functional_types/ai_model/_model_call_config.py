@@ -28,7 +28,8 @@ class AIModelCallConfig(BaseModel):
         if not model:
             raise ValueError("Model should be passed when max_token is not set in the call-config")
 
-        if not model.settings.max_output_tokens:
+        _settings = model.get_settings()
+        if not _settings.max_output_tokens:
             raise ValueError(f"max_output_tokens is not set in model {model.model_name} or call-config")
 
-        return model.settings.max_output_tokens
+        return _settings.max_output_tokens
