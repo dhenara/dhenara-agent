@@ -107,46 +107,65 @@ class AnthropicPromptMessage(BaseModel):
 # Google AI Specific Models
 
 
-class GoogleAITextPart(BaseModel):
-    text: str
+class GoogleAIInlineData(BaseModel):
+    """Model for inline data like images"""
+
+    data: str
+    mime_type: str
 
 
-class GoogleAIInlineDataPart(BaseModel):
-    inline_data: dict[str, str] = Field(..., alias="inline_data")
+class GoogleAIPart(BaseModel):
+    """Base model for different types of content parts"""
+
+    text: str | None = None
+    inline_data: GoogleAIInlineData | None = None
+
+    @field_validator("inline_data", mode="before")
+    @classmethod
+    def validate_inline_data(cls, v: Any) -> GoogleAIInlineData | None:
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return GoogleAIInlineData(**v)
+        return v
+
+    def model_dump(self) -> dict[str, Any]:
+        if self.text is not None:
+            return {"text": self.text}
+        if self.inline_data is not None:
+            return {"inline_data": self.inline_data.model_dump()}
+        return {}
 
 
 class GoogleAIPromptMessage(BaseModel):
     """A complete Google AI prompt message"""
 
     role: GoogleAiMessageRoleEnum
-    parts: list[Union[GoogleAITextPart, GoogleAIInlineDataPart]]
+    parts: list[GoogleAIPart]
 
     @field_validator("parts", mode="before")
     @classmethod
-    def validate_parts(cls, v):
-        validated_parts = []
-
+    def validate_parts(cls, v: Any) -> list[GoogleAIPart]:
         if isinstance(v, str):
-            # Convert single string to text part
-            return [GoogleAITextPart(text=v)]
+            return [GoogleAIPart(text=v)]
 
-        for part in v:
-            if isinstance(part, str):
-                validated_parts.append(GoogleAITextPart(text=part))
-            elif isinstance(part, dict):
-                if "text" in part:
-                    validated_parts.append(GoogleAITextPart(**part))
-                elif "inline_data" in part:
-                    validated_parts.append(GoogleAIInlineDataPart(**part))
-            elif isinstance(part, (GoogleAITextPart, GoogleAIInlineDataPart)):
-                validated_parts.append(part)
+        if isinstance(v, list):
+            validated_parts = []
+            for part in v:
+                if isinstance(part, str):
+                    validated_parts.append(GoogleAIPart(text=part))
+                elif isinstance(part, dict):
+                    validated_parts.append(GoogleAIPart(**part))
+                elif isinstance(part, GoogleAIPart):
+                    validated_parts.append(part)
+                else:
+                    raise ValueError(f"Invalid part type: {type(part)}")
+            return validated_parts
 
-        return validated_parts
+        raise ValueError(f"Invalid parts type: {type(v)}")
 
-    def model_dump(self, **kwargs):
-        data = super().model_dump(**kwargs)
-        data["parts"] = [part.model_dump() for part in self.parts]
-        return data
+    def model_dump(self) -> dict[str, Any]:
+        return {"role": self.role.value, "parts": [part.model_dump() for part in self.parts]}
 
 
 # # Configuration Models
