@@ -32,8 +32,8 @@ class FileProcessingStatusEnum(BaseEnum):
 class FileMetadata(BaseModel):
     file_name: str
     file_size: int | float
-    mime_type: str
-    isinstance_of_dj_fileclass: bool | None = None
+    mime_type: str | None  # TODO: Enforce after fixing current mime gussess
+    isinstance_of_dj_fileclass: bool | None = None  # TODO:Remove this internal flag
 
 
 # -----------------------------------------------------------------------------
