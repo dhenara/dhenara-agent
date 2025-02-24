@@ -1,9 +1,10 @@
 # Copyright 2024-2025 Dhenara Inc. All rights reserved.
 import logging
-from typing import Any, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, field_validator
+from pydantic import Field, field_validator
 
+from dhenara.types.base import BaseModel
 from dhenara.types.external_api import (
     AnthropicMessageRoleEnum,
     GoogleAiMessageRoleEnum,
@@ -14,102 +15,60 @@ logger = logging.getLogger(__name__)
 
 
 # OpenAI Specific Models
-class OpenAITextContent(BaseModel):
-    """Model for text content"""
 
-    type: Literal["text"]
+
+class OpenAITextContent(BaseModel):
+    type: Literal["text"] = "text"
     text: str
 
 
 class OpenAIImageUrlContent(BaseModel):
-    """Model for image URL content"""
-
     url: str
 
 
-class OpenAIImagePart(BaseModel):
-    """Model for image part"""
-
-    type: Literal["image_url"]
+class OpenAIImageContent(BaseModel):
+    type: Literal["image_url"] = "image_url"
     image_url: OpenAIImageUrlContent
 
 
-class OpenAIPromptPart(BaseModel):
-    """Combined model for all content types"""
-
-    type: Literal["text", "image_url"]
-    text: str | None = None
-    image_url: OpenAIImageUrlContent | None = None
-
-    @field_validator("*", mode="before")
-    @classmethod
-    def validate_content(cls, v, info):
-        field_name = info.field_name
-        if field_name == "type":
-            return v
-        if v is None:
-            return None
-        return v
-
-    @field_validator("text", "image_url")
-    @classmethod
-    def validate_required_fields(cls, v, info):
-        field_name = info.field_name
-        content_type = info.data.get("type")
-
-        if content_type == "text" and field_name == "text" and not v:
-            raise ValueError("text is required for text type content")
-        if content_type == "image_url" and field_name == "image_url" and not v:
-            raise ValueError("image_url is required for image_url type")
-        return v
-
-    def model_dump(self, **kwargs):
-        data = super().model_dump(**kwargs)
-        return {k: v for k, v in data.items() if v is not None}
+# Discriminated union for content parts
+ContentPart = Annotated[Union[OpenAITextContent, OpenAIImageContent], Field(discriminator="type")]
 
 
 class OpenAIPromptMessage(BaseModel):
-    """Complete OpenAI message model"""
-
     role: OpenAiMessageRoleEnum
-    content: Union[str, list[OpenAIPromptPart]]
+    content: Union[str, list[ContentPart]]
     function_call: dict[str, Any] | None = None
 
-    # fmt: off
-    @field_validator('content')
+    @field_validator("content", mode="before")
     @classmethod
     def validate_content(cls, v):
+        # Handle string case
         if isinstance(v, str):
             return v
-        elif isinstance(v, list):
-            validated_parts = []
-            for part in v:
-                if isinstance(part, dict):
-                    if part.get('type') == 'text':
-                        validated_parts.append(OpenAIPromptPart(
-                            type='text',
-                            text=part.get('text')
-                        ))
-                    elif part.get('type') == 'image_url':
-                        validated_parts.append(OpenAIPromptPart(
-                            type='image_url',
-                            image_url=part.get('image_url')
-                        ))
-                elif isinstance(part, OpenAIPromptPart):
-                    validated_parts.append(part)
-            return validated_parts
-        raise ValueError("content must be either a string or a list of parts")
 
+        # Handle list case with automatic discrimination
+        if isinstance(v, list):
+            return [{"type": item.get("type"), **item} for item in v]
+
+        raise ValueError("Content must be string or list of content parts")
+
+    # fmt: off
     def model_dump(self, **kwargs):
+        # Clean None values and empty lists
         data = super().model_dump(**kwargs)
-        if isinstance(data['content'], list):
-            data['content'] = [
-                part for part in data['content']
-                if (part.get('type') == 'text' and part.get('text')) or
-                   (part.get('type') == 'image_url' and part.get('image_url'))
-            ]
+
+        if isinstance(data["content"], list):
+            data["content"] = [
+                part for part in data["content"]
+                if (part["type"] == "text" and part["text"]) or
+                   (part["type"] == "image_url" and part["image_url"]["url"])
+                ]
+
+        if not data["content"] and isinstance(data["content"], list):
+            data["content"] = ""  # Fallback to empty string
+
         return data
-    # fmt: on
 
 
 # Anthropic Specific Models
@@ -146,65 +105,47 @@ class AnthropicPromptMessage(BaseModel):
 
 
 # Google AI Specific Models
+
+
 class GoogleAITextPart(BaseModel):
     text: str
 
 
 class GoogleAIInlineDataPart(BaseModel):
-    inline_data: dict[str, str]
-
-
-class GoogleAIPromptPart(BaseModel):
-    """A single part of a Google AI prompt"""
-
-    text: str | None = None
-    inline_data: dict[str, str] | None = None
-
-    @field_validator("*", mode="before")
-    @classmethod
-    def validate_content(cls, v, info):
-        field_name = info.field_name
-        if field_name == "text" and v is not None:
-            return v
-        if field_name == "inline_data" and v is not None:
-            return v
-        return None
-
-    def model_dump(self, **kwargs):
-        data = super().model_dump(**kwargs)
-        return {k: v for k, v in data.items() if v is not None}
+    inline_data: dict[str, str] = Field(..., alias="inline_data")
 
 
 class GoogleAIPromptMessage(BaseModel):
     """A complete Google AI prompt message"""
 
     role: GoogleAiMessageRoleEnum
-    parts: Union[str, list[GoogleAIPromptPart]]
+    parts: list[Union[GoogleAITextPart, GoogleAIInlineDataPart]]
 
-    @field_validator("parts")
+    @field_validator("parts", mode="before")
     @classmethod
     def validate_parts(cls, v):
+        validated_parts = []
+
         if isinstance(v, str):
-            return [GoogleAIPromptPart(text=v)]
-        elif isinstance(v, list):
-            validated_parts = []
-            for part in v:
-                if isinstance(part, str):
-                    validated_parts.append(GoogleAIPromptPart(text=part))
-                elif isinstance(part, dict):
-                    if "text" in part:
-                        validated_parts.append(GoogleAIPromptPart(text=part["text"]))
-                    elif "inline_data" in part:
-                        validated_parts.append(GoogleAIPromptPart(inline_data=part["inline_data"]))
-                elif isinstance(part, GoogleAIPromptPart):
-                    validated_parts.append(part)
-            return validated_parts
-        raise ValueError("parts must be either a string or a list of parts")
+            # Convert single string to text part
+            return [GoogleAITextPart(text=v)]
+
+        for part in v:
+            if isinstance(part, str):
+                validated_parts.append(GoogleAITextPart(text=part))
+            elif isinstance(part, dict):
+                if "text" in part:
+                    validated_parts.append(GoogleAITextPart(**part))
+                elif "inline_data" in part:
+                    validated_parts.append(GoogleAIInlineDataPart(**part))
+            elif isinstance(part, (GoogleAITextPart, GoogleAIInlineDataPart)):
+                validated_parts.append(part)
+
+        return validated_parts
 
     def model_dump(self, **kwargs):
         data = super().model_dump(**kwargs)
-        if isinstance(data["parts"], list):
-            data["parts"] = [part for part in data["parts"] if part.get("text") is not None or part.get("inline_data") is not None]
+        data["parts"] = [part.model_dump() for part in self.parts]
         return data
 
 

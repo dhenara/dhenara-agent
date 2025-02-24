@@ -1,50 +1,62 @@
+import logging
+
 from dhenara.types.base import BaseModel
 from dhenara.types.platform import FileContentFormatEnum, FileFormatEnum
 
+logger = logging.getLogger(__name__)
 
+
+# TODO: Need cleanup
 # -----------------------------------------------------------------------------
 class GenericFile(BaseModel):
+    name: str
+    metadata: dict | None = None
+
+
+# -----------------------------------------------------------------------------
+class LocalFile(GenericFile):
     url: str | None
-    processed_content: dict | str
 
-    def get_content(self):
-        return str(self.content)
 
-    # -------------------------------------------------------------------------
-    def get_source_file_name(self):
-        return self.processed_content["name"] or ""
+# -----------------------------------------------------------------------------
+class StoredFile(GenericFile):
+    url: str | None
 
-    # -------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+class ProcessedFile(GenericFile):
+    processed_content: dict
+
+    def get_source_file_name(self) -> str:
+        """Get the original source file name"""
+        return self.processed_content.get("name", "")
+
     def get_file_format(self) -> FileFormatEnum:
-        format_str = self.processed_content["file_format"] or ""
+        """Get the file format enum"""
+        format_str = self.processed_content.get("file_format", "")
         return FileFormatEnum(format_str)
 
-    # -------------------------------------------------------------------------
     def get_content_format(self) -> FileContentFormatEnum:
-        format_str = self.processed_content["content_format"]
+        """Get the content format enum"""
+        format_str = self.processed_content.get("content_format", "")
         return FileContentFormatEnum(format_str)
 
-    # -------------------------------------------------------------------------
-    def get_metadata(self):
+    def get_metadata(self) -> dict:
+        """Get file metadata"""
         return self.processed_content.get("metadata", {})
 
-    # -------------------------------------------------------------------------
     def get_mime_type(self) -> str | None:
-        mime_type = self.get_metadata().get("mime_type", None)
-        return mime_type.lower() or None
+        """Get the mime type of the file"""
+        mime_type = self.get_metadata().get("mime_type")
+        return mime_type.lower() if mime_type else None
 
-    # -------------------------------------------------------------------------
-    def get_processed_file_data(self, max_words: int | None):
-        if self.processed_content:
-            # file_content = FileContentData(**self.processed_content)
-            # file_content = dict_to_dataclass(dataclass_type=FileContentData, data=self.processed_content)
-
-            content_str = str(self.processed_content)
-            words = content_str.split()
-            # Return the content limited to max_words number of words
-            return " ".join(words[:max_words])
-        else:
-            return ""
+    def get_processed_file_data(self, max_words: int | None = None) -> str:
+        """Get processed file data with optional word limit"""
+        content = str(self.processed_content.get("content", ""))
+        if max_words:
+            words = content.split()
+            content = " ".join(words[:max_words])
+        return content
 
     # -------------------------------------------------------------------------
     def get_processed_file_data_content_only(self):
