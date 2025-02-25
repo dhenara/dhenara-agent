@@ -1,9 +1,8 @@
 from typing import Union
 
-from dhenara_ai.types.shared.base import BaseModel
+from dhenara.agent.types.flow import ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum, StorageEntityTypeEnum
+from dhenara.ai.types.shared.base import BaseModel
 from pydantic import Field, field_validator
-
-from dhenara.types.flow import ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum, StorageEntityTypeEnum
 
 FieldType = Union[ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum]
 

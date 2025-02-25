@@ -1,4 +1,4 @@
-from dhenara_ai.types.shared.base import BaseEnum
+from dhenara.ai.types.shared.base import BaseEnum
 
 
 class ContentType(BaseEnum):

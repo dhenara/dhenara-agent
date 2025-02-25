@@ -1,7 +1,7 @@
 from typing import TypeVar
 
-from dhenara_ai.types.genai.dhenara import AIModelCallResponse
-from dhenara_ai.types.shared.base import BaseModel
+from dhenara.ai.types.genai.dhenara import AIModelCallResponse
+from dhenara.ai.types.shared.base import BaseModel
 from pydantic import Field
 
 # -----------------------------------------------------------------------------

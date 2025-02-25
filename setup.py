@@ -1,24 +1,26 @@
-from setuptools import find_packages, setup
+from setuptools import find_namespace_packages, setup
 
 setup(
-    name="dhenara",
+    name="dhenara-agent",
     version="0.1.0",
-    package_dir={"": "src"},  # Tell setuptools packages are under src
-    # packages=find_namespace_packages(where="src"),  # Find all packages under src
-    packages=find_packages(where="src"),  # Finds all packages under src
+    package_dir={"": "src"},
+    packages=find_namespace_packages(where="src", include=["dhenara.*"]),
     install_requires=[
         "httpx>=0.24.0",
         "requests>=2.25.1",
         "pydantic>=2.0.0",
+        "dhenara-ai>=0.1.0",  # Dependency on dhenai
     ],
     python_requires=">=3.10",
-    description="Dhenara Inc AI Platform SDK",
+    description="Dhenara Inc AI-Agent Platform SDK",
     author="Dhenara",
     author_email="support@dhenara.com",
-    # url="https://github.com/dhenara/sdk-python",
+    url="https://github.com/dhenara/dhenagent",
     classifiers=[
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
         "Programming Language :: Python :: 3",
-        # "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent",
     ],
 )

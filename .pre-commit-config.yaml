@@ -27,6 +27,4 @@ repos:
         #args: ['--check']
         args: ['--list-different']
 
-  # No Custom Copywrite header checks
-#default_language_version:
-#  python: python3.11
+

@@ -1,4 +1,4 @@
-from dhenara_ai.types.shared.base import BaseModel
+from dhenara.ai.types.shared.base import BaseModel
 
 
 class ClientConfig(BaseModel):

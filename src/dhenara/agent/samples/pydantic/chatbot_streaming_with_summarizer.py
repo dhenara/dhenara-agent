@@ -1,4 +1,4 @@
-from dhenara.types import (
+from dhenara.agent.types import (
     AISettings,
     ConversationFieldEnum,
     ConversationNodeFieldEnum,
@@ -19,22 +19,19 @@ from dhenara.types import (
     StorageEntityTypeEnum,
     StorageSettings,
 )
-from dhenara_ai.types import (
-    AIModelAPIProviderEnum,
-)
 
-chatbot_with_summarizer = Flow(
+chatbot_streaming_with_summarizer = Flow(
     name="Simple Chatbot Flow",
     description="This flow will call a text-generation AI model in sync mode and return output",
     definition=FlowDefinition(
         system_instructions=["Always respond in markdown format."],
         execution_strategy=ExecutionStrategyEnum.sequential,
-        response_protocol=ResponseProtocolEnum.HTTP,
+        response_protocol=ResponseProtocolEnum.HTTP_SSE,
         nodes=[
             FlowNode(
                 order=0,
                 identifier="ai_model_call_1",
-                type=FlowNodeTypeEnum.ai_model_call,
+                type=FlowNodeTypeEnum.ai_model_call_stream,
                 resources=[
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
@@ -114,7 +111,6 @@ chatbot_with_summarizer = Flow(
                         object_id=None,
                         query={
                             ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
-                            ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
                         },
                     ),
                 ],

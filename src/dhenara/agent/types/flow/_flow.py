@@ -1,9 +1,6 @@
 from typing import Any, NewType
 
-from dhenara_ai.types.shared.base import BaseModel
-from pydantic import Field, field_validator, model_validator
-
-from dhenara.types.flow import (
+from dhenara.agent.types.flow import (
     AISettings,
     ExecutionStrategyEnum,
     FlowNodePostActionEnum,
@@ -17,6 +14,8 @@ from dhenara.types.flow import (
     StorageSettings,
     SystemInstructions,
 )
+from dhenara.ai.types.shared.base import BaseModel
+from pydantic import Field, field_validator, model_validator
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
 

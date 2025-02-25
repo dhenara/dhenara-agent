@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from dhenara_ai.types.shared.base import BaseEnum, BaseModel
+from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 from pydantic import Field, field_validator
 
 

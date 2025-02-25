@@ -3,14 +3,14 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Optional, TypeVar, Union
 
 import httpx
-from dhenara_ai.types.shared.api import (
+from dhenara.ai.types.shared.api import (
     SSEErrorCode,
     SSEErrorData,
     SSEErrorResponse,
     SSEEventType,
     SSEResponse,
 )
-from dhenara_ai.types.shared.base import BaseModel
+from dhenara.ai.types.shared.base import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 

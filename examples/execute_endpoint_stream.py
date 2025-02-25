@@ -1,7 +1,7 @@
-from dhenara.client import Client
-from dhenara.types import FlowNodeInput, UserInput
-from dhenara.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
-from dhenara_ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
+from dhenara.agent.client import Client
+from dhenara.agent.types import FlowNodeInput, UserInput
+from dhenara.agent.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
+from dhenara.ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
 
 
 def get_api_key():

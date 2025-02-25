@@ -3,9 +3,8 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
-from dhenara_ai.types.shared.base import BaseEnum, BaseModel
-
-from dhenara.types.flow import FlowDefinition, FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeExecutionResult, FlowNodeIdentifier, FlowNodeInput
+from dhenara.agent.types.flow import FlowDefinition, FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeExecutionResult, FlowNodeIdentifier, FlowNodeInput
+from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 
 
 class StreamingStatusEnum(BaseEnum):

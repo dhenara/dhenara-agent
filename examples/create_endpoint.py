@@ -1,7 +1,7 @@
 import asyncio
 
-from dhenara.client import Client
-from dhenara.samples import chatbot_with_summarizer
+from dhenara.agent.client import Client
+from dhenara.agent.samples import chatbot_with_summarizer
 
 
 def get_api_key():

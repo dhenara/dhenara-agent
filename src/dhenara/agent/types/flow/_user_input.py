@@ -1,12 +1,11 @@
 import json
 from typing import Any
 
-from dhenara_ai.types.shared.base import BaseModel
+from dhenara.agent.types.flow import ContentType, FlowNodeUserInputActionEnum
+from dhenara.ai.types.shared.base import BaseModel
 
 # from urllib.request import urlopen
 from pydantic import AnyUrl, Field
-
-from dhenara.types.flow import ContentType, FlowNodeUserInputActionEnum
 
 
 # TODO: Implement Option to pass User Input to each node

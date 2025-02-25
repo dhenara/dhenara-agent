@@ -1,9 +1,6 @@
 from typing import Generic, TypeVar
 
-from dhenara_ai.types.shared.base import BaseModel
-from pydantic import Field, model_validator
-
-from dhenara.types.flow import (
+from dhenara.agent.types.flow import (
     FlowExecutionStatusEnum,
     FlowNodeUserInputActionEnum,
     InternalDataObjectTypeEnum,
@@ -12,6 +9,8 @@ from dhenara.types.flow import (
     ResourceQueryMapping,
     UserInput,
 )
+from dhenara.ai.types.shared.base import BaseModel
+from pydantic import Field, model_validator
 
 
 class InternalDataObjParams(BaseModel):
