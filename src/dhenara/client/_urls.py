@@ -1,8 +1,7 @@
 from urllib.parse import urljoin, urlsplit
 
+from dhenara_ai.types.shared.base import BaseModel
 from pydantic import Field, field_validator
-
-from dhenara.types import BaseModel
 
 
 class UrlSettings(BaseModel):

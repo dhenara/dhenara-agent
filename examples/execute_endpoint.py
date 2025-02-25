@@ -10,7 +10,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22113238"  # Non streaming
+_refnum = "22118898"  # Non streaming
 
 
 def main():
@@ -31,12 +31,12 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
-                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro-002"},
-                # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku-20241022"},
+                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
+                query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
                 # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                 # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
-                query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
+                # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
             ),
         ],
     )

@@ -2,9 +2,8 @@
 
 from typing import Any
 
+from dhenara_ai.types.shared.base import BaseEnum, BaseModel
 from pydantic import Field, field_validator
-
-from dhenara.types.base import BaseEnum, BaseModel
 
 
 class ResponseProtocolEnum(BaseEnum):

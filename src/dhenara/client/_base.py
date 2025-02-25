@@ -4,11 +4,7 @@ from types import TracebackType
 from typing import Any, TypeVar
 
 import httpx
-from typing_extensions import Self  # for Python <3.11
-
-from dhenara.client import UrlSettings
-from dhenara.client._types import ClientConfig
-from dhenara.types.api import (
+from dhenara_ai.types.shared.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
@@ -16,8 +12,12 @@ from dhenara.types.api import (
     ApiResponseStatus,
     SSEResponse,
 )
-from dhenara.types.base import BaseModel
-from dhenara.types.platform import DhenaraAPIError, DhenaraConnectionError
+from dhenara_ai.types.shared.base import BaseModel
+from dhenara_ai.types.shared.platform import DhenaraAPIError, DhenaraConnectionError
+from typing_extensions import Self  # for Python <3.11
+
+from dhenara.client import UrlSettings
+from dhenara.client._types import ClientConfig
 
 from ._stream import StreamProcessor
 

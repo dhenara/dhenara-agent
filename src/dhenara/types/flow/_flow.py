@@ -1,8 +1,8 @@
 from typing import Any, NewType
 
+from dhenara_ai.types.shared.base import BaseModel
 from pydantic import Field, field_validator, model_validator
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow import (
     AISettings,
     ExecutionStrategyEnum,

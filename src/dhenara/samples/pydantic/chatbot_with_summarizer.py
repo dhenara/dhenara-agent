@@ -1,5 +1,4 @@
 from dhenara.types import (
-    AIModelAPIProviderEnum,
     AISettings,
     ConversationFieldEnum,
     ConversationNodeFieldEnum,
@@ -19,6 +18,9 @@ from dhenara.types import (
     SpecialNodeIdEnum,
     StorageEntityTypeEnum,
     StorageSettings,
+)
+from dhenara_ai.types import (
+    AIModelAPIProviderEnum,
 )
 
 chatbot_with_summarizer = Flow(
@@ -63,22 +65,17 @@ chatbot_with_summarizer = Flow(
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku-20241022"},
+                        query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro-002"},
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
                     ),
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
-                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash-002"},
-                    ),
-                    Resource(
-                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
-                        object_id=None,
-                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash-002"},
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash"},
                     ),
                 ],
                 ai_settings=AISettings(

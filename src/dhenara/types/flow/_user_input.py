@@ -1,10 +1,11 @@
 import json
 from typing import Any
 
+from dhenara_ai.types.shared.base import BaseModel
+
 # from urllib.request import urlopen
 from pydantic import AnyUrl, Field
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow import ContentType, FlowNodeUserInputActionEnum
 
 

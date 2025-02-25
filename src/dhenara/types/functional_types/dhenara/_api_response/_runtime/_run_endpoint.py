@@ -1,8 +1,8 @@
 from typing import Any
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow import FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeInput
 from dhenara.types.functional_types.dhenara import AIModelCallNodeOutputData
+from dhenara_ai.types.shared.base import BaseModel
 from pydantic import Field
 
 

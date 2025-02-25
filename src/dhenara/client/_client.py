@@ -1,21 +1,23 @@
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeVar, Union
 
-from dhenara.types.api import (
+from dhenara_ai.types.shared.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
     SSEResponse,
 )
-from dhenara.types.base import BaseModel, pydantic_endpoint
+from dhenara_ai.types.shared.base import BaseModel
+from dhenara_ai.types.shared.platform import DhenaraAPIError
+
 from dhenara.types.flow import FlowNodeInput
+from dhenara.types.fns import pydantic_endpoint
 from dhenara.types.functional_types import (
     DhenRunEndpointReq,
     DhenRunEndpointRes,
     ExecuteDhenRunEndpointReq,
     ExecuteDhenRunEndpointRes,
 )
-from dhenara.types.platform import DhenaraAPIError
 
 from ._base import _ClientBase
 

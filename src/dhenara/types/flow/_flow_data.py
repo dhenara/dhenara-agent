@@ -1,8 +1,8 @@
 from typing import Generic, TypeVar
 
+from dhenara_ai.types.shared.base import BaseModel
 from pydantic import Field, model_validator
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow import (
     FlowExecutionStatusEnum,
     FlowNodeUserInputActionEnum,

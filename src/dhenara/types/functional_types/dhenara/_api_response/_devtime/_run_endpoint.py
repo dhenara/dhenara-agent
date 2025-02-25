@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow._flow import Flow
-from dhenara.types.platform import PlatformEnvTypeEnum
+from dhenara_ai.types.shared.base import BaseModel
+from dhenara_ai.types.shared.platform import PlatformEnvTypeEnum
 from pydantic import Field, model_validator
 
 

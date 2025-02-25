@@ -2,9 +2,9 @@
 from datetime import datetime
 from typing import Generic, TypeVar
 
+from dhenara_ai.types.shared.base import BaseModel
 from pydantic import Field, RootModel
 
-from dhenara.types.base import BaseModel
 from dhenara.types.flow import FlowNodeExecutionStatusEnum, FlowNodeIdentifier, FlowNodeOutput, StorageEntityTypeEnum, UserInput
 
 StorageEntityDBData = list[str]  # list of strings
