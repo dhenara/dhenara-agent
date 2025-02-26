@@ -11,7 +11,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22116867"  #  Streaming
+_refnum = "22140122"  #  Streaming
 
 
 def main():
@@ -21,7 +21,8 @@ def main():
     )
 
     user_input = UserInput(
-        content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
+        # content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
+        content="Count 1 to 10 in words.",  # "When bible was written",
     )
     node_input = FlowNodeInput(
         user_input=user_input,
@@ -29,12 +30,13 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
-                query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
+                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
                 # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
                 # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                 # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
+                query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
             ),
         ],
     )

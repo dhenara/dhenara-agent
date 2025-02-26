@@ -10,7 +10,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22118898"  # Non streaming
+_refnum = "22187005"  # Non streaming
 
 
 def main():
@@ -20,7 +20,8 @@ def main():
     )
 
     user_input = UserInput(
-        content="What is ephatha.  Respond in 300 chars.",
+        # content="What is ephatha.  Respond in 300 chars.",
+        content="Count 1 to 10 in words.",  # "When bible was written",
     )
     # node_input = FlowNodeInput(
     #    user_input=user_input,
@@ -32,11 +33,12 @@ def main():
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
                 # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
-                query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
+                # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
                 # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
-                # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
+                query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
+                # query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
             ),
         ],
     )
@@ -46,21 +48,44 @@ def main():
         node_input=node_input,
     )
 
-    print(f'AJJ: reponse is"\n\n{response}\n\n')
     if response.is_success:
-        # print(f"Resposne is: {response}")
-        print("\n")
-        print(f"--------Status: {response.data.execution_status}--------\n")
-        print("--------Node Outputs are --------\n")
-        for node_id, result in response.data.execution_results.items():
-            print(f"{node_id}:")
-            if result.node_output.data.response.status.successful:
-                print(f"{result.node_output.data.response.full_response.choices[0]}")
-            else:
-                print(f"{result.node_output.data.response.status}")
-            print("\n")
+        print_response_details(response)
     else:
         print(f"Error: {response.first_message.message}")
+
+
+def print_response_details(response):
+    # print(f"🔍 Raw Response:\n{response}\n")
+
+    if not response.is_success:
+        print(f"❌ Error: {response.first_message.message}")
+        return
+
+    print(f"✅ Execution Status: {response.data.execution_status}")
+    print("\n📋 Node Output Details:")
+    print("=" * 50)
+
+    for node_id, result in response.data.execution_results.items():
+        print(f"\n🔸 Node ID: {node_id}")
+
+        if result.node_output.data.response.status.successful:
+            for choice in result.node_output.data.response.full_response.choices:
+                print(f"\n  📝 Response Choice Text #{choice.index + 1}")
+                print("  " + "-" * 40)
+
+                for content_item in choice.contents:
+                    print(f"\n  Content Type: {content_item.type}")
+                    print("  Content:")
+                    print(f"  {content_item.get_text().replace('\n', '\n  ') if content_item.get_text() else None}")
+
+                print(f"\n  📝 Full Response Choice #{choice.index + 1}")
+                print("  " + "-" * 40)
+                print(f"  {choice}")
+        else:
+            print("\n❌ Node Execution Failed:")
+            print(f"  {result.node_output.data.response.status}")
+
+        print("\n" + "=" * 50)
 
 
 if __name__ == "__main__":

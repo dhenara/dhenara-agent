@@ -60,6 +60,11 @@ chatbot_with_summarizer = Flow(
                     Resource(
                         object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                         object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
                         query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                     ),
                     Resource(

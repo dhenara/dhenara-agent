@@ -27,7 +27,7 @@ class UserInput(BaseModel):
         ```python
         user_input = UserInput(
             content="What is the capital of France?",
-            options={"temperature": 0.7, "max_tokens": 100},
+            options={"temperature": 0.7, "max_output_tokens": 100},
         )
         ```
     """
@@ -82,7 +82,7 @@ class UserInput(BaseModel):
         description="Configuration options for the AI model behavior",
         example={
             "temperature": 0.7,
-            "max_tokens": 100,
+            "max_output_tokens": 100,
             "top_p": 1.0,
         },
     )
@@ -96,7 +96,7 @@ class UserInput(BaseModel):
                     "content": "What is the capital of France?",
                     "options": {
                         "temperature": 0.7,
-                        "max_tokens": 100,
+                        "max_output_tokens": 100,
                     },
                 },
                 {
