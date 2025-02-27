@@ -15,7 +15,7 @@ setup(
     description="Dhenara Inc AI-Agent Platform SDK",
     author="Dhenara",
     author_email="support@dhenara.com",
-    url="https://github.com/dhenara/dhenagent",
+    url="https://github.com/dhenara/dhen-agent",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

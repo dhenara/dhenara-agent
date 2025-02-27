@@ -213,6 +213,7 @@ class _ClientBase:
         model_instance: BaseModel,
         action: ApiRequestActionTypeEnum,
         endpoint: str,
+        response_model: type[T],
     ) -> Iterator[SSEResponse]:
         """Make a synchronous streaming request."""
         api_request = ApiRequest[type(model_instance)](
@@ -228,13 +229,14 @@ class _ClientBase:
             headers=self._prepare_streaming_headers(),
         ) as response:
             response.raise_for_status()
-            yield from StreamProcessor.handle_sync_stream(response)
+            yield from StreamProcessor.handle_sync_stream(response=response, response_model=response_model)
 
     async def _make_streaming_request_async(
         self,
         model_instance: BaseModel,
         action: ApiRequestActionTypeEnum,
         endpoint: str,
+        response_model: type[T],
     ) -> AsyncIterator[SSEResponse]:
         """Make an asynchronous streaming request."""
         api_request = ApiRequest[type(model_instance)](
@@ -250,7 +252,7 @@ class _ClientBase:
             headers=self._prepare_streaming_headers(),
         ) as response:
             response.raise_for_status()
-            async for chunk in StreamProcessor.handle_async_stream(response):
+            async for chunk in StreamProcessor.handle_async_stream(response=response, response_model=response_model):
                 yield chunk
 
     # Context manager support

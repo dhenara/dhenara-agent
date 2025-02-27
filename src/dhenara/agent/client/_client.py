@@ -13,10 +13,10 @@ from dhenara.ai.types.shared.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
     ApiResponse,
+    BaseModel,
+    DhenaraAPIError,
     SSEResponse,
 )
-from dhenara.ai.types.shared.base import BaseModel
-from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 from ._base import _ClientBase
 
@@ -70,6 +70,7 @@ class Client(_ClientBase):
         refnum: str,
         node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
+        response_model: type[T] = ExecuteDhenRunEndpointRes,
     ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[SSEResponse]]:
         """Execute an endpoint synchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
@@ -84,13 +85,14 @@ class Client(_ClientBase):
                 model_instance=request_data,
                 action=ApiRequestActionTypeEnum.run,
                 endpoint="runtime_dhenrun_ep",
+                response_model=response_model,
             )
 
         return self._make_request(
             model_instance=request_data,
             action=ApiRequestActionTypeEnum.run,
             endpoint="runtime_dhenrun_ep",
-            response_model=ExecuteDhenRunEndpointRes,
+            response_model=response_model,
         )
 
     async def execute_endpoint_async(
@@ -98,6 +100,7 @@ class Client(_ClientBase):
         refnum: str,
         node_input: Union[FlowNodeInput, dict],
         stream: bool = False,
+        response_model: type[T] = ExecuteDhenRunEndpointRes,
     ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncIterator[dict]]:
         """Execute an endpoint asynchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
@@ -111,13 +114,14 @@ class Client(_ClientBase):
                 model_instance=request_data,
                 action=ApiRequestActionTypeEnum.run,
                 endpoint="runtime_dhenrun_ep",
+                response_model=response_model,
             )
 
         return await self._make_request_async(
             model_instance=request_data,
             action=ApiRequestActionTypeEnum.run,
             endpoint="runtime_dhenrun_ep",
-            response_model=ExecuteDhenRunEndpointRes,
+            response_model=response_model,
         )
 
     async def _handle_response_async(

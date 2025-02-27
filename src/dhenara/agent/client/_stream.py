@@ -26,13 +26,16 @@ class StreamProcessor:
         return line
 
     @staticmethod
-    def parse_sse_event(event_str: str) -> Optional[SSEResponse]:
+    def parse_sse_event(
+        event_str: str,
+        response_model: type[T],
+    ) -> Optional[SSEResponse]:
         """Parse SSE event using the SSEResponse parser"""
         if not event_str.strip():
             return None
 
         try:
-            parsed = SSEResponse.parse_sse(event_str)
+            parsed = SSEResponse.parse_sse(event_str, response_model)
 
             if parsed.event == SSEEventType.TOKEN_STREAM:
                 return parsed
@@ -58,7 +61,10 @@ class StreamProcessor:
             )
 
     @staticmethod
-    def handle_sync_stream(response: httpx.Response) -> Iterator[SSEResponse]:
+    def handle_sync_stream(
+        response: httpx.Response,
+        response_model: type[T],
+    ) -> Iterator[SSEResponse]:
         """Handle synchronous streaming response."""
         buffer = []
 
@@ -68,7 +74,7 @@ class StreamProcessor:
             if not line.strip():
                 # Empty line indicates end of event
                 if buffer:
-                    event = StreamProcessor.parse_sse_event("\n".join(buffer))
+                    event = StreamProcessor.parse_sse_event("\n".join(buffer), response_model)
                     if event:
                         yield event
                     buffer = []
@@ -78,12 +84,15 @@ class StreamProcessor:
 
         # Handle any remaining data in buffer
         if buffer:
-            event = StreamProcessor.parse_sse_event("\n".join(buffer))
+            event = StreamProcessor.parse_sse_event("\n".join(buffer), response_model)
             if event:
                 yield event
 
     @staticmethod
-    async def handle_async_stream(response) -> AsyncIterator[SSEResponse]:
+    async def handle_async_stream(
+        response,
+        response_model: type[T],
+    ) -> AsyncIterator[SSEResponse]:
         """Handle asynchronous streaming response."""
         buffer = []
 
@@ -93,7 +102,7 @@ class StreamProcessor:
             if not line.strip():
                 # Empty line indicates end of event
                 if buffer:
-                    event = StreamProcessor.parse_sse_event("\n".join(buffer))
+                    event = StreamProcessor.parse_sse_event("\n".join(buffer), response_model)
                     if event:
                         yield event
                     buffer = []
@@ -103,6 +112,6 @@ class StreamProcessor:
 
         # Handle any remaining data in buffer
         if buffer:
-            event = StreamProcessor.parse_sse_event("\n".join(buffer))
+            event = StreamProcessor.parse_sse_event("\n".join(buffer), response_model)
             if event:
                 yield event

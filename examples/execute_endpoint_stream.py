@@ -1,7 +1,9 @@
 from dhenara.agent.client import Client
 from dhenara.agent.types import FlowNodeInput, UserInput
 from dhenara.agent.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
+from dhenara.ai.types import ChatResponseChunk
 from dhenara.ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
+from shared_print_utils import print_content, print_error, print_warning
 
 
 def get_api_key():
@@ -11,7 +13,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22140122"  #  Streaming
+_refnum = "22143274"  #  Streaming
 
 
 def main():
@@ -21,8 +23,8 @@ def main():
     )
 
     user_input = UserInput(
-        # content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
-        content="Count 1 to 10 in words.",  # "When bible was written",
+        content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
+        # content="Count 1 to 10 in words.",  # "When bible was written",
     )
     node_input = FlowNodeInput(
         user_input=user_input,
@@ -45,36 +47,54 @@ def main():
         refnum=_refnum,
         node_input=node_input,
         stream=True,
+        response_model=ChatResponseChunk,
     )
 
     print(f"Resposne is: {response}")
+    process_stream_response(response)
 
-    for chunk in response:
-        if isinstance(chunk, SSEErrorResponse):
-            print(f"Error:  {chunk.data.error_code}: {chunk.data.message}")
-            break
 
-        if not isinstance(chunk, SSEResponse):
-            print(f"ERROR: unknonw type {type(chunk)}")
+def process_stream_response(response):
+    print("\nAssistant: ", end="", flush=True)
 
-        if chunk.event == SSEEventType.ERROR:
-            print(f"Error: {chunk}")
-            break
-
-        if chunk.event == SSEEventType.TOKEN_STREAM:
-            #     chat_response = StreamingChatResponse(
-            #         event=parsed.event,
-            #         data=parsed.data,
-            #         id=parsed.id,
-            #         retry=parsed.retry,
-            #     )
-
-            text = chunk.data.content
-            # Process chunk data
-            print(text, end="", flush=True)
-
-            if chunk.data.done:
+    try:
+        for chunk in response:
+            if isinstance(chunk, SSEErrorResponse):
+                print_error(f"{chunk.data.error_code}: {chunk.data.message}")
                 break
+
+            if not isinstance(chunk, SSEResponse):
+                print_error(f"Unknown type {type(chunk)}")
+                continue
+
+            if chunk.event == SSEEventType.ERROR:
+                print_error(f"Stream Error: {chunk}")
+                break
+
+            if chunk.event == SSEEventType.TOKEN_STREAM:
+                print_stream_chunk(chunk.data)
+                if chunk.data.done:
+                    break
+
+    except KeyboardInterrupt:
+        print_warning("Stream interrupted by user")
+    except Exception as e:
+        print_error(f"Error processing stream: {e!s}")
+    finally:
+        print("\n")
+
+
+# For streaming responses
+def print_stream_chunk(chunk: ChatResponseChunk):
+    """Print the content from a stream chunk"""
+    for choice_delta in chunk.choice_deltas:
+        if not choice_delta.content_deltas:
+            continue
+
+        for content_delta in choice_delta.content_deltas:
+            text = content_delta.get_text_delta()
+            if text:
+                print_content(text, content_delta.type, end="", flush=True)
 
 
 if __name__ == "__main__":

@@ -79,6 +79,16 @@ chatbot_streaming_with_summarizer = Flow(
                         object_id=None,
                         query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-flash"},
                     ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash"},
+                    ),
+                    Resource(
+                        object_type=ResourceObjectTypeEnum.ai_model_endpoint,
+                        object_id=None,
+                        query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
+                    ),
                 ],
                 ai_settings=AISettings(
                     system_instructions=[],
