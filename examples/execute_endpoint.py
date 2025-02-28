@@ -1,7 +1,7 @@
 from dhenara.agent.client import Client
 from dhenara.agent.types import FlowNodeInput, UserInput
 from dhenara.agent.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
-from shared_print_utils import print_content, print_error
+from shared_print_utils import ResponseDisplayMixin
 
 
 def get_api_key():
@@ -11,7 +11,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22187005"  # Non streaming
+_refnum = "22186007"  # Non streaming
 
 
 def main():
@@ -33,10 +33,11 @@ def main():
             Resource(
                 object_type=ResourceObjectTypeEnum.ai_model_endpoint,
                 object_id=None,
-                query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
+                # query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
+                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
                 # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
                 # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
-                # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
+                query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
                 # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
                 # query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
@@ -54,8 +55,9 @@ def main():
 # For non-streaming responses
 def print_response_details(response):
     """Print the content from a non-streaming response"""
+    display = ResponseDisplayMixin()
     if not response.is_success:
-        print_error(response.first_message.message)
+        display.print_error(response.first_message.message)
         return
 
     print("Assistant: ", end="", flush=True)
@@ -64,14 +66,16 @@ def print_response_details(response):
         print(f"\n\n🔸 Node ID: {node_id}")
 
         if result.node_output.data.response.status.successful:
-            for choice in result.node_output.data.response.full_response.choices:
+            full_response = result.node_output.data.response.full_response
+            print(f"Model: {full_response.model} by {full_response.provider} :: API: {full_response.api_provider}")
+            for choice in full_response.choices:
                 for content_item in choice.contents:
-                    print("\n")
+                    display.print_content_type_header(content_item.type)
                     text = content_item.get_text()
                     if text:
-                        print_content(text, content_item.type)
+                        display.print_content(text, content_item.type)
         else:
-            print_error(f"Node Execution Failed: {result.node_output.data.response.status}")
+            display.print_error(f"Node Execution Failed: {result.node_output.data.response.status}")
 
     print("\n")
 
