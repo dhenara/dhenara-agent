@@ -8,77 +8,50 @@ FieldType = Union[ConversationFieldEnum, ConversationNodeFieldEnum, Conversation
 
 
 class StorageSettings(BaseModel):
-    """
-    Settings for database storage actions (save/delete) on conversation entities.
-
-    Specifies which fields should be saved or deleted for different storage entity types.
-
-    Attributes:
-        save: Mapping of storage entity types to lists of fields that should be saved
-        delete: Mapping of storage entity types to lists of fields that should be deleted
-    """
-
-    save: dict[StorageEntityTypeEnum, list[FieldType]] = Field(
+    save: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]] = Field(
         default_factory=dict,
         description="Mapping of entity types to fields that should be saved",
-        example={
-            StorageEntityTypeEnum.conversation: [ConversationFieldEnum.title],
-            StorageEntityTypeEnum.conversation_node: [ConversationNodeFieldEnum.inputs, ConversationNodeFieldEnum.outputs],
-        },
     )
 
-    delete: dict[StorageEntityTypeEnum, list[FieldType]] = Field(
+    delete: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]] = Field(
         default_factory=dict,
         description="Mapping of entity types to fields that should be deleted",
-        example={
-            StorageEntityTypeEnum.conversation: [ConversationFieldEnum.all],
-            StorageEntityTypeEnum.conversation_space: [ConversationSpaceFieldEnum.all],
-        },
     )
 
     @field_validator("save", "delete")
     @classmethod
-    def validate_field_types(cls, value: dict[StorageEntityTypeEnum, list[FieldType]]) -> dict[StorageEntityTypeEnum, list[FieldType]]:
-        """
-        Validates that the fields match their corresponding storage entity types.
+    def validate_field_types(cls, value: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]]) -> dict[StorageEntityTypeEnum, list[FieldType]]:
+        validated = {}
 
-        Args:
-            value: Dictionary mapping storage types to fields
-
-        Returns:
-            The validated dictionary
-
-        Raises:
-            ValueError: If field types don't match their storage entity type
-        """
         for storage_type, fields in value.items():
+            # Convert string storage_type to enum if needed
+            if isinstance(storage_type, str):
+                try:
+                    storage_type = StorageEntityTypeEnum(storage_type)
+                except ValueError:
+                    raise ValueError(f"Invalid storage type: {storage_type}")
+
+            # Convert string fields to appropriate enums
+            validated_fields = []
             for field in fields:
+                if isinstance(field, str):
+                    if storage_type == StorageEntityTypeEnum.conversation:
+                        field = ConversationFieldEnum(field)
+                    elif storage_type == StorageEntityTypeEnum.conversation_node:
+                        field = ConversationNodeFieldEnum(field)
+                    elif storage_type == StorageEntityTypeEnum.conversation_space:
+                        field = ConversationSpaceFieldEnum(field)
+                validated_fields.append(field)
+
+            # Validate field types
+            for field in validated_fields:
                 if storage_type == StorageEntityTypeEnum.conversation and not isinstance(field, ConversationFieldEnum):
                     raise ValueError(f"Field {field} is not valid for conversation storage type")
-
                 elif storage_type == StorageEntityTypeEnum.conversation_node and not isinstance(field, ConversationNodeFieldEnum):
                     raise ValueError(f"Field {field} is not valid for conversation_node storage type")
-
                 elif storage_type == StorageEntityTypeEnum.conversation_space and not isinstance(field, ConversationSpaceFieldEnum):
                     raise ValueError(f"Field {field} is not valid for conversation_space storage type")
 
-        return value
+            validated[storage_type] = validated_fields
 
-    class Config:
-        """Pydantic model configuration."""
-
-        validate_assignment = True
-        json_schema_extra = {
-            "examples": [
-                {
-                    "save": {
-                        "conversation": ["title"],
-                        "conversation_node": ["inputs", "outputs"],
-                    },
-                    "delete": {
-                        "conversation": ["all"],
-                        "conversation_space": ["all"],
-                    },
-                }
-            ]
-        }
+        return validated
