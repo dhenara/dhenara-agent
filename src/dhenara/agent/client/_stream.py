@@ -1,6 +1,6 @@
 # stream_processor.py
 from collections.abc import AsyncIterator, Iterator
-from typing import Optional, TypeVar, Union
+from typing import TypeVar
 
 import httpx
 from dhenara.ai.types.shared.api import (
@@ -19,7 +19,7 @@ class StreamProcessor:
     """Helper class to process streaming responses."""
 
     @staticmethod
-    def decode_line(line: Union[str, bytes]) -> str:
+    def decode_line(line: str | bytes) -> str:
         """Decode line from bytes if needed"""
         if isinstance(line, bytes):
             return line.decode("utf-8")
@@ -29,7 +29,7 @@ class StreamProcessor:
     def parse_sse_event(
         event_str: str,
         response_model: type[T],
-    ) -> Optional[SSEResponse]:
+    ) -> SSEResponse | None:
         """Parse SSE event using the SSEResponse parser"""
         if not event_str.strip():
             return None

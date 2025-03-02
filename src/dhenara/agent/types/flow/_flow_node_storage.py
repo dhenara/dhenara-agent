@@ -4,23 +4,35 @@ from dhenara.agent.types.flow import ConversationFieldEnum, ConversationNodeFiel
 from dhenara.ai.types.shared.base import BaseModel
 from pydantic import Field, field_validator
 
-FieldType = Union[ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum]
+FieldType = Union[ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum]  # noqa: UP007
 
 
 class StorageSettings(BaseModel):
-    save: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]] = Field(
+    save: dict[
+        StorageEntityTypeEnum | str,
+        list[str | FieldType],
+    ] = Field(
         default_factory=dict,
         description="Mapping of entity types to fields that should be saved",
     )
 
-    delete: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]] = Field(
+    delete: dict[
+        StorageEntityTypeEnum | str,
+        list[str | FieldType],
+    ] = Field(
         default_factory=dict,
         description="Mapping of entity types to fields that should be deleted",
     )
 
     @field_validator("save", "delete")
     @classmethod
-    def validate_field_types(cls, value: dict[Union[StorageEntityTypeEnum, str], list[Union[str, FieldType]]]) -> dict[StorageEntityTypeEnum, list[FieldType]]:
+    def validate_field_types(
+        cls,
+        value: dict[
+            StorageEntityTypeEnum | str,
+            list[str | FieldType],
+        ],
+    ) -> dict[StorageEntityTypeEnum, list[FieldType]]:
         validated = {}
 
         for storage_type, fields in value.items():

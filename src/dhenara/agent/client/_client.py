@@ -1,5 +1,5 @@
 from collections.abc import AsyncIterator, Iterator
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from dhenara.agent.types.flow import FlowNodeInput
 from dhenara.agent.types.fns import pydantic_endpoint
@@ -68,10 +68,10 @@ class Client(_ClientBase):
     def execute_endpoint(
         self,
         refnum: str,
-        node_input: Union[FlowNodeInput, dict],
+        node_input: FlowNodeInput | dict,
         stream: bool = False,
         response_model: type[T] = ExecuteDhenRunEndpointRes,
-    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], Iterator[SSEResponse]]:
+    ) -> ApiResponse[ExecuteDhenRunEndpointRes] | Iterator[SSEResponse]:
         """Execute an endpoint synchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
 
@@ -98,10 +98,10 @@ class Client(_ClientBase):
     async def execute_endpoint_async(
         self,
         refnum: str,
-        node_input: Union[FlowNodeInput, dict],
+        node_input: FlowNodeInput | dict,
         stream: bool = False,
         response_model: type[T] = ExecuteDhenRunEndpointRes,
-    ) -> Union[ApiResponse[ExecuteDhenRunEndpointRes], AsyncIterator[dict]]:
+    ) -> ApiResponse[ExecuteDhenRunEndpointRes] | AsyncIterator[dict]:
         """Execute an endpoint asynchronously."""
         input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
         request_data = ExecuteDhenRunEndpointReq(

@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from functools import wraps
 from inspect import Parameter, signature
-from typing import Any, Callable, Optional, TypeVar, get_type_hints
+from typing import Any, TypeVar, get_type_hints
 
 from dhenara.ai.types.shared.base import BaseModel
 from pydantic import ValidationError
@@ -20,7 +21,7 @@ def pydantic_endpoint(model: type[T]) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        def wrapper(self, data: Optional[T] = None, **kwargs) -> Any:
+        def wrapper(self, data: T | None = None, **kwargs) -> Any:
             try:
                 if data is not None:
                     if not isinstance(data, model):
@@ -46,7 +47,7 @@ def pydantic_endpoint(model: type[T]) -> Callable:
             Parameter(
                 name="data",
                 kind=Parameter.POSITIONAL_OR_KEYWORD,
-                annotation=Optional[model],
+                annotation=model | None,
                 default=None,
             ),
         ]
@@ -57,14 +58,14 @@ def pydantic_endpoint(model: type[T]) -> Callable:
                 Parameter(
                     name=field_name,
                     kind=Parameter.KEYWORD_ONLY,
-                    annotation=Optional[field.annotation],
+                    annotation=field.annotation | None,
                     default=None,
                 ),
             )
 
         wrapper.__signature__ = signature(func).replace(parameters=parameters)
         wrapper.__annotations__ = {
-            "data": Optional[model],
+            "data": model | None,
             "return": get_type_hints(func)["return"],
         }
 
@@ -83,7 +84,7 @@ def pydantic_endpoint(model: type[T]) -> Callable:
         {_format_model_fields(model)}
 
         Returns:
-            {get_type_hints(func)['return'].__name__}
+            {get_type_hints(func)["return"].__name__}
 
         Raises:
             ValueError: If the provided data is invalid
