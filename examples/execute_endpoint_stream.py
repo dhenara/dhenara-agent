@@ -80,6 +80,7 @@ class StreamProcesor(ResponseDisplayMixin):
                 if chunk.event == SSEEventType.TOKEN_STREAM:
                     self.print_stream_chunk(chunk.data)
                     if chunk.data.done:
+                        # `break` as no final response will be send to client
                         break
 
         except KeyboardInterrupt:

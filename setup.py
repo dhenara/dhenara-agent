@@ -9,7 +9,7 @@ setup(
         "httpx>=0.24.0",
         "requests>=2.25.1",
         "pydantic>=2.0.0",
-        "dhenara-ai>=0.1.0",  # Dependency on dhenai
+        "dhenara>=1.0.0",  # Dependency on dhenai
     ],
     python_requires=">=3.10",
     description="Dhenara Inc AI-Agent Platform SDK",
