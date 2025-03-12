@@ -5,8 +5,6 @@ from dhenara.agent.types.flow import (
     FlowNodeUserInputActionEnum,
     InternalDataObjectTypeEnum,
     InternalDataObjParamsScopeEnum,
-    ResourceObjectTypeEnum,
-    ResourceQueryMapping,
     UserInput,
 )
 from dhenara.ai.types.shared.base import BaseModel
@@ -45,83 +43,6 @@ class InternalDataObjParams(BaseModel):
             if self.object_scope != InternalDataObjParamsScopeEnum.current:
                 raise ValueError(f"{self.object_type} must have 'current' scope")
         return self
-
-
-class Resource(BaseModel):
-    """
-    Resource configuration model with mutually exclusive fields for object parameters
-    or fetch query.
-
-    Attributes:
-        object_type: Type of the resource model
-        object_id: Unique identifier for the resource
-        query: Optional query string for fetching resource details
-        is_default: Flag to mark default resource
-    """
-
-    object_type: ResourceObjectTypeEnum = Field(
-        ...,
-        description="Type of the resource model",
-    )
-    object_id: str | None = Field(
-        default=None,
-        description="Unique identifier for the resource",
-    )
-    query: dict | None = Field(
-        default=None,
-        description="Query dict or list of query dicts for fetching resource details",
-        examples=[
-            {"model_name": "claude-sonet-3.5-v2"},
-            {
-                "model_name": "claude-sonet-3.5-v2",
-                "api_provider": "anthropic",
-            },
-        ],
-    )
-    is_default: bool = Field(
-        default=False,
-        description="Is default resource or not. Only one default is allowed in a list of resources",
-    )
-
-    @model_validator(mode="after")
-    def validate_exclusive_fields(self) -> "Resource":
-        """Validates mutually exclusive fields and query structure."""
-        if self.object_id and self.query:
-            raise ValueError("Exactly one of object_type+object_id, or query is allowed")
-
-        # Validate query keys based on model type
-        for key in self.query.keys():
-            allowed_fields = ResourceQueryMapping.get_allowed_fields(self.object_type)
-            if key not in allowed_fields:
-                raise ValueError(f"Unsupported query key `{key}`")
-
-        return self
-
-    def is_same_as(self, other: "Resource") -> bool:
-        """
-        Compares two Resource objects for equality based on their type and identifiers.
-
-        Args:
-            other: Another Resource object to compare with
-
-        Returns:
-            bool: True if the resources represent the same entity, False otherwise
-        """
-        # First check if object types match
-        if self.object_type != other.object_type:
-            return False
-
-        # Case 1: Both have object_id
-        if self.object_id and other.object_id:
-            return self.object_id == other.object_id
-
-        # Case 2: Both have query
-        if self.query and other.query:
-            return self.query == other.query
-
-        # Case 3: Mixed cases are considered different
-        return False
-
 
 class FlowNodeInput(BaseModel):
     """

@@ -8,13 +8,13 @@ from dhenara.agent.types.flow import (
     FlowNodeTypeEnum,
     NodeInputSettings,
     NodeResponseSettings,
-    Resource,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
     StorageSettings,
     SystemInstructions,
 )
 from dhenara.ai.types.shared.base import BaseModel
+from dhenara.ai.types import Resource
 from pydantic import Field, field_validator, model_validator
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
@@ -59,7 +59,10 @@ class FlowNode(BaseModel):
         default_factory=list,
         description="List of resources to be used",
     )
-
+    tools:list= Field(
+        default_factory=list,
+        description="Tools",
+    )
     ai_settings: AISettings | None = Field(
         default=None,
         description="Node specific AP API settings/ options ",
@@ -91,6 +94,7 @@ class FlowNode(BaseModel):
         default_factory=None,
         exclude=True,  # NOTE: as this is factory, base model exclude won't work
     )
+
 
     @field_validator("identifier")
     @classmethod
@@ -201,7 +205,6 @@ class FlowDefinition(BaseModel):
     response_protocol: ResponseProtocolEnum = Field(
         ...,
         description="Response protocol for all nodes in the flow. Individual nodes can enalbe/disable responses",
-        examples=["sequential"],
     )
     system_instructions: SystemInstructions | None = Field(
         default=None,

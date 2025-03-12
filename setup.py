@@ -6,6 +6,8 @@ setup(
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src", include=["dhenara.*"]),
     install_requires=[
+        "click>=8.0.0",  # CLI
+        "pyyaml>=6.0",  # CLI
         "httpx>=0.24.0",
         "requests>=2.25.1",
         "pydantic>=2.0.0",
@@ -23,4 +25,15 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent",
     ],
+    # CLI
+    entry_points={
+        "console_scripts": [
+            "dhenara=dhenara.cli:main",
+        ],
+    },
+    # Include template files in the package
+    package_data={
+        "dhenara.cli": ["templates/**/*"],
+    },
+    include_package_data=True,
 )

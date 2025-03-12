@@ -2,6 +2,7 @@
 
 # Export main classes
 from .types import *
+from .engine import *
 from .client import Client
 
 __version__ = "0.1.0"
