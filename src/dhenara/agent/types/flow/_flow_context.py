@@ -26,7 +26,7 @@ class StreamingContext(BaseModel):
 
 
 class FlowContext(BaseModel):
-    endpoint_id: str
+    # endpoint_id: str
     flow_definition: FlowDefinition
     initial_input: FlowNodeInput
     execution_status: FlowExecutionStatusEnum = FlowExecutionStatusEnum.PENDING

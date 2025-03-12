@@ -3,7 +3,6 @@
 import logging
 
 from dhenara.agent.types import FlowContext
-from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ class ExecutionRecorder:
     #            return await qs.aget(reference_number=obj_ref_num)
     #        return None
     #    except TsgDhenRunEndPoint.DoesNotExist:
-    #        raise ValidationError(
+    #        raise ValueError(
     #            f"Endpoint not found for id {obj_id}/ reference_number {obj_ref_num}",
     #        )
 
@@ -45,7 +44,7 @@ class ExecutionRecorder:
                 self.execution_record = "todo"
             else:
                 if not self.execution_record:
-                    raise ValidationError("execution_record is None")
+                    raise ValueError("execution_record is None")
 
                 self.execution_record.flow_context = context
                 self.execution_record.execution_status = context.execution_status
