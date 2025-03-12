@@ -13,8 +13,8 @@ from dhenara.agent.types.flow import (
     StorageSettings,
     SystemInstructions,
 )
+from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
-from dhenara.ai.types import Resource
 from pydantic import Field, field_validator, model_validator
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
@@ -55,7 +55,7 @@ class FlowNode(BaseModel):
         examples=["ai_model_call", "rag_query"],
     )
 
-    resources: list[Resource] = Field(
+    resources: list[ResourceConfigItem] = Field(
         default_factory=list,
         description="List of resources to be used",
     )
@@ -116,7 +116,7 @@ class FlowNode(BaseModel):
 
     @field_validator("resources")
     @classmethod
-    def validate_node_resources(cls, v: list[Resource]) -> list[Resource]:
+    def validate_node_resources(cls, v: list[ResourceConfigItem]) -> list[ResourceConfigItem]:
         """Validate that node IDs are unique within the same flow level."""
         # Ignore empty lists
         if not v:
@@ -165,12 +165,12 @@ class FlowNode(BaseModel):
     def is_streaming(self):
         return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
 
-    def check_resource_in_node(self, resource: Resource) -> bool:
+    def check_resource_in_node(self, resource: ResourceConfigItem) -> bool:
         """
         Checks if a given resource exists in the node's resource list.
 
         Args:
-            resource: Resource object to check for
+            resource: ResourceConfigItem object to check for
 
         Returns:
             bool: True if the resource exists in the node's resources, False otherwise

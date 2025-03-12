@@ -5,49 +5,44 @@ import logging
 from dhenara.agent.types import FlowContext
 from django.core.exceptions import ValidationError
 
-# from django.db import transaction
-from apps.model_apps.app_dhenrun_models.models import TsgDhenRunEndPoint, TsgDhenRunEndPointExecutionRecord
-from apps.model_apps.app_dhenrun_models.services.endpoint import DhenRunEndPointModelService
-
 logger = logging.getLogger(__name__)
 
 
 class ExecutionRecorder:
     def __init__(self):
-        pass
-        self.execution_record: TsgDhenRunEndPointExecutionRecord | None = None
+        self.execution_record = None
 
-    async def get_obj(
-        self,
-        obj_id: str | None,
-        obj_ref_num: str | None = None,
-    ) -> TsgDhenRunEndPoint:
-        try:
-            # Use select_related to fetch flow data in the same query
-            qs = TsgDhenRunEndPointExecutionRecord.objects.select_related("endpoint")
+    # async def get_obj(
+    #    self,
+    #    obj_id: str | None,
+    #    obj_ref_num: str | None = None,
+    # ) :
+    #    try:
+    #        # Use select_related to fetch flow data in the same query
+    #        qs = TsgDhenRunEndPointExecutionRecord.objects.select_related("endpoint")
 
-            if obj_id:
-                return await qs.aget(id=obj_id)
-            if obj_ref_num:
-                return await qs.aget(reference_number=obj_ref_num)
-            return None
-        except TsgDhenRunEndPoint.DoesNotExist:
-            raise ValidationError(
-                f"Endpoint not found for id {obj_id}/ reference_number {obj_ref_num}",
-            )
+    #        if obj_id:
+    #            return await qs.aget(id=obj_id)
+    #        if obj_ref_num:
+    #            return await qs.aget(reference_number=obj_ref_num)
+    #        return None
+    #    except TsgDhenRunEndPoint.DoesNotExist:
+    #        raise ValidationError(
+    #            f"Endpoint not found for id {obj_id}/ reference_number {obj_ref_num}",
+    #        )
 
     async def update_execution_in_db(self, context: FlowContext, create: bool = False):
         return  # TODO
         # TODO: Run in backround as non blocking
         try:
             if create:
-                endpoint = await DhenRunEndPointModelService.get_obj(obj_id=context.endpoint_id)
-                data = {
+                endpoint = "todo"
+                data = {  # noqa: F841
                     "endpoint": endpoint,
                     "execution_status": context.execution_status,
                     "flow_context": context.model_dump_json(),
                 }
-                self.execution_record = await TsgDhenRunEndPointExecutionRecord.objects.acreate(**data)
+                self.execution_record = "todo"
             else:
                 if not self.execution_record:
                     raise ValidationError("execution_record is None")

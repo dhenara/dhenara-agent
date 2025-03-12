@@ -1,6 +1,6 @@
 from dhenara.agent.client import Client
 from dhenara.agent.types import FlowNodeInput, UserInput
-from dhenara.agent.types.flow import Resource, ResourceObjectTypeEnum, ResourceQueryFieldsEnum
+from dhenara.ai.types import ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 from shared_print_utils import ResponseDisplayMixin
 
 
@@ -11,7 +11,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22186007"  # Non streaming
+_refnum = "22128869"  # Non streaming
 
 
 def main():
@@ -30,9 +30,8 @@ def main():
     node_input = FlowNodeInput(
         user_input=user_input,
         resources=[
-            Resource(
-                object_type=ResourceObjectTypeEnum.ai_model_endpoint,
-                object_id=None,
+            ResourceConfigItem(
+                item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
                 query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
                 # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
                 # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},

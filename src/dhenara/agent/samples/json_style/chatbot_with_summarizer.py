@@ -14,24 +14,20 @@ chatbot_with_summarizer_json = {
                 "type": "ai_model_call",
                 "resources": [
                     {
-                        "object_type": "ai_model_endpoint",
-                        "object_id": None,
+                        "item_type": "ai_model_endpoint",
                         "query": {"model_name": "gpt-4o-mini"},
                         "is_default": True,
                     },
                     {
-                        "object_type": "ai_model_endpoint",
-                        "object_id": None,
+                        "item_type": "ai_model_endpoint",
                         "query": {"model_name": "gpt-4o"},
                     },
                     {
-                        "object_type": "ai_model_endpoint",
-                        "object_id": None,
+                        "item_type": "ai_model_endpoint",
                         "query": {"model_name": "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
                     },
                     {
-                        "object_type": "ai_model_endpoint",
-                        "object_id": None,
+                        "item_type": "ai_model_endpoint",
                         "query": {"model_name": "claude-3-5-haiku-20241022"},
                     },
                 ],
@@ -65,8 +61,7 @@ chatbot_with_summarizer_json = {
                 "type": "ai_model_call",
                 "resources": [
                     {
-                        "object_type": "ai_model_endpoint",
-                        "object_id": None,
+                        "item_type": "ai_model_endpoint",
                         "query": {"model_name": "gpt-4o-mini"},
                     },
                 ],

@@ -5,6 +5,7 @@ import asyncio
 import logging
 from asyncio import Event, create_task
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from typing import Any
 
 from dhenara.agent.types import (
@@ -18,7 +19,7 @@ from dhenara.agent.types import (
     FlowNodeExecutionStatusEnum,
     FlowNodeOutput,
     FlowNodeTypeEnum,
-    Resource,
+    ResourceConfigItem,
     SpecialNodeIdEnum,
     StreamingContext,
     StreamingStatusEnum,
@@ -40,9 +41,7 @@ from dhenara.ai.types.shared.api import (
     SSEErrorResponse,
     SSEEventType,
 )
-from django.utils import timezone
-
-from common.csource.glb.exceptions import ApiValidationError
+from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 from .execution_recorder import ExecutionRecorder
 
@@ -53,7 +52,7 @@ class FlowOrchestrator:
     def __init__(
         self,
         flow_definition: FlowDefinition,
-        resource_config:ResourceConfig,
+        resource_config: ResourceConfig,
     ):
         self.flow_definition = flow_definition
         self.execution_recorder = None
@@ -174,7 +173,7 @@ class FlowOrchestrator:
                     return None
 
         # Execution completed
-        context.completed_at = timezone.now()
+        context.completed_at = datetime.now()
         return context.execution_results
 
     async def _process_single_node(
@@ -209,7 +208,7 @@ class FlowOrchestrator:
         result,
     ) -> AsyncGenerator | None:
         context.execution_results[context.current_node_identifier] = result
-        context.updated_at = timezone.now()
+        context.updated_at = datetime.now()
 
         """ TODO
         # Determine if we should send SSE update
@@ -245,7 +244,7 @@ class FlowOrchestrator:
             else:
                 await self._execute_nodes(context, sequential=False, start_index=start_index)
 
-            context.completed_at = timezone.now()
+            context.completed_at = datetime.now()
             context.execution_status = FlowExecutionStatusEnum.COMPLETED
             await self.execution_recorder.update_execution_in_db(context)
 
@@ -304,7 +303,7 @@ class FlowOrchestrator:
             raise ValueError("No default resource found in flow node configuration")
 
         logger.debug(f"call_ai_model: node_resource={node_resource}")
-        ai_model_ep = self.resource_config.get_resource (node_resource)
+        ai_model_ep = self.resource_config.get_resource(node_resource)
         logger.debug(f"call_ai_model: ai_model_ep={ai_model_ep}")
 
         # Parse inputs
@@ -388,7 +387,7 @@ class FlowOrchestrator:
             user_inputs=user_inputs,
             node_output=node_output,
             storage_data=storage_data,
-            created_at=timezone.now(),
+            created_at=datetime.now(),
         )
 
         return result
@@ -433,7 +432,7 @@ class FlowOrchestrator:
                         user_inputs=None,
                         node_output=node_output,
                         storage_data=storage_data,
-                        created_at=timezone.now(),
+                        created_at=datetime.now(),
                     )
 
                     # NOTE: `await`
@@ -458,14 +457,14 @@ class FlowOrchestrator:
             )
         )
 
-    def get_user_selected_resources(self, flow_node: FlowNode, context: FlowContext) -> list[Resource]:
+    def get_user_selected_resources(self, flow_node: FlowNode, context: FlowContext) -> list[ResourceConfigItem]:
         user_input_sources = flow_node.input_settings.input_source.user_input_sources
         resources = []
         for input_source in user_input_sources:
             if input_source == SpecialNodeIdEnum.FULL:
                 resources = context.initial_input.resources
             else:
-                raise ApiValidationError(f"user_input_source={input_source} not supported for resurce selection. Only 'full' is supported now")
+                raise ValueError(f"user_input_source={input_source} not supported for resurce selection. Only 'full' is supported now")
         return resources
 
     def get_user_inputs(self, flow_node: FlowNode, context: FlowContext) -> list[UserInput]:
@@ -475,7 +474,7 @@ class FlowOrchestrator:
             if input_source == SpecialNodeIdEnum.FULL:
                 user_inputs.append(context.initial_input.user_input)
             else:
-                raise ApiValidationError(f"user_input_source={input_source} not supported for input selection. Only 'full' is supported now")
+                raise ValueError(f"user_input_source={input_source} not supported for input selection. Only 'full' is supported now")
 
         return user_inputs
 
@@ -497,7 +496,7 @@ class FlowOrchestrator:
         has_full_node_prompt = node_prompt and node_prompt.prompt
 
         if user_inputs and has_full_node_prompt:
-            raise ApiValidationError(
+            raise ValueError(
                 f"Illegal input settings for node {flow_node.identifier}. Conflicting `node_prompt` and `user_inputs` settings. \
                 Eventhhogh this is taken care in node validation fn `validate_input_settings`, somethhing got messed up."
             )
@@ -561,7 +560,7 @@ class FlowOrchestrator:
                 outputs_as_prompts += prompts
 
         except Exception as e:
-            raise ApiValidationError(f"previous_node_output: Error: {e}")
+            raise DhenaraAPIError(f"previous_node_output: Error: {e}")
 
         return outputs_as_prompts
 

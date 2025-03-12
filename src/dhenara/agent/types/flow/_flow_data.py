@@ -7,6 +7,7 @@ from dhenara.agent.types.flow import (
     InternalDataObjParamsScopeEnum,
     UserInput,
 )
+from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
 from pydantic import Field, model_validator
 
@@ -17,7 +18,7 @@ class InternalDataObjParams(BaseModel):
 
     Attributes:
         object_type: The type of internal data model
-        object_id: Unique identifier for the object
+        reference_number: Unique identifier for the object
         object_scope: Scope of the object (current or parent)
     """
 
@@ -25,7 +26,7 @@ class InternalDataObjParams(BaseModel):
         ...,
         description="Type of the internal data model",
     )
-    object_id: str = Field(
+    reference_number: str = Field(
         ...,
         description="Unique identifier for the object",
     )
@@ -64,7 +65,7 @@ class FlowNodeInput(BaseModel):
         default_factory=list,
         description="List of internal data objects",
     )
-    resources: list[Resource] = Field(
+    resources: list[ResourceConfigItem] = Field(
         default_factory=list,
         description="List of resources to be used",
     )

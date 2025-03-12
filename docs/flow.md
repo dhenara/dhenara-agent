@@ -147,7 +147,7 @@ A flow consists of three main components:
         "type": "ai_model_call",
         "resources": [
           {
-            "object_type": "ai_model_endpoint",
+            "item_type": "ai_model_endpoint",
             "is_default": true
           }
         ],
