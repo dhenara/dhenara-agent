@@ -337,6 +337,7 @@ class FlowOrchestrator:
         previous_prompts_from_conversaion = []  # TODO:
         previous_prompts = previous_prompts_from_conversaion + previous_node_outputs_as_prompts
         logger.debug(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
+        print(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
 
         user_id = "usr_id_abcd"  # TODO
 
@@ -350,7 +351,7 @@ class FlowOrchestrator:
                 max_reasoning_tokens=max_reasoning_tokens,
                 options={},  # TODO
                 metadata={"user_id": user_id},
-                test_mode=False,
+                test_mode=True,
             ),
         )
 
@@ -488,26 +489,31 @@ class FlowOrchestrator:
         user_inputs: list[UserInput],
         model: AIModel,
     ) -> list[dict]:
-        user_input_content = " ".join([await user_input.get_content() for user_input in user_inputs])
-        logger.debug(f"call_ai_model: user_input_content={user_input_content}")
+        # user_input_content = " ".join([await user_input.get_content() for user_input in user_inputs])
+        # logger.debug(f"call_ai_model: user_input_content={user_input_content}")
 
-        # If
-        node_prompt = flow_node.ai_settings.node_prompt
-        has_full_node_prompt = node_prompt and node_prompt.prompt
+        ## If
+        # node_prompt = flow_node.ai_settings.node_prompt
+        # has_full_node_prompt = node_prompt and node_prompt.prompt
 
-        if user_inputs and has_full_node_prompt:
-            raise ValueError(
-                f"Illegal input settings for node {flow_node.identifier}. Conflicting `node_prompt` and `user_inputs` settings. \
-                Eventhhogh this is taken care in node validation fn `validate_input_settings`, somethhing got messed up."
-            )
+        # if user_inputs and has_full_node_prompt:
+        #    raise ValueError(
+        #        f"Illegal input settings for node {flow_node.identifier}. Conflicting `node_prompt` and `user_inputs` settings. \
+        #        Eventhhogh this is taken care in node validation fn `validate_input_settings`, somethhing got messed up."
+        #    )
 
-        if has_full_node_prompt:
-            final_content = node_prompt.get_full_prompt(user_prompt=user_input_content)
-        else:
-            if node_prompt:  # Process to add `pre` and `post` prompts
-                final_content = node_prompt.get_full_prompt(user_prompt=user_input_content)
-            else:
-                final_content = user_input_content
+        # if has_full_node_prompt:
+        #    final_content = node_prompt.format(user_prompt=user_input_content)
+        # else:
+        #    if node_prompt:  # Process to add `pre` and `post` prompts
+        #        final_content = node_prompt.get_prompt(user_prompt=user_input_content)
+        #    else:
+        #        final_content = user_input_content
+
+        final_content = await flow_node.get_full_input_content(
+            user_inputs=user_inputs,
+            # TODO: kwargs
+        )
 
         prompts = PromptFormatter.format_conversion_node_as_prompts(
             model=model,
@@ -526,10 +532,10 @@ class FlowOrchestrator:
         context: FlowContext,
         model: AIModel,
     ) -> list:
-        node_output_sources = flow_node.input_settings.input_source.node_output_sources
+        context_sources = flow_node.input_settings.input_source.context_sources
         outputs_as_prompts = []
         try:
-            for source_node_identifier in node_output_sources:
+            for source_node_identifier in context_sources:
                 if source_node_identifier == SpecialNodeIdEnum.PREVIOUS:
                     previous_node_identifier = context.flow_definition.get_previous_node_identifier(flow_node.identifier)
                     previous_node_execution_result = context.execution_results.get(previous_node_identifier)

@@ -12,6 +12,7 @@ from dhenara.agent.types.flow import (
     SpecialNodeIdEnum,
     StorageSettings,
     SystemInstructions,
+    UserInput,
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
@@ -59,7 +60,7 @@ class FlowNode(BaseModel):
         default_factory=list,
         description="List of resources to be used",
     )
-    tools:list= Field(
+    tools: list = Field(
         default_factory=list,
         description="Tools",
     )
@@ -95,7 +96,6 @@ class FlowNode(BaseModel):
         exclude=True,  # NOTE: as this is factory, base model exclude won't work
     )
 
-
     @field_validator("identifier")
     @classmethod
     def validate_identifier(cls, v: str) -> str:
@@ -116,7 +116,9 @@ class FlowNode(BaseModel):
 
     @field_validator("resources")
     @classmethod
-    def validate_node_resources(cls, v: list[ResourceConfigItem]) -> list[ResourceConfigItem]:
+    def validate_node_resources(
+        cls, v: list[ResourceConfigItem]
+    ) -> list[ResourceConfigItem]:
         """Validate that node IDs are unique within the same flow level."""
         # Ignore empty lists
         if not v:
@@ -135,32 +137,69 @@ class FlowNode(BaseModel):
                 raise ValueError("One resource should be set as default")
             return v
 
-    @model_validator(mode="after")
-    def validate_input_settings(self) -> "FlowNode":
-        """Validates that input settings and AI settings are not conflicting.
+    # @model_validator(mode="after")
+    # def validate_input_settings(self) -> "FlowNode":
+    #    """Validates that input settings and AI settings are not conflicting.
+    #
+    #    This validator ensures that user input sources and node prompts are not
+    #    configured simultaneously, which would create ambiguous input handling.
+    #
+    #    Returns:
+    #        Self instance if validation passes
+    #    Raises:
+    #        ValueError: If conflicting settings are detected
+    #    """
+    #    has_prompt = self.ai_settings and self.ai_settings.node_prompt.format() and self.ai_settings.node_prompt.prompt
+    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
+    #    if has_prompt and has_user_input:
+    #        raise ValueError(
+    #            "Illegal input settings configuration: "
+    #            "`input_source.user_input_sources` and `ai_settings.node_prompt.prompt` "
+    #            "cannot be set simultaneously. To modify user inputs for this node, "
+    #            "use the `pre` and `post` fields of `node_prompt`, not the `prompt` field.",
+    #        )
+    #    return self
 
-        This validator ensures that user input sources and node prompts are not
-        configured simultaneously, which would create ambiguous input handling.
+    async def get_full_input_content(
+        self, user_inputs: list[UserInput] | None = None, **kwargs
+    ) -> str:
+        user_input_permitted = (
+            self.input_settings
+            and self.input_settings.input_source
+            and self.input_settings.input_source.user_input_sources
+        )
+        node_prompt = (
+            self.ai_settings.node_prompt
+            if self.ai_settings and self.ai_settings.node_prompt
+            else None
+        )
 
-        Returns:
-            Self instance if validation passes
-
-        Raises:
-            ValueError: If conflicting settings are detected
-        """
-        has_prompt = self.ai_settings and self.ai_settings.node_prompt and self.ai_settings.node_prompt.prompt
-
-        has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
-
-        if has_prompt and has_user_input:
+        if not (user_input_permitted or node_prompt):
             raise ValueError(
-                "Illegal input settings configuration: "
-                "`input_source.user_input_sources` and `ai_settings.node_prompt.prompt` "
-                "cannot be set simultaneously. To modify user inputs for this node, "
-                "use the `pre` and `post` fields of `node_prompt`, not the `prompt` field.",
+                "get_full_input_content: Illegal Node setting for inputs. No source given"
             )
 
-        return self
+        user_input_content = None
+        if user_input_permitted:
+            if not user_inputs:
+                raise ValueError(
+                    "get_full_input_content: Node setting is to take user inputs, but no inputs passed"
+                )
+
+            user_input_content = " ".join(
+                [await user_input.get_content() for user_input in user_inputs]
+            )
+
+        if node_prompt:
+            kwargs.update({"dh_user_input": user_input_content})
+            return node_prompt.format(**kwargs)
+        else:
+            if not user_input_content:
+                raise ValueError(
+                    "get_full_input_content: Failed to derive full input content"
+                )
+
+            return user_input_content
 
     def is_streaming(self):
         return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
@@ -178,7 +217,10 @@ class FlowNode(BaseModel):
         if not self.resources:
             return False
 
-        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+        return any(
+            existing_resource.is_same_as(resource)
+            for existing_resource in self.resources
+        )
 
 
 class FlowDefinition(BaseModel):
@@ -211,7 +253,7 @@ class FlowDefinition(BaseModel):
         description="Flow wide system instructions",
     )
 
-    # node_prompt: NodePrompt | None = Field(
+    # node_prompt: PromptTemplate | None = Field(
     #    default=None,
     #    description="Flow wide prompts generation sinstruction/option parameters",
     # )
@@ -316,7 +358,9 @@ class FlowDefinition(BaseModel):
     def validate_node_identifies(self):
         all_node_identifies = {node.identifier for node in self.nodes}
         for node in self.nodes:
-            node.input_settings.input_source.validate_node_references(list(all_node_identifies))
+            node.input_settings.input_source.validate_node_references(
+                list(all_node_identifies)
+            )
 
         return self
 
@@ -328,7 +372,9 @@ class FlowDefinition(BaseModel):
     def validate_response_protocol(self):
         if self.has_any_streaming_node():
             if self.response_protocol not in [ResponseProtocolEnum.HTTP_SSE]:
-                raise ValueError("Response protocol must be one that support streaming if any node is streaming.")
+                raise ValueError(
+                    "Response protocol must be one that support streaming if any node is streaming."
+                )
         return self
 
     def get_previous_node_identifier(self, node_identifier: str) -> str | None:

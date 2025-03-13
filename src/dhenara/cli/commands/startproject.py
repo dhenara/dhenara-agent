@@ -50,15 +50,15 @@ def startproject(name, agent, flow, git):
         f.write("")
 
     # Create project config.yaml
-    config = {
+    settings = {
         "name": name,
         "description": "",
         "version": "0.0.1",
         "author": os.environ.get("USER", "dhenara-user"),
     }
 
-    with open(project_dir / "config.yaml", "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
+    with open(project_dir / "config" / "settings.yaml", "w") as f:
+        yaml.dump(settings, f, default_flow_style=False)
 
     # Create README.md
     with open(project_dir / "README.md", "w") as f:
@@ -94,3 +94,50 @@ def startproject(name, agent, flow, git):
 
     click.echo(f"✅ Project '{name}' created successfully!")
     click.echo(f"To get started, cd into {package_name} and start developing!")
+
+
+# TODO:
+"""
+my-project/
+├── agents/                   # Agent definitions
+│   ├── __init__.py
+│   └── my_agent/
+│       ├── __init__.py
+│       ├── agent_def.py/yaml
+│       ├── prompts/
+│       ├── src/
+│       │   └── tools/
+│       ├── tests/
+│       └── requirements.txt
+│
+├── skills/                   # Reusable capabilities ??
+├── prompts/                  # Global Prompt templates
+├── src/                      # Source code
+│   └── tools/                # Shared tools
+│
+├── config/                   # Configuration files
+│   └── settings.yaml
+│
+├── tests/                    # Unit/integration tests
+├── README.md
+├── pyproject.toml            # Dependencies and metadata
+├── requirements.txt
+└── Dockerfile                # Isolation setup
+
+
+
+# Working DIR
+working_dir/
+├── input/                    # Input data
+│   ├── repo/                 # Git repositories
+│   └── files/                # Other input files
+├── output/                   # Execution results
+│   ├── planning/             # Planning artifacts
+│   ├── agent1/               # Per-agent outputs
+│   ├── agent2/
+│   └── snapshots/            # Versioned states ??
+│   └── artifacts/            # Generated files
+├── state/                    # Execution state
+└── .dhenara/                 # Framework metadata
+
+"""

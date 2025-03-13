@@ -113,8 +113,8 @@ def load_resource_config():
     resource_config = ResourceConfig()
     resource_config.load_from_file(
         credentials_file="~/.env_keys/.dhenara_credentials.yaml",
+        init_endpoints=True,
     )
-    print(f"resource_config={resource_config}")  # TODO
     return resource_config
 
 

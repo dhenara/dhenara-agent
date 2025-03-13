@@ -9,8 +9,8 @@ from dhenara.agent.types import (
     FlowNodeTypeEnum,
     NodeInputSettings,
     NodeInputSource,
-    NodePrompt,
     NodeResponseSettings,
+    PromptTemplate,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
     StorageEntityTypeEnum,
@@ -89,7 +89,7 @@ chatbot_streaming_with_summarizer = Flow(
                 input_settings=NodeInputSettings(
                     input_source=NodeInputSource(
                         user_input_sources=[SpecialNodeIdEnum.FULL],
-                        node_output_sources=[],
+                        context_sources=[],
                     ),
                 ),
                 storage_settings=StorageSettings(
@@ -123,7 +123,7 @@ chatbot_streaming_with_summarizer = Flow(
                     system_instructions=[
                         "You are a summarizer which generate a title text under 60 characters from the prompts.",
                     ],
-                    node_prompt=NodePrompt(
+                    node_prompt=PromptTemplate(
                         pre_prompt=None,
                         prompt=["Summarize in plane text under 60 characters."],
                         post_prompt=None,
@@ -133,7 +133,7 @@ chatbot_streaming_with_summarizer = Flow(
                 input_settings=NodeInputSettings(
                     input_source=NodeInputSource(
                         user_input_sources=[],
-                        node_output_sources=[SpecialNodeIdEnum.PREVIOUS],
+                        context_sources=[SpecialNodeIdEnum.PREVIOUS],
                     ),
                 ),
                 storage_settings=StorageSettings(

@@ -2,7 +2,7 @@ from typing import Any
 
 from dhenara.agent.types.flow import SpecialNodeIdEnum
 from dhenara.ai.types.shared.base import BaseModel
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 
 SystemInstructions = list[str]
 
@@ -27,75 +27,71 @@ class TODOSystemInstructions(BaseModel):
     }
 
 
-class NodePrompt(BaseModel):
-    """Configuration for AI prompts.
+class PromptTemplate(BaseModel):
+    """Template configuration for AI interactions.
 
-    This model defines the structure for configuring AI prompts.
-    Either direct prompt or pre/post prompts can be used.
+    A generic template structure for configuring various AI interaction texts,
+    including prompts, system instructions, context information, or any templated text.
+    Supports dynamic variable substitution through standard Python string formatting.
 
     Attributes:
-        pre_prompt: Text to prepend to user prompt as list of strings
-        prompt: Direct prompt text as list of strings
-        post_prompt: Text to append to user prompt as list of strings
+        template: The text template with optional placeholders for formatting
+        default_values: Optional dictionary of default values for template variables
     """
 
-    pre_prompt: list[str] | None = Field(
-        default=None,
-        default_factory=None,
-        description="Text that will be prepended to the user's prompt",
+    template: str = Field(
+        description="Text template with optional {placeholders} for string formatting",
     )
 
-    prompt: list[str] | None = Field(
+    default_values: dict[str, Any] | None = Field(
         default=None,
-        default_factory=None,
-        description="Direct prompt text to send to the AI model",
+        description="Default values for template variables if not provided at runtime",
     )
 
-    post_prompt: list[str] | None = Field(
-        default=None,
-        default_factory=None,
-        description="Text that will be appended to the user's prompt",
-    )
+    def format(self, **kwargs) -> str:
+        """Formats the template with provided values.
 
-    @model_validator(mode="after")
-    def validate_prompt_configuration(self) -> "NodePrompt":
-        """Validates that either prompt or pre/post prompt is provided."""
-        if self.prompt and (self.pre_prompt or self.post_prompt):
-            raise ValueError("Both 'prompt' and 'pre_prompt'/'post_prompt' are not allowed")
-        return self
-
-    def get_full_prompt(self, user_prompt: str | None = None) -> str:
-        """Constructs and returns the full prompt by combining pre/post prompts.
+        Additional keyword arguments can be passed at runtime to be included
+        in the template formatting, overriding any matching keys in the
+        default_values dictionary.
 
         Args:
-            user_prompt: Optional user provided prompt to combine with pre/post prompts
+            **kwargs: Runtime values for template variables (overrides defaults)
 
         Returns:
-            str: The complete prompt text
+            str: The complete formatted text
         """
-        if self.prompt is not None:
-            return " ".join(self.prompt)
 
-        parts = []
-        if self.pre_prompt:
-            parts.extend(self.pre_prompt)
-        if user_prompt:
-            parts.append(user_prompt)
-        if self.post_prompt:
-            parts.extend(self.post_prompt)
+        # Special kw inputs
+        # dh_user_input = kwargs.pop("dh_user_input", None)
 
-        return " ".join(parts)
+        # Start with default values and override with runtime values
+        format_values = {}
+        if self.default_values:
+            format_values.update(self.default_values)
+        if kwargs:
+            format_values.update(kwargs)
+
+        # Format template with variables
+        if format_values:
+            return self.template.format(**format_values)
+        return self.template
 
     model_config = {
         "json_schema_extra": {
             "examples": [
+                # Example as user prompt
                 {
-                    "pre_prompt": ["Please answer the following question:"],
-                    "post_prompt": ["Provide a detailed explanation."],
+                    "template": "Write a {length} essay about {topic}.",
+                    "default_values": {
+                        "length": "short",
+                        "topic": "artificial intelligence",
+                    },
                 },
-                {
-                    "prompt": ["What is the capital of France?"],
-                },
+                # Example as system instruction
+                {"template": "You are an AI assistant specialized in {domain}. Always format responses as {format}."},
+                # Example as context information
+                {"template": "Here is some background information: {context}"},
             ],
         },
     }
@@ -115,7 +111,7 @@ class AISettings(BaseModel):
         description="Node specific system instructions",
     )
 
-    node_prompt: NodePrompt | None = Field(
+    node_prompt: PromptTemplate | None = Field(
         default=None,
         description="Node specific prompts generation sinstruction/option parameters",
     )
@@ -164,10 +160,10 @@ class NodeInputSource(BaseModel):
 
     Attributes:
         user_input_sources: Sources for user input data
-        node_output_sources: Sources for node output data
+        context_sources: Sources for context from previous node output data
 
     Examples:
-        >>> source = NodeInputSource(user_input_sources=["initial_user_input", "input_node_1"], node_output_sources=["previous", "node_1"])
+        >>> source = NodeInputSource(user_input_sources=["initial_user_input", "input_node_1"], context_sources=["previous", "node_1"])
     """
 
     user_input_sources: list[str] = Field(
@@ -176,13 +172,17 @@ class NodeInputSource(BaseModel):
         example=["initial_user_input", "input_node_1"],
     )
 
-    node_output_sources: list[str] = Field(
+    context_sources: list[str] = Field(
         default_factory=list,
-        description=(f"List of node IDs or special identifiers to collect node output from. Use '{SpecialNodeIdEnum.PREVIOUS}' for previous node output"),
+        description=(
+            f"List of node IDs or special identifiers to collect node output from. "
+            "Note that this will be passed as context to the current node model call"
+            f"Use '{SpecialNodeIdEnum.PREVIOUS}' for previous node output"
+        ),
         example=["previous", "node_1", "node_2"],
     )
 
-    @field_validator("user_input_sources", "node_output_sources")
+    @field_validator("user_input_sources", "context_sources")
     @classmethod
     def validate_source_ids(cls, source_ids: list[str]) -> list[str]:
         """Validate that source IDs are non-empty strings."""
@@ -211,7 +211,7 @@ class NodeInputSource(BaseModel):
             )
 
         # Validate node output sources
-        invalid_node_outputs = {source_id for source_id in self.node_output_sources if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.PREVIOUS.value}
+        invalid_node_outputs = {source_id for source_id in self.context_sources if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.PREVIOUS.value}
         if invalid_node_outputs:
             raise ValueError(
                 f"Invalid node output source IDs: {', '.join(invalid_node_outputs)}",
@@ -222,7 +222,7 @@ class NodeInputSource(BaseModel):
     @property
     def uses_previous_node(self) -> bool:
         """Check if the node uses output from the previous node."""
-        return SpecialNodeIdEnum.PREVIOUS.value in self.node_output_sources
+        return SpecialNodeIdEnum.PREVIOUS.value in self.context_sources
 
     @property
     def uses_initial_user_input(self) -> bool:
@@ -234,11 +234,11 @@ class NodeInputSource(BaseModel):
             "examples": [
                 {
                     "user_input_sources": ["initial_user_input", "input_node_1"],
-                    "node_output_sources": ["previous", "node_1", "node_2"],
+                    "context_sources": ["previous", "node_1", "node_2"],
                 },
                 {
                     "user_input_sources": ["input_node_1"],
-                    "node_output_sources": ["node_1"],
+                    "context_sources": ["node_1"],
                 },
             ],
         },

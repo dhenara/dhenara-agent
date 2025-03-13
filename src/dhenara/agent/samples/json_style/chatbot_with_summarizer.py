@@ -39,7 +39,7 @@ chatbot_with_summarizer_json = {
                 "input_settings": {
                     "input_source": {
                         "user_input_sources": ["full"],
-                        "node_output_sources": [],
+                        "context_sources": [],
                     },
                 },
                 "storage_settings": {
@@ -81,7 +81,7 @@ chatbot_with_summarizer_json = {
                 "input_settings": {
                     "input_source": {
                         "user_input_sources": [],
-                        "node_output_sources": ["previous"],
+                        "context_sources": ["previous"],
                     },
                 },
                 "storage_settings": {

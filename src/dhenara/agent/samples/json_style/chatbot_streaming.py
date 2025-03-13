@@ -13,7 +13,7 @@ chatbot_streaming_json = {
                 "input_settings": {
                     "input_source": {
                         "user_input_sources": ["full"],
-                        "node_output_sources": [],
+                        "context_sources": [],
                     },
                 },
                 "response_settings": {

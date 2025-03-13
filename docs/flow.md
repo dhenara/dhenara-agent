@@ -66,7 +66,7 @@ A flow consists of three main components:
   "input_settings": {
     "input_source": {
       "user_input_sources": ["full"],
-      "node_output_sources": ["previous"]
+      "context_sources": ["previous"]
     }
   }
 }
