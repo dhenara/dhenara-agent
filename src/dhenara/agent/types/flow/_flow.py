@@ -149,7 +149,7 @@ class FlowNode(BaseModel):
     #        ValueError: If conflicting settings are detected
     #    """
     #    has_prompt = self.ai_settings and self.ai_settings.node_prompt.format() and self.ai_settings.node_prompt.prompt
-    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources  # noqa: W505
+    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources  # noqa: E501, W505
     #    if has_prompt and has_user_input:
     #        raise ValueError(
     #            "Illegal input settings configuration: "
@@ -160,7 +160,11 @@ class FlowNode(BaseModel):
     #    return self
 
     async def get_full_input_content(self, user_inputs: list[UserInput] | None = None, **kwargs) -> str:
-        user_input_permitted = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
+        user_input_permitted = (
+            self.input_settings
+            and self.input_settings.input_source
+            and self.input_settings.input_source.user_input_sources
+        )
         node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
 
         if not (user_input_permitted or node_prompt):

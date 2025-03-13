@@ -3,7 +3,14 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
-from dhenara.agent.types.flow import FlowDefinition, FlowExecutionResults, FlowExecutionStatusEnum, FlowNodeExecutionResult, FlowNodeIdentifier, FlowNodeInput
+from dhenara.agent.types.flow import (
+    FlowDefinition,
+    FlowExecutionResults,
+    FlowExecutionStatusEnum,
+    FlowNodeExecutionResult,
+    FlowNodeIdentifier,
+    FlowNodeInput,
+)
 from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 
 
@@ -47,7 +54,12 @@ class FlowContext(BaseModel):
         self.current_node_index = index
         self.current_node_identifier = self.flow_definition.nodes[index].identifier
 
-    async def notify_streaming_complete(self, identifier: FlowNodeIdentifier, streaming_status: StreamingStatusEnum, result: FlowNodeExecutionResult) -> None:
+    async def notify_streaming_complete(
+        self,
+        identifier: FlowNodeIdentifier,
+        streaming_status: StreamingStatusEnum,
+        result: FlowNodeExecutionResult,
+    ) -> None:
         streaming_context = self.streaming_contexts[identifier]
         if not streaming_context:
             raise ValueError(f"notify_streaming_complete: Failed to get streaming_context for id {identifier}")

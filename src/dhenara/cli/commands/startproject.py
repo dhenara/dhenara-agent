@@ -62,7 +62,14 @@ def startproject(name, agent, flow, git):
 
     # Create README.md
     with open(project_dir / "README.md", "w") as f:
-        f.write(f"# {name}\n\n## Getting Started\n\n```python\nfrom {package_name}.src.agents.{agent}.flows.{flow} import run_flow\n\nresult = run_flow(input_data)\n```")
+        f.write(
+            f"# {name}\n\n"
+            f"## Getting Started\n\n"
+            f"```python\n"
+            f"from {package_name}.src.agents.{agent}.flows.{flow} import run_flow\n\n"
+            f"result = run_flow(input_data)\n"
+            f"```"
+        )
 
     # Create initial agent and flow
     if agent:

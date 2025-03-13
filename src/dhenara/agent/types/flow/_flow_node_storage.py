@@ -2,7 +2,12 @@ from typing import Union
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.types.flow import ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum, StorageEntityTypeEnum
+from dhenara.agent.types.flow import (
+    ConversationFieldEnum,
+    ConversationNodeFieldEnum,
+    ConversationSpaceFieldEnum,
+    StorageEntityTypeEnum,
+)
 from dhenara.ai.types.shared.base import BaseModel
 
 FieldType = Union[ConversationFieldEnum, ConversationNodeFieldEnum, ConversationSpaceFieldEnum]  # noqa: UP007
@@ -60,9 +65,13 @@ class StorageSettings(BaseModel):
             for field in validated_fields:
                 if storage_type == StorageEntityTypeEnum.conversation and not isinstance(field, ConversationFieldEnum):
                     raise ValueError(f"Field {field} is not valid for conversation storage type")
-                elif storage_type == StorageEntityTypeEnum.conversation_node and not isinstance(field, ConversationNodeFieldEnum):
+                elif storage_type == StorageEntityTypeEnum.conversation_node and not isinstance(
+                    field, ConversationNodeFieldEnum
+                ):
                     raise ValueError(f"Field {field} is not valid for conversation_node storage type")
-                elif storage_type == StorageEntityTypeEnum.conversation_space and not isinstance(field, ConversationSpaceFieldEnum):
+                elif storage_type == StorageEntityTypeEnum.conversation_space and not isinstance(
+                    field, ConversationSpaceFieldEnum
+                ):
                     raise ValueError(f"Field {field} is not valid for conversation_space storage type")
 
             validated[storage_type] = validated_fields

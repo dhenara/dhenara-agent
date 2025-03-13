@@ -85,7 +85,11 @@ class FlowOrchestrator:
 
                 # if self.has_any_streaming_node():
                 # if isinstance(result, AsyncGenerator):
-                if isinstance(result, AIModelCallResponse) and result.stream_generator and isinstance(result.stream_generator, AsyncGenerator):
+                if (
+                    isinstance(result, AIModelCallResponse)
+                    and result.stream_generator
+                    and isinstance(result.stream_generator, AsyncGenerator)
+                ):
                     background_tasks = set()
 
                     # Create a background task to continue processing after streaming
@@ -255,11 +259,19 @@ class FlowOrchestrator:
             raise
 
     # FlowNode handler implementations
-    async def _handle_ai_model_call(self, flow_node: FlowNode, context: FlowContext) -> FlowNodeExecutionResult[AIModelCallNodeOutputData]:
+    async def _handle_ai_model_call(
+        self,
+        flow_node: FlowNode,
+        context: FlowContext,
+    ) -> FlowNodeExecutionResult[AIModelCallNodeOutputData]:
         result = await self._call_ai_model(flow_node, context, streaming=False)
         return result
 
-    async def _handle_ai_model_call_stream(self, flow_node: FlowNode, context: FlowContext) -> AsyncGenerator[Any, None]:
+    async def _handle_ai_model_call_stream(
+        self,
+        flow_node: FlowNode,
+        context: FlowContext,
+    ) -> AsyncGenerator[Any, None]:
         result = await self._call_ai_model(flow_node, context, streaming=True)
         return result
 
@@ -288,7 +300,10 @@ class FlowOrchestrator:
             self.set_node_execution_failed(
                 flow_node=flow_node,
                 context=context,
-                message=f"User selected resouce {user_selected_resource.model_dump_json()} is not available in this node. Either provide a valid resource or call with no resources.",
+                message=(
+                    f"User selected resouce {user_selected_resource.model_dump_json()} is not available in this node. "
+                    "Either provide a valid resource or call with no resources."
+                ),
             )
             return None
 
@@ -331,7 +346,11 @@ class FlowOrchestrator:
         logger.debug(f"call_ai_model: instructions={instructions}")
 
         # Process previous prompts
-        previous_node_outputs_as_prompts: list = await self.get_previous_node_outputs_as_prompts(flow_node, context, ai_model_ep.ai_model)
+        previous_node_outputs_as_prompts: list = await self.get_previous_node_outputs_as_prompts(
+            flow_node,
+            context,
+            ai_model_ep.ai_model,
+        )
         # logger.debug(f"call_ai_model:  previous_node_output_prompt={previous_node_outputs_as_prompts}")
 
         previous_prompts_from_conversaion = []  # TODO:
@@ -361,14 +380,20 @@ class FlowOrchestrator:
             instructions=instructions,
         )
         if not isinstance(response, AIModelCallResponse):
-            logger.exception(f"Illegal response type for {type(response)} AIModel Call. Expected type is AIModelCallResponse")
+            logger.exception(
+                f"Illegal response type for {type(response)} AIModel Call. Expected type is AIModelCallResponse"
+            )
 
         if streaming:
             if not isinstance(response.stream_generator, AsyncGenerator):
                 logger.exception(f"Streaming should return an AsyncGenerator, not {type(response)}")
 
             # stream_generator = response.stream_generator
-            stream_generator = self.generate_stream_response(flow_node=flow_node, context=context, stream_generator=response.stream_generator)
+            stream_generator = self.generate_stream_response(
+                flow_node=flow_node,
+                context=context,
+                stream_generator=response.stream_generator,
+            )
             context.stream_generator = stream_generator
             return "abc"  # Should retrun a non None value: TODO: Fix this
 
@@ -380,7 +405,9 @@ class FlowOrchestrator:
             )
         )
 
-        status = FlowNodeExecutionStatusEnum.COMPLETED if response.status.successful else FlowNodeExecutionStatusEnum.FAILED
+        status = (
+            FlowNodeExecutionStatusEnum.COMPLETED if response.status.successful else FlowNodeExecutionStatusEnum.FAILED
+        )
         storage_data = {}  # TODO
         result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
             node_identifier=flow_node.identifier,
@@ -425,7 +452,11 @@ class FlowOrchestrator:
                         )
                     )
 
-                    status = FlowNodeExecutionStatusEnum.COMPLETED if final_response.status.successful else FlowNodeExecutionStatusEnum.FAILED
+                    status = (
+                        FlowNodeExecutionStatusEnum.COMPLETED
+                        if final_response.status.successful
+                        else FlowNodeExecutionStatusEnum.FAILED
+                    )
                     storage_data = {}  # TODO
                     result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
                         node_identifier=node_identifier,
@@ -465,7 +496,7 @@ class FlowOrchestrator:
             if input_source == SpecialNodeIdEnum.FULL:
                 resources = context.initial_input.resources
             else:
-                raise ValueError(f"user_input_source={input_source} not supported for resurce selection. Only 'full' is supported now")
+                raise ValueError(f"user_input_source={input_source} not supported, only 'full' is supported now")
         return resources
 
     def get_user_inputs(self, flow_node: FlowNode, context: FlowContext) -> list[UserInput]:
@@ -475,7 +506,9 @@ class FlowOrchestrator:
             if input_source == SpecialNodeIdEnum.FULL:
                 user_inputs.append(context.initial_input.user_input)
             else:
-                raise ValueError(f"user_input_source={input_source} not supported for input selection. Only 'full' is supported now")
+                raise ValueError(
+                    f"user_input_source={input_source} not supported for input selection. Only 'full' is supported now"
+                )
 
         return user_inputs
 
@@ -538,7 +571,9 @@ class FlowOrchestrator:
         try:
             for source_node_identifier in context_sources:
                 if source_node_identifier == SpecialNodeIdEnum.PREVIOUS:
-                    previous_node_identifier = context.flow_definition.get_previous_node_identifier(flow_node.identifier)
+                    previous_node_identifier = context.flow_definition.get_previous_node_identifier(
+                        flow_node.identifier,
+                    )
                     previous_node_execution_result = context.execution_results.get(previous_node_identifier)
                 else:
                     previous_node_execution_result = context.execution_results.get(source_node_identifier)
@@ -649,4 +684,4 @@ class FlowOrchestrator:
             )
 
         return generator()
-    '''  # noqa: W505
+    '''  # noqa: E501, W505

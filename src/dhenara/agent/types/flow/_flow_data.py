@@ -46,6 +46,7 @@ class InternalDataObjParams(BaseModel):
                 raise ValueError(f"{self.object_type} must have 'current' scope")
         return self
 
+
 class FlowNodeInput(BaseModel):
     """
     Input model for execution nodes with validation rules for different actions.
@@ -77,7 +78,9 @@ class FlowNodeInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_action_requirements(self) -> "FlowNodeInput":
-        node_objects = [obj for obj in self.internal_data_objs if obj.object_type == InternalDataObjectTypeEnum.conversation_node]
+        node_objects = [
+            obj for obj in self.internal_data_objs if obj.object_type == InternalDataObjectTypeEnum.conversation_node
+        ]
 
         if self.user_input.action == FlowNodeUserInputActionEnum.regenerate_conversation_node:
             current_nodes = [obj for obj in node_objects if obj.object_scope == InternalDataObjParamsScopeEnum.current]

@@ -172,7 +172,10 @@ class NodeInputSource(BaseModel):
 
     user_input_sources: list[str] = Field(
         default_factory=list,
-        description=(f"List of node IDs or special identifiers to collect user input from. Use '{SpecialNodeIdEnum.FULL}' for complete initial user input"),
+        description=(
+            "List of node IDs or special identifiers to collect user input from. "
+            f"Use '{SpecialNodeIdEnum.FULL}' for complete initial user input"
+        ),
         example=["initial_user_input", "input_node_1"],
     )
 
@@ -208,14 +211,22 @@ class NodeInputSource(BaseModel):
         """
 
         # Validate user input sources
-        invalid_user_inputs = {source_id for source_id in self.user_input_sources if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.FULL.value}
+        invalid_user_inputs = {
+            source_id
+            for source_id in self.user_input_sources
+            if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.FULL.value
+        }
         if invalid_user_inputs:
             raise ValueError(
                 f"Invalid user input source IDs: {', '.join(invalid_user_inputs)}",
             )
 
         # Validate node output sources
-        invalid_node_outputs = {source_id for source_id in self.context_sources if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.PREVIOUS.value}
+        invalid_node_outputs = {
+            source_id
+            for source_id in self.context_sources
+            if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.PREVIOUS.value
+        }
         if invalid_node_outputs:
             raise ValueError(
                 f"Invalid node output source IDs: {', '.join(invalid_node_outputs)}",
