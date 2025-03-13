@@ -351,7 +351,7 @@ class FlowOrchestrator:
                 max_reasoning_tokens=max_reasoning_tokens,
                 options={},  # TODO
                 metadata={"user_id": user_id},
-                test_mode=True,
+                test_mode=False,
             ),
         )
 

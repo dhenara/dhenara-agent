@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from dhenara.agent.types.flow._flow import Flow
+from dhenara.agent.types.agent import Agent
 from dhenara.ai.types.shared.base import BaseModel
 from dhenara.ai.types.shared.platform import PlatformEnvTypeEnum
 from pydantic import Field, model_validator
@@ -47,7 +47,7 @@ class DhenRunEndpointReq(DhenRunEndpointBase):
     Model for creating a new Run Endpoint.
 
     This model is used when creating a new endpoint and includes either
-    a flow_id reference or the complete flow data.
+    a agent_id reference or the complete agent data.
     """
 
     id: str | None = Field(
@@ -60,24 +60,24 @@ class DhenRunEndpointReq(DhenRunEndpointBase):
         description="Unique reference_number for the endpoint",
     )
 
-    flow_id: str | None = Field(
+    agent_id: str | None = Field(
         default=None,
-        description="Reference ID of an existing Flow",
-        examples=["flow_12345"],
+        description="Reference ID of an existing Agent",
+        examples=["agent_12345"],
     )
 
-    flow: Flow | None = Field(
+    agent: Agent | None = Field(
         default=None,
-        description="Complete Flow data when creating a new flow with the endpoint",
+        description="Complete Agent data when creating a new agent with the endpoint",
     )
 
     @model_validator(mode="after")
-    def validate_flow_references(self) -> "DhenRunEndpointReq":
-        """Validate that either flow or flow_id is provided, but not both."""
-        if self.flow and self.flow_id:
-            raise ValueError("Cannot specify both 'flow' and 'flow_id'")
-        if not (self.flow or self.flow_id):
-            raise ValueError("Must provide either 'flow' or 'flow_id'")
+    def validate_agent_references(self) -> "DhenRunEndpointReq":
+        """Validate that either agent or agent_id is provided, but not both."""
+        if self.agent and self.agent_id:
+            raise ValueError("Cannot specify both 'agent' and 'agent_id'")
+        if not (self.agent or self.agent_id):
+            raise ValueError("Must provide either 'agent' or 'agent_id'")
         return self
 
 
@@ -105,9 +105,9 @@ class DhenRunEndpointRes(DhenRunEndpointBase):
         description="ID of the workspace this endpoint belongs to",
     )
 
-    flow_id: str = Field(
+    agent_id: str = Field(
         ...,
-        description="Reference to the associated Flow",
+        description="Reference to the associated Agent",
     )
 
     env_type: PlatformEnvTypeEnum = Field(
@@ -132,7 +132,7 @@ class DhenRunEndpointRes(DhenRunEndpointBase):
                 "name": "production-endpoint",
                 "description": "Main production endpoint",
                 "workspace_id": "123e4567-e89b-12d3-a456-426614174001",
-                "flow_id": "123e4567-e89b-12d3-a456-426614174002",
+                "agent_id": "123e4567-e89b-12d3-a456-426614174002",
                 "env_type": "production",
                 "allowed_domains": ["api.example.com"],
                 "is_active": True,

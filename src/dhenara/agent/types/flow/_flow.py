@@ -116,9 +116,7 @@ class FlowNode(BaseModel):
 
     @field_validator("resources")
     @classmethod
-    def validate_node_resources(
-        cls, v: list[ResourceConfigItem]
-    ) -> list[ResourceConfigItem]:
+    def validate_node_resources(cls, v: list[ResourceConfigItem]) -> list[ResourceConfigItem]:
         """Validate that node IDs are unique within the same flow level."""
         # Ignore empty lists
         if not v:
@@ -160,44 +158,26 @@ class FlowNode(BaseModel):
     #        )
     #    return self
 
-    async def get_full_input_content(
-        self, user_inputs: list[UserInput] | None = None, **kwargs
-    ) -> str:
-        user_input_permitted = (
-            self.input_settings
-            and self.input_settings.input_source
-            and self.input_settings.input_source.user_input_sources
-        )
-        node_prompt = (
-            self.ai_settings.node_prompt
-            if self.ai_settings and self.ai_settings.node_prompt
-            else None
-        )
+    async def get_full_input_content(self, user_inputs: list[UserInput] | None = None, **kwargs) -> str:
+        user_input_permitted = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
+        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
 
         if not (user_input_permitted or node_prompt):
-            raise ValueError(
-                "get_full_input_content: Illegal Node setting for inputs. No source given"
-            )
+            raise ValueError("get_full_input_content: Illegal Node setting for inputs. No source given")
 
         user_input_content = None
         if user_input_permitted:
             if not user_inputs:
-                raise ValueError(
-                    "get_full_input_content: Node setting is to take user inputs, but no inputs passed"
-                )
+                raise ValueError("get_full_input_content: Node setting is to take user inputs, but no inputs passed")
 
-            user_input_content = " ".join(
-                [await user_input.get_content() for user_input in user_inputs]
-            )
+            user_input_content = " ".join([await user_input.get_content() for user_input in user_inputs])
 
         if node_prompt:
             kwargs.update({"dh_user_input": user_input_content})
             return node_prompt.format(**kwargs)
         else:
             if not user_input_content:
-                raise ValueError(
-                    "get_full_input_content: Failed to derive full input content"
-                )
+                raise ValueError("get_full_input_content: Failed to derive full input content")
 
             return user_input_content
 
@@ -217,10 +197,7 @@ class FlowNode(BaseModel):
         if not self.resources:
             return False
 
-        return any(
-            existing_resource.is_same_as(resource)
-            for existing_resource in self.resources
-        )
+        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
 
 
 class FlowDefinition(BaseModel):
@@ -358,9 +335,7 @@ class FlowDefinition(BaseModel):
     def validate_node_identifies(self):
         all_node_identifies = {node.identifier for node in self.nodes}
         for node in self.nodes:
-            node.input_settings.input_source.validate_node_references(
-                list(all_node_identifies)
-            )
+            node.input_settings.input_source.validate_node_references(list(all_node_identifies))
 
         return self
 
@@ -372,9 +347,7 @@ class FlowDefinition(BaseModel):
     def validate_response_protocol(self):
         if self.has_any_streaming_node():
             if self.response_protocol not in [ResponseProtocolEnum.HTTP_SSE]:
-                raise ValueError(
-                    "Response protocol must be one that support streaming if any node is streaming."
-                )
+                raise ValueError("Response protocol must be one that support streaming if any node is streaming.")
         return self
 
     def get_previous_node_identifier(self, node_identifier: str) -> str | None:
@@ -424,26 +397,3 @@ class FlowDefinition(BaseModel):
         except ValueError:
             # Node identifier not found in the flow
             return None
-
-
-class Flow(BaseModel):
-    """Model representing a complete flow."""
-
-    name: str = Field(
-        ...,
-        description="Flow Name",
-        min_length=5,
-        max_length=200,
-    )
-    description: str | None = Field(
-        ...,
-        description="Optional description",
-    )
-    definition: FlowDefinition = Field(
-        ...,
-        description="Flow Definition",
-    )
-    is_active: bool = Field(
-        default=True,
-        description="Active or not",
-    )

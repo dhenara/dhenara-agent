@@ -1,9 +1,9 @@
 from dhenara.agent.types import (
+    Agent,
     AISettings,
     ConversationFieldEnum,
     ConversationNodeFieldEnum,
     ExecutionStrategyEnum,
-    Flow,
     FlowDefinition,
     FlowNode,
     FlowNodeTypeEnum,
@@ -22,10 +22,12 @@ from dhenara.ai.types import (
     ResourceQueryFieldsEnum,
 )
 
-chatbot_streaming_with_summarizer = Flow(
-    name="Simple Chatbot Flow",
-    description="This flow will call a text-generation AI model in sync mode and return output",
-    definition=FlowDefinition(
+chatbot_streaming_with_summarizer = Agent(
+    identifier="chatbot",
+    independent=True,
+    multi_phase=False,
+    description="Simple Chatbot. This will call a text-generation AI model in sync mode and return output",
+    flow_definition=FlowDefinition(
         system_instructions=["Always respond in markdown format."],
         execution_strategy=ExecutionStrategyEnum.sequential,
         response_protocol=ResponseProtocolEnum.HTTP_SSE,
@@ -124,9 +126,10 @@ chatbot_streaming_with_summarizer = Flow(
                         "You are a summarizer which generate a title text under 60 characters from the prompts.",
                     ],
                     node_prompt=PromptTemplate(
-                        pre_prompt=None,
-                        prompt=["Summarize in plane text under 60 characters."],
-                        post_prompt=None,
+                        template="Summarize in plane text under {number_of_chars} characters.",
+                        default_values={
+                            "number_of_chars": 60,
+                        },
                     ),
                     options_overrides=None,
                 ),

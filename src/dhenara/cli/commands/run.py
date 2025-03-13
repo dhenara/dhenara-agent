@@ -6,7 +6,13 @@ from datetime import datetime
 
 import click
 from dhenara.agent.engine import FlowOrchestrator
-from dhenara.agent.types.flow import Flow, FlowContext, FlowDefinition, FlowNodeInput, UserInput
+from dhenara.agent.types import (
+    Agent,
+    FlowContext,
+    FlowDefinition,
+    FlowNodeInput,
+    UserInput,
+)
 from dhenara.ai.types import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 from pydantic import ValidationError as PydanticValidationError
@@ -27,43 +33,51 @@ def run():
     pass
 
 
-@run.command("flow")
-@click.option("--path", prompt="Flow definition path", help="Eg: src.agents.<my_agent>.flows.<my_flow>")
-@click.option("--flow_name", default="flow", help="Name of FlowDefinition within the file")
-@click.option("--initial_input_name", default="initial_input", help="Name of UserInput within the file")
-def run_flow(path, flow_name, initial_input_name):
-    """Run a flow."""
+@run.command("agent")
+@click.option("--path", prompt="Agent definition path", help="Eg: src.agents.my_agent")
+@click.option(
+    "--agent_name", default="agent", help="Name of FlowDefinition within the file"
+)
+@click.option(
+    "--initial_input_name",
+    default="initial_input",
+    help="Name of UserInput within the file",
+)
+def run_agent(path, agent_name, initial_input_name):
+    """Run an agent."""
     try:
         # Add current directory to path
         import sys
 
         sys.path.append(os.getcwd())
 
-        # Import flow from path
+        # Import agent from path
         module_path = path
         module = importlib.import_module(module_path)
-        flow = getattr(module, flow_name)
+        agent = getattr(module, agent_name)
         initial_input = getattr(module, initial_input_name)
 
-        if not isinstance(flow, Flow):
-            logger.error(f"Imported object is not a Flow: {type(flow)}")
+        if not isinstance(agent, Agent):
+            logger.error(f"Imported object is not a Agent: {type(agent)}")
             return
 
         if not isinstance(initial_input, FlowNodeInput):
-            logger.error(f"Imported input is not a FlowNodeInput: {type(initial_input)}")
+            logger.error(
+                f"Imported input is not a FlowNodeInput: {type(initial_input)}"
+            )
             return
 
         # Run the async function in an event loop
         asyncio.run(
             _run_flow(
-                flow_definition=flow.definition,
+                flow_definition=agent.flow_definition,
                 initial_input=initial_input,
             )
         )
     except ImportError as e:
-        logger.error(f"Failed to import flow from path {path}: {e}")
+        logger.error(f"Failed to import agent from path {path}: {e}")
     except AttributeError as e:
-        logger.error(f"Failed to find flow definition in module {path}: {e}")
+        logger.error(f"Failed to find agent definition in module {path}: {e}")
 
 
 async def _run_flow(flow_definition: FlowDefinition, initial_input):
@@ -90,7 +104,9 @@ async def _run_flow(flow_definition: FlowDefinition, initial_input):
         is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()
 
         if flow_context.execution_failed:
-            logger.exception(f"Execution Failed: {flow_context.execution_failed_message}")
+            logger.exception(
+                f"Execution Failed: {flow_context.execution_failed_message}"
+            )
             return False
 
         if is_streaming:

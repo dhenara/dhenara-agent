@@ -19,19 +19,19 @@ async def main():
     )
 
     try:
-        # flow_data = {**chatbot_streaming_json}
-        flow_data = chatbot_with_summarizer
+        # agent_data = {**chatbot_streaming_json}
+        agent_data = chatbot_with_summarizer
 
-        # Create the flow
-        # flow = client.create_flow(**flow_data)
-        # print(f"Created flow: {flow.id}")
+        # Create the agent
+        # agent = client.create_agent(**agent_data)
+        # print(f"Created agent: {agent.id}")
 
-        # Create an endpoint with the flow
+        # Create an endpoint with the agent
         response = client.create_endpoint(
             name="Production Chatbot Endpoint",
-            flow_id=None,
-            # flow={**flow_data},
-            flow=flow_data.model_dump(),
+            # agent_id=None,
+            # agent={**agent_data},
+            agent=agent_data.model_dump(),
             description="Endpoint for production chatbot",
             allowed_domains=["localhost:8000"],
         )
