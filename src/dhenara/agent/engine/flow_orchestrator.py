@@ -498,8 +498,9 @@ class FlowOrchestrator:
 
         # if user_inputs and has_full_node_prompt:
         #    raise ValueError(
-        #        f"Illegal input settings for node {flow_node.identifier}. Conflicting `node_prompt` and `user_inputs` settings. \
-        #        Eventhhogh this is taken care in node validation fn `validate_input_settings`, somethhing got messed up."
+        #        f"Illegal input settings for node {flow_node.identifier}.
+        #       Conflicting `node_prompt` and `user_inputs` settings. \
+        #        Eventhhogh this is taken care in node validation fn `validate_input_settings`, somethhing messed up."
         #    )
 
         # if has_full_node_prompt:
@@ -648,4 +649,4 @@ class FlowOrchestrator:
             )
 
         return generator()
-    '''
+    '''  # noqa: W505

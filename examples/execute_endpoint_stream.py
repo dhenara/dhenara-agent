@@ -1,8 +1,9 @@
+from shared_print_utils import ResponseDisplayMixin
+
 from dhenara.agent.client import Client
 from dhenara.agent.types import FlowNodeInput, UserInput
 from dhenara.ai.types import ChatResponseChunk, ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 from dhenara.ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
-from shared_print_utils import ResponseDisplayMixin
 
 
 def get_api_key():

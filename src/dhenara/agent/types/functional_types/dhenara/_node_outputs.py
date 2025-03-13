@@ -1,8 +1,9 @@
 from typing import TypeVar
 
+from pydantic import Field
+
 from dhenara.ai.types.genai.dhenara import AIModelCallResponse
 from dhenara.ai.types.shared.base import BaseModel
-from pydantic import Field
 
 # -----------------------------------------------------------------------------
 T = TypeVar("T", bound=BaseModel)

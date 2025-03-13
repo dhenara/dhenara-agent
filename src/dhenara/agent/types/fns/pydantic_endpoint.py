@@ -3,8 +3,9 @@ from functools import wraps
 from inspect import Parameter, signature
 from typing import Any, TypeVar, get_type_hints
 
-from dhenara.ai.types.shared.base import BaseModel
 from pydantic import ValidationError
+
+from dhenara.ai.types.shared.base import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 

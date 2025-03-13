@@ -1,8 +1,9 @@
 from typing import NewType
 
+from pydantic import Field
+
 from dhenara.agent.types.flow import FlowDefinition
 from dhenara.ai.types.shared.base import BaseModel
-from pydantic import Field
 
 AgentIdentifier = NewType("AgentIdentifier", str)
 

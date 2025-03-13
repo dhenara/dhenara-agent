@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import TypeVar
 
 import httpx
+
 from dhenara.ai.types.shared.api import (
     SSEErrorCode,
     SSEErrorData,

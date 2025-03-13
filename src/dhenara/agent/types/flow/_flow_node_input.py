@@ -1,8 +1,9 @@
 from typing import Any
 
+from pydantic import Field, field_validator
+
 from dhenara.agent.types.flow import SpecialNodeIdEnum
 from dhenara.ai.types.shared.base import BaseModel
-from pydantic import Field, field_validator
 
 SystemInstructions = list[str]
 
@@ -163,7 +164,10 @@ class NodeInputSource(BaseModel):
         context_sources: Sources for context from previous node output data
 
     Examples:
-        >>> source = NodeInputSource(user_input_sources=["initial_user_input", "input_node_1"], context_sources=["previous", "node_1"])
+        >>> source = NodeInputSource(
+        user_input_sources=["initial_user_input", "input_node_1"],
+        context_sources=["previous", "node_1"],
+    )
     """
 
     user_input_sources: list[str] = Field(

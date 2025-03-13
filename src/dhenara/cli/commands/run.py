@@ -5,6 +5,8 @@ import os
 from datetime import datetime
 
 import click
+from pydantic import ValidationError as PydanticValidationError
+
 from dhenara.agent.engine import FlowOrchestrator
 from dhenara.agent.types import (
     Agent,
@@ -15,7 +17,6 @@ from dhenara.agent.types import (
 )
 from dhenara.ai.types import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
-from pydantic import ValidationError as PydanticValidationError
 
 logger = logging.getLogger(__name__)
 

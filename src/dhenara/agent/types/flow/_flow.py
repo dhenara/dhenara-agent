@@ -1,5 +1,7 @@
 from typing import Any, NewType
 
+from pydantic import Field, field_validator, model_validator
+
 from dhenara.agent.types.flow import (
     AISettings,
     ExecutionStrategyEnum,
@@ -16,7 +18,6 @@ from dhenara.agent.types.flow import (
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
-from pydantic import Field, field_validator, model_validator
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
 
@@ -148,7 +149,7 @@ class FlowNode(BaseModel):
     #        ValueError: If conflicting settings are detected
     #    """
     #    has_prompt = self.ai_settings and self.ai_settings.node_prompt.format() and self.ai_settings.node_prompt.prompt
-    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources
+    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources  # noqa: W505
     #    if has_prompt and has_user_input:
     #        raise ValueError(
     #            "Illegal input settings configuration: "
