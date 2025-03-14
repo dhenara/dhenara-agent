@@ -31,6 +31,7 @@ class SpecialNodeIdEnum(BaseEnum):
     PREVIOUS = "previous"  # Reference to previous node
     FULL = "full"  # Reference to complete user input
 
+
 class FlowNodeUserInputActionEnum(BaseEnum):
     """Additional actions on the node ( on top of the ones in the node."""
 
@@ -102,17 +103,9 @@ class ExecutionStrategyEnum(BaseEnum):
 
 
 class FlowNodeTypeEnum(BaseEnum):
-    """Enum defining types of flow nodes.
-
-    Attributes:
-        ai_model_call: Calls AI model API
-        ai_model_call_stream: Calls AI model API with stream
-        rag_index: RAG index creation operation
-        rag_query: RAG query/retrieval operation
-        stream: Generic streaming operation
-    """
-
+    command = "command"  # To execute a unix command
     ai_model_call = "ai_model_call"
     ai_model_call_stream = "ai_model_call_stream"
     rag_index = "rag_index"
     rag_query = "rag_query"
+    custom = "custom"

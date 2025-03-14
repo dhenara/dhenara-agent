@@ -7,7 +7,7 @@ import httpx
 from typing_extensions import Self  # for Python <3.11
 
 from dhenara.agent.client import UrlSettings
-from dhenara.agent.client._types import ClientConfig
+from dhenara.agent.config import get_config
 from dhenara.ai.types.shared.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
@@ -26,6 +26,14 @@ T = TypeVar("T", bound=BaseModel)
 logger = logging.getLogger(__name__)
 
 
+class ClientConfig(BaseModel):
+    api_key: str
+    ep_version: str | None = "v1"
+    base_url: str = "https://api.dhenara.com"
+    timeout: int = 30
+    max_retries: int = 3
+
+
 class _ClientBase:
     """
     Dhenara API client for making API requests.
@@ -35,19 +43,30 @@ class _ClientBase:
 
     def __init__(
         self,
+        version: str,
         api_key: str,
         base_url: str,
-        version: str,
         ep_version: str | None,
         timeout: int,
         max_retries: int,
     ) -> None:
         """Initialize the API client."""
-        self._config = ClientConfig(
-            api_key=api_key,
-            version=version,
-            ep_version=ep_version,
-            base_url=base_url.rstrip("/"),
+        self.__version__ = version or "1.0.1"
+
+        # Get values from configuration if not provided
+        self.config = get_config()
+
+        if not self.config:
+            raise ValueError("Failed to load config")
+
+        _api_key = api_key or self.config.api_keys.get("dhenara")
+        _base_url = base_url or self.config.client_config.endpoints.get("dhenara", "https://api.dhenara.com")
+        _ep_version = ep_version or self.config.client_config.ep_version
+
+        self._client_config = ClientConfig(
+            api_key=_api_key,
+            ep_version=_ep_version,
+            base_url=_base_url.rstrip("/"),
             max_retries=max_retries,
         )
 
@@ -61,13 +80,16 @@ class _ClientBase:
             headers=self._get_headers(),
             follow_redirects=True,
         )
-        self._url_settings = UrlSettings(base_url=base_url, ep_version=ep_version)
+        self._url_settings = UrlSettings(
+            base_url=base_url,
+            ep_version=ep_version,
+        )
 
     def _get_headers(self) -> dict[str, str]:
         """Get the headers for API requests."""
         return {
-            # "Authorization": f"Bearer {self._config.api_key}",
-            "X-Api-Key": self._config.api_key,
+            # "Authorization": f"Bearer {self._client_config.api_key}",
+            "X-Api-Key": self._client_config.api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": "dhenara-python-sdk/1.0",

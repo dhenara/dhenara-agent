@@ -8,6 +8,7 @@ import click
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.engine import FlowOrchestrator
+from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.types import (
     Agent,
     FlowContext,
@@ -15,7 +16,7 @@ from dhenara.agent.types import (
     FlowNodeInput,
     UserInput,
 )
-from dhenara.ai.types import ResourceConfig
+from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,7 @@ def run():
 
 @run.command("agent")
 @click.option("--path", prompt="Agent definition path", help="Eg: src.agents.my_agent")
-@click.option(
-    "--agent_name", default="agent", help="Name of FlowDefinition within the file"
-)
+@click.option("--agent_name", default="agent", help="Name of FlowDefinition within the file")
 @click.option(
     "--initial_input_name",
     default="initial_input",
@@ -63,9 +62,7 @@ def run_agent(path, agent_name, initial_input_name):
             return
 
         if not isinstance(initial_input, FlowNodeInput):
-            logger.error(
-                f"Imported input is not a FlowNodeInput: {type(initial_input)}"
-            )
+            logger.error(f"Imported input is not a FlowNodeInput: {type(initial_input)}")
             return
 
         # Run the async function in an event loop
@@ -81,12 +78,18 @@ def run_agent(path, agent_name, initial_input_name):
         logger.error(f"Failed to find agent definition in module {path}: {e}")
 
 
-async def _run_flow(flow_definition: FlowDefinition, initial_input):
+async def _run_flow(flow_definition: FlowDefinition, initial_input, resource_profile="default"):
     try:
         node_input = initial_input
 
-        resource_config = load_resource_config()
+        # Get resource configuration from registry
+        resource_config = resource_config_registry.get(resource_profile)
+        if not resource_config:
+            # Fall back to creating a new one
+            resource_config = load_default_resource_config()
+            resource_config_registry.register(resource_profile, resource_config)
 
+        # Create orchestrator with resolved resources
         flow_orchestrator = FlowOrchestrator(
             flow_definition=flow_definition,
             resource_config=resource_config,
@@ -105,9 +108,7 @@ async def _run_flow(flow_definition: FlowDefinition, initial_input):
         is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()
 
         if flow_context.execution_failed:
-            logger.exception(
-                f"Execution Failed: {flow_context.execution_failed_message}"
-            )
+            logger.exception(f"Execution Failed: {flow_context.execution_failed_message}")
             return False
 
         if is_streaming:
@@ -126,7 +127,7 @@ async def _run_flow(flow_definition: FlowDefinition, initial_input):
     logger.debug("process_post: run completed")
 
 
-def load_resource_config():
+def load_default_resource_config():
     resource_config = ResourceConfig()
     resource_config.load_from_file(
         credentials_file="~/.env_keys/.dhenara_credentials.yaml",

@@ -2,6 +2,9 @@
 
 # Export main classes
 from .types import *
+from .config import *
+from .resource import *
+
 from .engine import *
 from .client import Client
 

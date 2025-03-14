@@ -1,12 +1,12 @@
 import os
 import subprocess
+from datetime import datetime
 from pathlib import Path
 
 import click
 import yaml
 
 # Import the internal functions directly
-from .create import _create_agent, _create_flow
 
 
 def register(cli):
@@ -15,136 +15,107 @@ def register(cli):
 
 @click.command("startproject")
 @click.option("--name", prompt="Project name", help="Name of the new project")
-# @click.option("--description", default="", help="Description of the project")
-@click.option("--agent", default="my_agent", help="Name of the initial agent")
-@click.option("--flow", default="my_flow", help="Name of the initial flow")
-@click.option("--git/--no-git", default=True, help="Initialize a git repository")
-def startproject(name, agent, flow, git):
-    """Create a new project with predefined structure including initial agent and flow."""
-    # Convert to valid package name
-    package_name = name.lower().replace(" ", "_").replace("-", "_")
+@click.option("--description", default="", help="Project description")
+@click.option("--git/--no-git", default=True, help="Initialize git repositories")
+def startproject(name, description, git):
+    """Create a new agent project with a professional structure."""
+    # Convert to valid directory name
+    project_name = name.lower().replace(" ", "-").replace("_", "-")
 
     # Create project directory
-    project_dir = Path(os.getcwd()) / package_name
+    project_dir = Path(os.getcwd()) / project_name
     if project_dir.exists():
         click.echo(f"Error: Directory {project_dir} already exists!")
         return
 
+    # Create directory structure
     project_dir.mkdir()
-    click.echo(f"Creating new project '{name}' in {project_dir}")
+    dirs = [
+        ".dhenara",
+        ".dhenara/credentials",
+        "agents",
+        "common/prompts",
+        "common/tools",
+        "data",
+        "experiments",
+        "runs/input",
+        "runs/output",
+        "scripts",
+        "tests",
+    ]
 
-    # Create basic project structure
-    src_dir = project_dir / "src"
-    src_dir.mkdir()
-    agents_dir = src_dir / "agents"
-    agents_dir.mkdir()
+    for dir_path in dirs:
+        (project_dir / dir_path).mkdir(parents=True, exist_ok=True)
 
-    # Create __init__.py files
-    with open(project_dir / "__init__.py", "w") as f:
-        f.write(f'"""Dhenara project: {name}"""')
-
-    with open(src_dir / "__init__.py", "w") as f:
-        f.write("")
-
-    with open(agents_dir / "__init__.py", "w") as f:
-        f.write("")
-
-    # Create project config.yaml
-    settings = {
+    # Create base configuration files
+    config = {
         "name": name,
-        "description": "",
+        "description": description,
         "version": "0.0.1",
-        "author": os.environ.get("USER", "dhenara-user"),
+        "created_at": datetime.now().isoformat(),
     }
 
-    with open(project_dir / "config" / "settings.yaml", "w") as f:
-        yaml.dump(settings, f, default_flow_style=False)
+    with open(project_dir / ".dhenara" / "config.yaml", "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
 
-    # Create README.md
+    # Create README
     with open(project_dir / "README.md", "w") as f:
-        f.write(
-            f"# {name}\n\n"
-            f"## Getting Started\n\n"
-            f"```python\n"
-            f"from {package_name}.src.agents.{agent}.flows.{flow} import run_flow\n\n"
-            f"result = run_flow(input_data)\n"
-            f"```"
-        )
+        f.write(f"# {name}\n\n{description}\n\n## Getting Started\n\n...")
 
-    # Create initial agent and flow
-    if agent:
-        # Change to project directory
-        old_cwd = os.getcwd()
-        os.chdir(project_dir)
+    # Create pyproject.toml
+    with open(project_dir / "pyproject.toml", "w") as f:
+        f.write(f"""[tool.poetry]
+name = "{project_name}"
+version = "0.0.1"
+description = "{description}"
+authors = ["Your Name <your.email@example.com>"]
 
-        try:
-            # Create initial agent
-            _create_agent(name=agent, description=f"Initial agent for {name}")
+[tool.poetry.dependencies]
+python = "^3.10"
+dhenara = "^0.1.0"
 
-            # Create initial flow within agent
-            if flow:
-                _create_flow(name=flow, description=f"Initial flow for {agent} agent", agent=agent)
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+""")
 
-        finally:
-            # Restore original working directory
-            os.chdir(old_cwd)
+    # Create .gitignore
+    with open(project_dir / ".gitignore", "w") as f:
+        f.write("""# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+env/
+venv/
+ENV/
 
-    # Initialize git repository if requested
+# Credentials
+.dhenara/credentials/
+
+# Logs
+*.log
+
+# OS specific
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+""")
+
+    # Initialize git repositories
     if git:
-        try:
-            subprocess.run(["git", "init"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
-            with open(project_dir / ".gitignore", "w") as f:
-                f.write("__pycache__/\n*.py[cod]\n*$py.class\n.env\n.venv\nenv/\nvenv/\n*.log\n.DS_Store")
-            click.echo("Initialized git repository")
-        except Exception as e:
-            click.echo(f"Warning: Could not initialize git repository: {e}")
+        # Main project repo
+        subprocess.run(["git", "init"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+
+        # Initialize output directory as a separate git repo
+        output_dir = project_dir / "runs" / "output"
+        subprocess.run(["git", "init"], cwd=output_dir, check=True, stdout=subprocess.PIPE)
+
+        # Create output .gitignore to allow tracking everything
+        with open(output_dir / ".gitignore", "w") as f:
+            f.write("# Track everything in this directory\n# This is an output repository\n")
 
     click.echo(f"✅ Project '{name}' created successfully!")
-    click.echo(f"To get started, cd into {package_name} and start developing!")
-
-
-# TODO:
-"""
-my-project/
-├── agents/                   # Agent definitions
-│   ├── __init__.py
-│   └── my_agent/
-│       ├── __init__.py
-│       ├── agent_def.py/yaml
-│       ├── prompts/
-│       ├── src/
-│       │   └── tools/
-│       ├── tests/
-│       └── requirements.txt
-│
-├── skills/                   # Reusable capabilities ??
-├── prompts/                  # Global Prompt templates
-├── src/                      # Source code
-│   └── tools/                # Shared tools
-│
-├── config/                   # Configuration files
-│   └── settings.yaml
-│
-├── tests/                    # Unit/integration tests
-├── README.md
-├── pyproject.toml            # Dependencies and metadata
-├── requirements.txt
-└── Dockerfile                # Isolation setup
-
-
-
-# Working DIR
-working_dir/
-├── input/                    # Input data
-│   ├── repo/                 # Git repositories
-│   └── files/                # Other input files
-├── output/                   # Execution results
-│   ├── planning/             # Planning artifacts
-│   ├── agent1/               # Per-agent outputs
-│   ├── agent2/
-│   └── snapshots/            # Versioned states ??
-│   └── artifacts/            # Generated files
-├── state/                    # Execution state
-└── .dhenara/                 # Framework metadata
-
-"""

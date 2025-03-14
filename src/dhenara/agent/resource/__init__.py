@@ -1,0 +1,1 @@
+from ._resource_registry import ResourceRegistry as ResourceRegistry
