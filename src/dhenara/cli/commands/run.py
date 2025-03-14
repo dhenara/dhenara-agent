@@ -1,23 +1,11 @@
-import asyncio
 import importlib
+import json
 import logging
-import os
-from datetime import datetime
+from pathlib import Path
 
 import click
-from pydantic import ValidationError as PydanticValidationError
 
-from dhenara.agent.engine import FlowOrchestrator
-from dhenara.agent.resource.registry import resource_config_registry
-from dhenara.agent.types import (
-    Agent,
-    FlowContext,
-    FlowDefinition,
-    FlowNodeInput,
-    UserInput,
-)
-from dhenara.ai.types.resource import ResourceConfig
-from dhenara.ai.types.shared.platform import DhenaraAPIError
+from dhenara.agent.run import IsolatedExecution, RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -36,108 +24,100 @@ def run():
 
 
 @run.command("agent")
-@click.option("--path", prompt="Agent definition path", help="Eg: src.agents.my_agent")
-@click.option("--agent_name", default="agent", help="Name of FlowDefinition within the file")
-@click.option(
-    "--initial_input_name",
-    default="initial_input",
-    help="Name of UserInput within the file",
-)
-def run_agent(path, agent_name, initial_input_name):
-    """Run an agent."""
+@click.option("--name", required=True, help="Agent name or path to agent definition")
+# @click.option("--path", prompt="Agent definition path", help="Eg: src.agents.my_agent")
+# @click.option(
+#    "--initial_input_name",
+#    default="initial_input",
+#    help="Name of UserInput within the file",
+# )  # TODO
+@click.option("--project-root", default=None, help="Project repo root")
+@click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
+@click.option("--input-file", default=None, help="Path to input JSON file")  # TODO: Do we need this?
+@click.option("--input-dir", default=None, help="Name of directory containing input files inside run dir")
+@click.option("--output-dir", default=None, help="Custom output directory name inside run dir")
+@click.option("--run-id", default=None, help="Custom run ID (defaults to timestamp)")
+def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id):
+    """Run an agent with the specified inputs."""
+    # Find project root
+    if not project_root:
+        project_root = find_project_root()
+
+    if not project_root:
+        click.echo("Error: Not in a Dhenara project directory.")
+        return
+
+    # Create run context
+    run_ctx = RunContext(
+        project_root=project_root,
+        run_root=run_root,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        run_id=run_id,
+    )
+
+    # TODO: Cleanup input section
+
+    # Load input data
+    input_data = {}
+    if input_file:
+        with open(input_file) as f:
+            input_data = json.load(f)
+
+    # Prepare input files
+    input_files = []
+    if input_dir:
+        input_dir_path = Path(input_dir)
+        if input_dir_path.exists() and input_dir_path.is_dir():
+            input_files = list(input_dir_path.glob("*"))
+
+    # TODO: pass initail_inputs also via RunContext
+    run_ctx.prepare_input(input_data, input_files)
+
+    try:
+        # Load agent
+        agent_module = load_agent_module(project_root, f"agents/{name}")
+
+        # Run agent in a subprocess for isolation
+        with IsolatedExecution(run_ctx) as executor:
+            result = executor.run(agent_module, input_data)
+
+        # Process and save results
+        run_ctx.save_output("final", result)
+        run_ctx.complete_run()
+
+        click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
+        click.echo(f"   Output directory: {run_ctx.output_dir}")
+
+    except Exception as e:
+        run_ctx.metadata["error"] = str(e)
+        run_ctx.complete_run(status="failed")
+        click.echo(f"❌ Run failed: {e}")
+
+
+def find_project_root() -> Path:
+    """Find the project root by looking for .dhenara directory."""
+    current = Path.cwd()
+    while current != current.parent:
+        if (current / ".dhenara").exists():
+            return current
+        current = current.parent
+    return None
+
+
+def load_agent_module(project_root: Path, agent_path: str):
+    """Load agent module from the specified path."""
     try:
         # Add current directory to path
         import sys
 
-        sys.path.append(os.getcwd())
+        sys.path.append(str(project_root))
 
         # Import agent from path
-        module_path = path
-        module = importlib.import_module(module_path)
-        agent = getattr(module, agent_name)
-        initial_input = getattr(module, initial_input_name)
+        agent = importlib.import_module(agent_path)
+        return agent
 
-        if not isinstance(agent, Agent):
-            logger.error(f"Imported object is not a Agent: {type(agent)}")
-            return
-
-        if not isinstance(initial_input, FlowNodeInput):
-            logger.error(f"Imported input is not a FlowNodeInput: {type(initial_input)}")
-            return
-
-        # Run the async function in an event loop
-        asyncio.run(
-            _run_flow(
-                flow_definition=agent.flow_definition,
-                initial_input=initial_input,
-            )
-        )
     except ImportError as e:
-        logger.error(f"Failed to import agent from path {path}: {e}")
+        logger.error(f"Failed to import agent from project_root {project_root}  path {agent_path}: {e}")
     except AttributeError as e:
-        logger.error(f"Failed to find agent definition in module {path}: {e}")
-
-
-async def _run_flow(flow_definition: FlowDefinition, initial_input, resource_profile="default"):
-    try:
-        node_input = initial_input
-
-        # Get resource configuration from registry
-        resource_config = resource_config_registry.get(resource_profile)
-        if not resource_config:
-            # Fall back to creating a new one
-            resource_config = load_default_resource_config()
-            resource_config_registry.register(resource_profile, resource_config)
-
-        # Create orchestrator with resolved resources
-        flow_orchestrator = FlowOrchestrator(
-            flow_definition=flow_definition,
-            resource_config=resource_config,
-        )
-
-        flow_context = FlowContext(
-            flow_definition=flow_definition,
-            initial_input=node_input,
-            created_at=datetime.now(),
-        )
-
-        # Execute
-        await flow_orchestrator.execute(flow_context)
-
-        # Set `is_streaming` after execution returns
-        is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()
-
-        if flow_context.execution_failed:
-            logger.exception(f"Execution Failed: {flow_context.execution_failed_message}")
-            return False
-
-        if is_streaming:
-            response_stream_generator = flow_context.stream_generator
-            print(f"Steam generator is: {response_stream_generator}")
-        else:
-            response_data = {
-                "execution_status": flow_context.execution_status,
-                "execution_results": flow_context.execution_results,
-            }
-            print(f"response_data: {response_data}")
-
-    except PydanticValidationError as e:
-        raise DhenaraAPIError(f"Invalid Inputs {e}")
-
-    logger.debug("process_post: run completed")
-
-
-def load_default_resource_config():
-    resource_config = ResourceConfig()
-    resource_config.load_from_file(
-        credentials_file="~/.env_keys/.dhenara_credentials.yaml",
-        init_endpoints=True,
-    )
-    return resource_config
-
-
-def _validate_node_input(user_input: UserInput) -> FlowNodeInput:
-    try:
-        return FlowNodeInput.model_validate(user_input)
-    except PydanticValidationError as e:
-        raise DhenaraAPIError(f"Invalid input format: {e!s}")
+        logger.error(f"Failed to find agent definition in module project_root {project_root}  path {agent_path}: {e}")
