@@ -6,6 +6,7 @@ from pathlib import Path
 import click
 
 from dhenara.agent.run import IsolatedExecution, RunContext
+from dhenara.cli.utils.cli_utils import find_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, r
     # Create run context
     run_ctx = RunContext(
         project_root=project_root,
+        agent_name=name,
         run_root=run_root,
         input_dir=input_dir,
         output_dir=output_dir,
@@ -93,16 +95,6 @@ def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, r
         run_ctx.metadata["error"] = str(e)
         run_ctx.complete_run(status="failed")
         click.echo(f"❌ Run failed: {e}")
-
-
-def find_project_root() -> Path:
-    """Find the project root by looking for .dhenara directory."""
-    current = Path.cwd()
-    while current != current.parent:
-        if (current / ".dhenara").exists():
-            return current
-        current = current.parent
-    return None
 
 
 def load_agent_module(project_root: Path, agent_path: str):

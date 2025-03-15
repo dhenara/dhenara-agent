@@ -6,7 +6,8 @@ from pathlib import Path
 import click
 import yaml
 
-# Import the internal functions directly
+# Import the internal functions
+from .create import _create_agent
 
 
 def register(cli):
@@ -25,7 +26,7 @@ def startproject(name, description, git):
     # Create project directory
     project_dir = Path(os.getcwd()) / project_name
     if project_dir.exists():
-        click.echo(f"Error: Directory {project_dir} already exists!")
+        click.echo(click.style(f"Error: Directory {project_dir} already exists!", fg="red", bold=True))
         return
 
     # Create directory structure
@@ -94,6 +95,9 @@ ENV/
 # Credentials
 .dhenara/credentials/
 
+# Agent Runs
+runs/
+
 # Logs
 *.log
 
@@ -118,4 +122,10 @@ ENV/
         with open(output_dir / ".gitignore", "w") as f:
             f.write("# Track everything in this directory\n# This is an output repository\n")
 
-    click.echo(f"✅ Project '{name}' created successfully!")
+    # Change to the project directory to create an initial agent
+    os.chdir(project_dir)
+
+    # Create an initial agent with the same name as the project
+    _create_agent(name, description)
+
+    click.echo(click.style(f"✅ Project '{name}' created successfully!", fg="green", bold=True))

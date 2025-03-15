@@ -1,7 +1,6 @@
 import json
 import shutil
 import subprocess
-import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +12,7 @@ class RunContext:
     def __init__(
         self,
         project_root: Path,
+        agent_name: str,
         run_root: Path,
         run_dir: str = "runs",
         input_dir: Path | None = None,
@@ -22,7 +22,10 @@ class RunContext:
     ):
         self.project_root = project_root
         self.run_root = run_root or project_root
-        self.run_id = run_id or f"run_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
+        self.run_id = f"{agent_name}_{_run_id}"
+
         self.run_dir = self.run_root / run_dir
         self.input_dir = input_dir or self.run_dir / "input" / self.run_id
         self.output_dir = output_dir or self.run_dir / "output" / self.run_id
@@ -118,9 +121,7 @@ class RunContext:
         self.end_time = datetime.now()
         self.metadata["status"] = status
         self.metadata["completed_at"] = self.end_time.isoformat()
-        self.metadata["duration_seconds"] = (
-            self.end_time - self.start_time
-        ).total_seconds()
+        self.metadata["duration_seconds"] = (self.end_time - self.start_time).total_seconds()
 
         self._save_metadata()
         self.commit_outputs(f"Complete run with status: {status}")
