@@ -7,6 +7,7 @@ from dhenara.agent.types import (
     FlowNodeTypeEnum,
     NodeInputSettings,
     NodeInputSource,
+    NodeResponseSettings,
     PromptTemplate,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
@@ -36,6 +37,7 @@ agent_def = Agent(
                     ResourceConfigItem(
                         item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
                         query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
+                        is_default=True,
                     ),
                     ResourceConfigItem(
                         item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
@@ -52,6 +54,9 @@ agent_def = Agent(
                         user_input_sources=[SpecialNodeIdEnum.FULL],
                         context_sources=[],
                     ),
+                ),
+                response_settings=NodeResponseSettings(
+                    enabled=True,
                 ),
             ),
             FlowNode(
@@ -84,6 +89,9 @@ agent_def = Agent(
                         user_input_sources=[],
                         context_sources=[SpecialNodeIdEnum.PREVIOUS],
                     ),
+                ),
+                response_settings=NodeResponseSettings(
+                    enabled=True,
                 ),
             ),
         ],

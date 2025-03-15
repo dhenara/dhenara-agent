@@ -8,7 +8,7 @@ class IsolatedExecution:
         self.run_context = run_context
         self.temp_env = {}
 
-    def __enter__(self):
+    async def __aenter__(self):
         """Set up isolation environment."""
         # Save current environment variables to restore later
         self.temp_env = os.environ.copy()
@@ -23,7 +23,7 @@ class IsolatedExecution:
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Clean up isolation environment."""
         # Restore original environment
         os.environ.clear()
@@ -32,7 +32,7 @@ class IsolatedExecution:
         # Return to original directory
         os.chdir(self.run_context.project_root)
 
-    def run(self, agent_module, input_data):
+    async def run(self, agent_module, input_data):
         """Run the agent in the isolated environment."""
         # TODO
         # Set up logging for this run
@@ -41,7 +41,7 @@ class IsolatedExecution:
 
         # Execute the agent
         try:
-            result = agent_module.run(input_data)
+            result = await agent_module.run(input_data)
             return result
         except Exception as e:
             # logging.exception(f"Agent execution failed: {e}")

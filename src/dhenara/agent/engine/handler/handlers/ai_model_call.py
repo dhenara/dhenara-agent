@@ -88,14 +88,36 @@ class AIModelCallHandler(NodeHandler):
         user_inputs: list[UserInput] = self.get_user_inputs(flow_node, context)
         current_prompt = await self.process_user_inputs_and_node_prompt(flow_node, user_inputs, ai_model_ep.ai_model)
 
-        # Process options
-        options = flow_node.ai_settings.get_options()
-        for user_input in user_inputs:
-            options.update(user_input.options)
+        # TODO: Previous prompts
+        # if number_of_previous_prompts_to_send > 0:
+        #     previous_prompts = conversation_node.get_ancestor_prompts(
+        #         number=number_of_previous_prompts_to_send,
+        #         dest_model=model_endpoint.ai_model,
+        #     )
 
-        reasoning = options.get("reasoning", True)
+        node_options = flow_node.ai_settings.get_options() if flow_node.ai_settings else {}
+
+        user_options = {}
+        for user_input in user_inputs:
+            user_options.update(user_input.options)
+
+        node_options.update(user_options)
+
+        reasoning = node_options.pop("reasoning", True)  # NOTE: pop as its not a standard option
+        # Get actual model call options
+        options = ai_model_ep.ai_model.get_options_with_defaults(node_options)
+
+        # TODO_FUTURE: For image models
+        # if functional_type == AIModelFunctionalTypeEnum.IMAGE_GENERATION:
+        #    if model_endpoint.ai_model.provider == AIModelProviderEnum.OPEN_AI:
+        #        options["response_format"] = "b64_json"
+
+        # Max*tokens are set to None so that model's max value is choosen
         max_output_tokens = options.get("max_output_tokens", 16000)
-        max_reasoning_tokens = options.get("max_reasoning_tokens", 8000)
+        if reasoning:
+            max_reasoning_tokens = options.get("max_reasoning_tokens", 8000)
+        else:
+            max_reasoning_tokens = None
         logger.debug(f"call_ai_model: options={options}")
 
         # Process system instructos
@@ -103,7 +125,7 @@ class AIModelCallHandler(NodeHandler):
         if context.flow_definition.system_instructions:
             instructions += context.flow_definition.system_instructions
 
-        if flow_node.ai_settings.system_instructions:
+        if flow_node.ai_settings and flow_node.ai_settings.system_instructions:
             instructions += flow_node.ai_settings.system_instructions
 
         logger.debug(f"call_ai_model: instructions={instructions}")

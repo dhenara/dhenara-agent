@@ -1,9 +1,10 @@
 import json
 import shutil
-import subprocess
 import uuid
 from datetime import datetime
 from pathlib import Path
+
+from .output_repository import RunOutputRepository
 
 
 class RunContext:
@@ -13,7 +14,7 @@ class RunContext:
         self,
         project_root: Path,
         agent_name: str,
-        run_root: Path,
+        run_root: Path | None = None,
         run_dir: str = "runs",
         input_dir: Path | None = None,
         output_dir: Path | None = None,
@@ -25,7 +26,6 @@ class RunContext:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_id = f"{agent_name}_{_run_id}"
-
         self.run_dir = self.run_root / run_dir
         self.input_dir = input_dir or self.run_dir / "input" / self.run_id
         self.output_dir = output_dir or self.run_dir / "output" / self.run_id
@@ -39,23 +39,12 @@ class RunContext:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize git repo for this run's output if it doesn't exist
-        self._init_output_repo()
+        # Initialize git output repository
+        self.output_repo = RunOutputRepository(self.run_dir / "output")
+        self.output_repo.create_run_branch(self.run_id)
 
         # Save initial metadata
         self._save_metadata()
-
-    def _init_output_repo(self):
-        """Initialize or update git repo for outputs."""
-        # Check if git exists in parent output directory
-        git_dir = self.run_dir / "output" / ".git"
-        if not git_dir.exists():
-            subprocess.run(
-                ["git", "init"],
-                cwd=self.run_dir / "output",
-                check=True,
-                stdout=subprocess.PIPE,
-            )
 
     def _save_metadata(self):
         """Save metadata about this run."""
@@ -65,7 +54,6 @@ class RunContext:
             "status": "initialized",
             **self.metadata,
         }
-
         with open(self.state_dir / "metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
@@ -96,25 +84,9 @@ class RunContext:
 
         # Commit changes if requested
         if commit:
-            self.commit_outputs(f"Add output from node {node_id}")
+            self.output_repo.commit_run_outputs(self.run_id, f"Add output from node {node_id}")
 
         return output_file
-
-    def commit_outputs(self, message):
-        """Commit changes to the output repository."""
-        # First add all files
-        subprocess.run(["git", "add", "."], cwd=self.run_dir / "output", check=True)
-
-        # Then commit with message
-        try:
-            subprocess.run(
-                ["git", "commit", "-m", f"[{self.run_id}] {message}"],
-                cwd=self.run_dir / "output",
-                check=True,
-            )
-        except subprocess.CalledProcessError:
-            # No changes to commit, that's fine
-            pass
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""
@@ -122,13 +94,7 @@ class RunContext:
         self.metadata["status"] = status
         self.metadata["completed_at"] = self.end_time.isoformat()
         self.metadata["duration_seconds"] = (self.end_time - self.start_time).total_seconds()
-
         self._save_metadata()
-        self.commit_outputs(f"Complete run with status: {status}")
 
-        # Create a tag for this run
-        subprocess.run(
-            ["git", "tag", f"run-{self.run_id}"],
-            cwd=self.run_dir / "output",
-            check=True,
-        )
+        # Complete run in git repository
+        self.output_repo.complete_run(self.run_id, status)

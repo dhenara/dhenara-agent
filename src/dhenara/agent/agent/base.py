@@ -38,11 +38,11 @@ class BaseAgent:
 
     async def run(self, query, context=None):
         # Example implementation
-        if not self.client:
-            return {"response": "Agent not properly initialized"}
-            # Run the async function in an event loop
+        # if not self.client:
+        #    return {"response": "Agent not properly initialized"}
+        #    # Run the async function in an event loop
 
-        self._run_flow(
+        await self._run_flow(
             flow_definition=self.agent_definition.flow_definition,
             initial_input=self.initial_input,
         )
@@ -50,7 +50,12 @@ class BaseAgent:
         # Your agent logic here
         return {"response": f"Processed: {query}"}
 
-    async def _run_flow(self, flow_definition: FlowDefinition, initial_input, resource_profile="default"):
+    async def _run_flow(
+        self,
+        flow_definition: FlowDefinition,
+        initial_input,
+        resource_profile="default",
+    ):
         try:
             node_input = initial_input
 

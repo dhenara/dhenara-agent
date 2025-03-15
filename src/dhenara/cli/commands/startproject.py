@@ -15,11 +15,14 @@ def register(cli):
 
 
 @click.command("startproject")
-@click.option("--name", prompt="Project name", help="Name of the new project")
+@click.argument("name")
 @click.option("--description", default="", help="Project description")
 @click.option("--git/--no-git", default=True, help="Initialize git repositories")
 def startproject(name, description, git):
-    """Create a new agent project with a professional structure."""
+    """Create a new agent project with a professional structure.
+
+    NAME is the name of the new project.
+    """
     # Convert to valid directory name
     project_name = name.lower().replace(" ", "-").replace("_", "-")
 

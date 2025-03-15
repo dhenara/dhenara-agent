@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import json
 import logging
@@ -25,21 +26,27 @@ def run():
 
 
 @run.command("agent")
-@click.option("--name", required=True, help="Agent name or path to agent definition")
-# @click.option("--path", prompt="Agent definition path", help="Eg: src.agents.my_agent")
-# @click.option(
-#    "--initial_input_name",
-#    default="initial_input",
-#    help="Name of UserInput within the file",
-# )  # TODO
+@click.argument("name")
 @click.option("--project-root", default=None, help="Project repo root")
 @click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
-@click.option("--input-file", default=None, help="Path to input JSON file")  # TODO: Do we need this?
-@click.option("--input-dir", default=None, help="Name of directory containing input files inside run dir")
+@click.option("--input-file", default=None, help="Path to input JSON file")
+@click.option(
+    "--input-dir",
+    default=None,
+    help="Name of directory containing input files inside run dir",
+)
 @click.option("--output-dir", default=None, help="Custom output directory name inside run dir")
 @click.option("--run-id", default=None, help="Custom run ID (defaults to timestamp)")
 def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id):
-    """Run an agent with the specified inputs."""
+    """Run an agent with the specified inputs.
+
+    NAME is the name of the agent.
+    """
+    asyncio.run(_run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id))
+
+
+async def _run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id):
+    """Async implementation of run_agent."""
     # Find project root
     if not project_root:
         project_root = find_project_root()
@@ -63,7 +70,7 @@ def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, r
     # Load input data
     input_data = {}
     if input_file:
-        with open(input_file) as f:
+        with open(input_file) as f:  # noqa: ASYNC230 :TODO_FUTURE
             input_data = json.load(f)
 
     # Prepare input files
@@ -73,16 +80,18 @@ def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, r
         if input_dir_path.exists() and input_dir_path.is_dir():
             input_files = list(input_dir_path.glob("*"))
 
-    # TODO: pass initail_inputs also via RunContext
+    # TODO: pass initial_inputs also via RunContext
     run_ctx.prepare_input(input_data, input_files)
 
     try:
         # Load agent
-        agent_module = load_agent_module(project_root, f"agents/{name}")
+        agent_module = load_agent_module(project_root, f"agents/{name}/agent")
+        if not agent_module:
+            raise ValueError("Failed to get agent module")
 
         # Run agent in a subprocess for isolation
-        with IsolatedExecution(run_ctx) as executor:
-            result = executor.run(agent_module, input_data)
+        async with IsolatedExecution(run_ctx) as executor:
+            result = await executor.run(agent_module, input_data)
 
         # Process and save results
         run_ctx.save_output("final", result)
@@ -105,11 +114,14 @@ def load_agent_module(project_root: Path, agent_path: str):
 
         sys.path.append(str(project_root))
 
+        # Convert file path notation to module notation
+        module_path = agent_path.replace("/", ".")
+
         # Import agent from path
-        agent = importlib.import_module(agent_path)
-        return agent
+        agent = importlib.import_module(module_path)
+        return agent.agent
 
     except ImportError as e:
-        logger.error(f"Failed to import agent from project_root {project_root}  path {agent_path}: {e}")
+        logger.error(f"Failed to import agent from project_root {project_root} path {agent_path}: {e}")
     except AttributeError as e:
-        logger.error(f"Failed to find agent definition in module project_root {project_root}  path {agent_path}: {e}")
+        logger.error(f"Failed to find agent definition in module project_root {project_root} path {agent_path}: {e}")

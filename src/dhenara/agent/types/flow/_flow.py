@@ -133,7 +133,7 @@ class FlowNode(BaseModel):
             return v
         else:
             if default_count < 1:
-                raise ValueError("One resource should be set as default")
+                raise ValueError("resources: One resource should be set as default")
             return v
 
     # @model_validator(mode="after")
