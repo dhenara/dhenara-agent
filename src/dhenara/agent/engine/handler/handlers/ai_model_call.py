@@ -10,9 +10,9 @@ from dhenara.agent.types import (
     FlowNode,
     FlowNodeExecutionResult,
     FlowNodeExecutionStatusEnum,
+    FlowNodeInput,
     FlowNodeOutput,
     StreamingStatusEnum,
-    UserInput,
 )
 
 # from common.csource.apps.model_apps.app_ai_connect.libs.tsg.orchestrator import AIModelCallOrchestrator
@@ -37,23 +37,36 @@ class AIModelCallHandler(NodeHandler):
         super().__init__(identifier=identifier)
         self.resource_config: ResourceConfig | None = None
 
-    async def handle(self, flow_node: FlowNode, context: FlowContext, resource_config: ResourceConfig) -> Any:
+    async def handle(
+        self,
+        flow_node: FlowNode,
+        flow_node_input: FlowNodeInput,
+        flow_context: FlowContext,
+        resource_config: ResourceConfig,
+    ) -> Any:
         self.resource_config = resource_config
 
         if not self.resource_config:
             raise ValueError("resource_config must be set for ai_model_call")
 
-        result = await self._call_ai_model(flow_node, context, streaming=False)
+        result = await self._call_ai_model(
+            flow_node=flow_node,
+            flow_node_input=flow_node_input,
+            flow_context=flow_context,
+            streaming=False,
+        )
         return result
 
     async def _call_ai_model(
         self,
         flow_node: FlowNode,
-        context: FlowContext,
+        flow_node_input: FlowNodeInput,
+        flow_context: FlowContext,
         streaming: bool,
     ) -> FlowNodeExecutionResult[AIModelCallNodeOutputData] | AsyncGenerator:
         user_selected_resource = None
-        selected_resources = self.get_user_selected_resources(flow_node, context)
+        selected_resources = flow_context.initial_input.resources or []
+
         if len(selected_resources) == 1:
             user_selected_resource = selected_resources[0]
         else:
@@ -62,7 +75,7 @@ class AIModelCallHandler(NodeHandler):
         if user_selected_resource and not flow_node.check_resource_in_node(user_selected_resource):
             self.set_node_execution_failed(
                 flow_node=flow_node,
-                context=context,
+                flow_context=flow_context,
                 message=(
                     f"User selected resouce {user_selected_resource.model_dump_json()} is not available in this node. "
                     "Either provide a valid resource or call with no resources."
@@ -85,8 +98,11 @@ class AIModelCallHandler(NodeHandler):
         logger.debug(f"call_ai_model: ai_model_ep={ai_model_ep}")
 
         # Parse inputs
-        user_inputs: list[UserInput] = self.get_user_inputs(flow_node, context)
-        current_prompt = await self.process_user_inputs_and_node_prompt(flow_node, user_inputs, ai_model_ep.ai_model)
+        current_prompt = await self.process_input_contents_and_node_prompt(
+            flow_node=flow_node,
+            flow_node_input=flow_node_input,
+            model=ai_model_ep.ai_model,
+        )
 
         # TODO: Previous prompts
         # if number_of_previous_prompts_to_send > 0:
@@ -96,14 +112,14 @@ class AIModelCallHandler(NodeHandler):
         #     )
 
         node_options = flow_node.ai_settings.get_options() if flow_node.ai_settings else {}
+        input_options = flow_node_input.options
 
-        user_options = {}
-        for user_input in user_inputs:
-            user_options.update(user_input.options)
+        node_options.update(input_options)
 
-        node_options.update(user_options)
+        # pop the non-standard options.  NOTE: pop
+        reasoning = node_options.pop("reasoning", True)
+        test_mode = node_options.pop("test_mode", False)
 
-        reasoning = node_options.pop("reasoning", True)  # NOTE: pop as its not a standard option
         # Get actual model call options
         options = ai_model_ep.ai_model.get_options_with_defaults(node_options)
 
@@ -122,8 +138,8 @@ class AIModelCallHandler(NodeHandler):
 
         # Process system instructos
         instructions = []
-        if context.flow_definition.system_instructions:
-            instructions += context.flow_definition.system_instructions
+        if flow_context.flow_definition.system_instructions:
+            instructions += flow_context.flow_definition.system_instructions
 
         if flow_node.ai_settings and flow_node.ai_settings.system_instructions:
             instructions += flow_node.ai_settings.system_instructions
@@ -133,7 +149,7 @@ class AIModelCallHandler(NodeHandler):
         # Process previous prompts
         previous_node_outputs_as_prompts: list = await self.get_previous_node_outputs_as_prompts(
             flow_node,
-            context,
+            flow_context,
             ai_model_ep.ai_model,
         )
         # logger.debug(f"call_ai_model:  previous_node_output_prompt={previous_node_outputs_as_prompts}")
@@ -155,7 +171,7 @@ class AIModelCallHandler(NodeHandler):
                 max_reasoning_tokens=max_reasoning_tokens,
                 options={},  # TODO
                 metadata={"user_id": user_id},
-                test_mode=False,
+                test_mode=test_mode,
             ),
         )
 
@@ -176,10 +192,11 @@ class AIModelCallHandler(NodeHandler):
             # stream_generator = response.stream_generator
             stream_generator = self.generate_stream_response(
                 flow_node=flow_node,
-                context=context,
+                flow_node_input=flow_node_input,
+                flow_context=flow_context,
                 stream_generator=response.stream_generator,
             )
-            context.stream_generator = stream_generator
+            flow_context.stream_generator = stream_generator
             return "abc"  # Should retrun a non None value: TODO: Fix this
 
         # Non streaming
@@ -197,7 +214,7 @@ class AIModelCallHandler(NodeHandler):
         result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
             node_identifier=flow_node.identifier,
             status=status,
-            user_inputs=user_inputs,
+            node_input=flow_node_input,
             node_output=node_output,
             storage_data=storage_data,
             created_at=datetime.now(),
@@ -208,7 +225,8 @@ class AIModelCallHandler(NodeHandler):
     async def generate_stream_response(
         self,
         flow_node: FlowNode,
-        context: FlowContext,
+        flow_node_input: FlowNodeInput,
+        flow_context: FlowContext,
         stream_generator: AsyncGenerator,
     ):
         if not stream_generator:
@@ -246,14 +264,14 @@ class AIModelCallHandler(NodeHandler):
                     result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
                         node_identifier=node_identifier,
                         status=status,
-                        user_inputs=None,
+                        node_input=flow_node_input,
                         node_output=node_output,
                         storage_data=storage_data,
                         created_at=datetime.now(),
                     )
 
                     # NOTE: `await`
-                    await context.notify_streaming_complete(
+                    await flow_context.notify_streaming_complete(
                         identifier=node_identifier,
                         streaming_status=StreamingStatusEnum.COMPLETED,
                         result=result,
@@ -281,11 +299,22 @@ class AIModelCallStreamHandler(AIModelCallHandler):
     ):
         super().__init__(identifier="ai_model_call_stream_handler")
 
-    async def handle(self, flow_node: FlowNode, context: FlowContext, resource_config: ResourceConfig) -> Any:
+    async def handle(
+        self,
+        flow_node: FlowNode,
+        flow_node_input: FlowNodeInput,
+        flow_context: FlowContext,
+        resource_config: ResourceConfig,
+    ) -> Any:
         self.resource_config = resource_config
 
         if not self.resource_config:
             raise ValueError("resource_config must be set for ai_model_call")
 
-        result = await self._call_ai_model(flow_node, context, streaming=True)
+        result = await self._call_ai_model(
+            flow_node=flow_node,
+            flow_node_input=flow_node_input,
+            flow_context=flow_context,
+            streaming=True,
+        )
         return result

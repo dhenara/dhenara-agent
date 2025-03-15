@@ -1,6 +1,5 @@
 import asyncio
 import importlib
-import json
 import logging
 from pathlib import Path
 
@@ -29,23 +28,26 @@ def run():
 @click.argument("name")
 @click.option("--project-root", default=None, help="Project repo root")
 @click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
-@click.option("--input-file", default=None, help="Path to input JSON file")
 @click.option(
     "--input-dir",
     default=None,
     help="Name of directory containing input files inside run dir",
 )
+@click.option("--input-file-name", default=None, help="Input JSON file name")
 @click.option("--output-dir", default=None, help="Custom output directory name inside run dir")
+@click.option("--output-file-name", default=None, help="Output JSON file name")
 @click.option("--run-id", default=None, help="Custom run ID (defaults to timestamp)")
-def run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id):
+def run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id):
     """Run an agent with the specified inputs.
 
     NAME is the name of the agent.
     """
-    asyncio.run(_run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id))
+    asyncio.run(
+        _run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id)
+    )
 
 
-async def _run_agent(name, project_root, run_root, input_file, input_dir, output_dir, run_id):
+async def _run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id):
     """Async implementation of run_agent."""
     # Find project root
     if not project_root:
@@ -61,26 +63,16 @@ async def _run_agent(name, project_root, run_root, input_file, input_dir, output
         agent_name=name,
         run_root=run_root,
         input_dir=input_dir,
+        input_file_name=input_file_name,
         output_dir=output_dir,
+        output_file_name=output_file_name,
         run_id=run_id,
     )
 
-    # TODO: Cleanup input section
-
-    # Load input data
+    # TODO: Bring inputs
     input_data = {}
-    if input_file:
-        with open(input_file) as f:  # noqa: ASYNC230 :TODO_FUTURE
-            input_data = json.load(f)
-
-    # Prepare input files
     input_files = []
-    if input_dir:
-        input_dir_path = Path(input_dir)
-        if input_dir_path.exists() and input_dir_path.is_dir():
-            input_files = list(input_dir_path.glob("*"))
 
-    # TODO: pass initial_inputs also via RunContext
     run_ctx.prepare_input(input_data, input_files)
 
     try:

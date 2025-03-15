@@ -4,64 +4,43 @@ from typing import Any
 # from urllib.request import urlopen
 from pydantic import AnyUrl, Field
 
-from dhenara.agent.types.flow import ContentType, FlowNodeUserInputActionEnum
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 
 
-# TODO: Implement Option to pass User Input to each node
-class UserInput(BaseModel):
+class ContentType(BaseEnum):
+    """Enumeration of content types that can be returned."""
+
+    TEXT = "text"
+    LIST = "list"
+    DICT = "dict"
+    JSONL = "jsonl"
+
+
+class Content(BaseModel):
     """Represents user input data for AI model processing.
 
     This model handles various forms of input content including text, URLs, and JSON data
     that can be processed by AI models.
 
-    Attributes:
-        content: Single text content for processing.
-        contents: Multiple text contents for batch processing.
-        content_urls: List of URLs pointing to content files.
-        content_json: Structured JSON data for processing.
-        content_jsonl: List of JSON objects in JSONL format.
-        options: Configuration options for AI model behavior.
-
-    Example:
-        ```python
-        user_input = UserInput(
-            content="What is the capital of France?",
-            options={"temperature": 0.7, "max_output_tokens": 100},
-        )
-        ```
     """
 
-    action: FlowNodeUserInputActionEnum | None = Field(
-        default=None,
-        description="Type of API action to perform, if any",
-    )
-
-    meta: dict = Field(
-        default_factory=dict,
-        description="Inputs metadata",
-        example={"sub_action": "my_custom_acion"},
-    )
-
+    # All Content related fields
     content: str | None = Field(
         default=None,
         description="Primary text content to be processed",
         example="What is the capital of France?",
-        # max_length=8192,
     )
 
     contents: list[str] | None = Field(
         default=None,
         description="Multiple text contents for batch processing",
         example=["Text 1", "Text 2"],
-        max_length=100,  # Maximum number of items in list
     )
 
     content_urls: list[AnyUrl] | None = Field(
         default=None,
         description="URLs pointing to content files for processing",
         example=["https://example.com/file1.txt", "https://example.com/file2.txt"],
-        max_length=50,  # Maximum number of URLs
     )
 
     content_json: dict[str, Any] = Field(
@@ -74,17 +53,6 @@ class UserInput(BaseModel):
         default_factory=list,
         description="List of JSON objects in JSONL format",
         example=[{"id": 1, "text": "example"}, {"id": 2, "text": "example2"}],
-        max_length=1000,  # Maximum number of JSONL entries
-    )
-
-    options: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Configuration options for the AI model behavior",
-        example={
-            "temperature": 0.7,
-            "max_output_tokens": 100,
-            "top_p": 1.0,
-        },
     )
 
     class Config:
@@ -94,10 +62,6 @@ class UserInput(BaseModel):
             "examples": [
                 {
                     "content": "What is the capital of France?",
-                    "options": {
-                        "temperature": 0.7,
-                        "max_output_tokens": 100,
-                    },
                 },
                 {
                     "contents": ["Text 1", "Text 2"],
@@ -210,23 +174,6 @@ class UserInput(BaseModel):
             if not self.content_jsonl:
                 raise ValueError("No JSONL content available")
             return self.content_jsonl
-
-    def get_options(self, default: dict | None = None) -> dict[str, Any]:
-        """Get options with optional defaults.
-
-        Args:
-            default: Default options to use if none are set
-
-        Returns:
-            Dictionary of options, merged with defaults if provided
-        """
-        if default is None:
-            default = {}
-
-        if self.options is None:
-            return default
-
-        return {**default, **self.options}
 
     @property
     def primary_content(self) -> str | None:

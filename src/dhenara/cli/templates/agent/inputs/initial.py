@@ -1,7 +1,7 @@
-from dhenara.agent.types import FlowNodeInput, UserInput
+from dhenara.agent.types import Content, FlowNodeInput
 
 initial_input = FlowNodeInput(
-    user_input=UserInput(
+    content=Content(
         content="Tell me a story.",
     )
 )

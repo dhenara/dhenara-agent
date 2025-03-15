@@ -7,9 +7,8 @@ from pydantic import Field, RootModel
 from dhenara.agent.types.flow import (
     FlowNodeExecutionStatusEnum,
     FlowNodeIdentifier,
+    FlowNodeInput,
     FlowNodeOutput,
-    StorageEntityTypeEnum,
-    UserInput,
 )
 from dhenara.ai.types.shared.base import BaseModel
 
@@ -22,9 +21,10 @@ T = TypeVar("T", bound=BaseModel)
 class FlowNodeExecutionResult(BaseModel, Generic[T]):
     node_identifier: FlowNodeIdentifier
     status: FlowNodeExecutionStatusEnum
-    user_inputs: list[UserInput] | None
+    # user_inputs: list[Content] | None
+    node_input: FlowNodeInput
     node_output: FlowNodeOutput[T]
-    storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
+    # storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime
 
 

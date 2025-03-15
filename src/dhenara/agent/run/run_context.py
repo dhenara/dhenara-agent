@@ -15,12 +15,18 @@ class RunContext:
         project_root: Path,
         agent_name: str,
         run_root: Path | None = None,
-        run_dir: str = "runs",
+        run_dir: str | None = None,
         input_dir: Path | None = None,
+        input_file_name: str | None = None,
         output_dir: Path | None = None,
+        output_file_name: str | None = None,
         state_dir: Path | None = None,
         run_id: str | None = None,
     ):
+        run_dir = run_dir or "runs"
+        input_file_name = input_file_name or "input.json"
+        output_file_name = output_file_name or "output.json"
+
         self.project_root = project_root
         self.run_root = run_root or project_root
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -28,7 +34,9 @@ class RunContext:
         self.run_id = f"{agent_name}_{_run_id}"
         self.run_dir = self.run_root / run_dir
         self.input_dir = input_dir or self.run_dir / "input" / self.run_id
+        self.input_file_name = input_file_name
         self.output_dir = output_dir or self.run_dir / "output" / self.run_id
+        self.output_file_name = output_file_name
         self.state_dir = state_dir or self.run_dir / ".state" / self.run_id
         self.start_time = datetime.now()
         self.end_time = None
@@ -57,11 +65,19 @@ class RunContext:
         with open(self.state_dir / "metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
-    def prepare_input(self, input_data, input_files=None):
+    def prepare_input(self, input_data, input_files: list | None = None):
         """Prepare input data and files for the run."""
         # Save input data
-        with open(self.input_dir / "input.json", "w") as f:
+        if input_files is None:
+            input_files = []
+
+        with open(self.input_dir / self.input_file_name, "w") as f:
             json.dump(input_data, f, indent=2)
+
+        if self.input_dir:
+            input_dir_path = Path(self.input_dir)
+            if input_dir_path.exists() and input_dir_path.is_dir():
+                input_files += list(input_dir_path.glob("*"))
 
         # Copy input files if provided
         if input_files:
@@ -78,15 +94,15 @@ class RunContext:
         node_dir.mkdir(exist_ok=True)
 
         # Save output data
-        output_file = node_dir / "output.json"
-        with open(output_file, "w") as f:
+        output_file_name = node_dir / self.output_file_name
+        with open(output_file_name, "w") as f:
             json.dump(output_data, f, indent=2)
 
         # Commit changes if requested
         if commit:
             self.output_repo.commit_run_outputs(self.run_id, f"Add output from node {node_id}")
 
-        return output_file
+        return output_file_name
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""

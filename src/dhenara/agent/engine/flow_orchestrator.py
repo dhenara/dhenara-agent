@@ -128,7 +128,11 @@ class FlowOrchestrator:
 
         if sequential:
             for index, flow_node in enumerate(nodes_to_process, start=start_index):
-                result = await self._process_single_node(flow_node, context, index)
+                result = await self._process_single_node(
+                    flow_node=flow_node,
+                    context=context,
+                    index=index,
+                )
 
                 if result is not None:  # Streaming case will return an async generator
                     return result
@@ -142,9 +146,9 @@ class FlowOrchestrator:
             tasks = [
                 create_task(
                     self._process_single_node(
-                        flow_node,
-                        context,
-                        index,
+                        flow_node=flow_node,
+                        context=context,
+                        index=index,
                     )
                 )
                 for index, flow_node in enumerate(nodes_to_process, start=start_index)
@@ -172,6 +176,8 @@ class FlowOrchestrator:
     ) -> Any:
         """Process a single node and handle its result."""
         context.set_current_node(index)
+
+        flow_node_input = context.get_initial_input()
         handler = self.get_node_execution_handler(flow_node.type)
 
         if flow_node.is_streaming():
@@ -182,7 +188,12 @@ class FlowOrchestrator:
             )
             context.current_node_index = index
             # Execute streaming node
-            result = await handler.handle(flow_node, context, self.resource_config)
+            result = await handler.handle(
+                flow_node=flow_node,
+                flow_node_input=flow_node_input,
+                context=context,
+                resource_config=self.resource_config,
+            )
             if not isinstance(result, AsyncGenerator):
                 logger.warning(
                     f"A streaming node handler is expected to returned an AsyncGenerator not{type(result)}. "
@@ -192,7 +203,12 @@ class FlowOrchestrator:
             return result
 
         # Execute non-streaming node
-        result = await handler.handle(flow_node, context, self.resource_config)
+        result = await handler.handle(
+            flow_node=flow_node,
+            flow_node_input=flow_node_input,
+            context=context,
+            resource_config=self.resource_config,
+        )
         return await self._process_single_node_completion(flow_node=flow_node, context=context, result=result)
 
     async def _process_single_node_completion(

@@ -9,10 +9,10 @@ from dhenara.agent.types import (
     Agent as AgentType,
 )
 from dhenara.agent.types import (
+    Content,
     FlowContext,
     FlowDefinition,
     FlowNodeInput,
-    UserInput,
 )
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
@@ -111,8 +111,8 @@ class BaseAgent:
         )
         return resource_config
 
-    def _validate_node_input(self, user_input: UserInput) -> FlowNodeInput:
+    def _validate_node_input(self, content: Content) -> FlowNodeInput:
         try:
-            return FlowNodeInput.model_validate(user_input)
+            return FlowNodeInput.model_validate(content)
         except PydanticValidationError as e:
             raise DhenaraAPIError(f"Invalid input format: {e!s}")

@@ -1,20 +1,15 @@
 from dhenara.agent.types import (
     Agent,
     AISettings,
-    ConversationFieldEnum,
-    ConversationNodeFieldEnum,
     ExecutionStrategyEnum,
     FlowDefinition,
     FlowNode,
     FlowNodeTypeEnum,
     NodeInputSettings,
-    NodeInputSource,
     NodeResponseSettings,
     PromptTemplate,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
-    StorageEntityTypeEnum,
-    StorageSettings,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
@@ -90,25 +85,20 @@ chatbot_with_summarizer = Agent(
                     options_overrides=None,
                 ),
                 input_settings=NodeInputSettings(
-                    input_source=NodeInputSource(
-                        user_input_sources=[SpecialNodeIdEnum.FULL],
-                        context_sources=[],
-                    ),
+                    context_sources=[],
                 ),
-                storage_settings=StorageSettings(
-                    save={
-                        StorageEntityTypeEnum.conversation_node: [
-                            ConversationNodeFieldEnum.inputs,
-                            ConversationNodeFieldEnum.outputs,
-                        ],
-                    },
-                    delete={},
-                ),
+                # storage_settings=StorageSettings(
+                #    save={
+                #        StorageEntityTypeEnum.conversation_node: [
+                #            ConversationNodeFieldEnum.inputs,
+                #            ConversationNodeFieldEnum.outputs,
+                #        ],
+                #    },
+                #    delete={},
+                # ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
                 ),
-                pre_actions=[],
-                post_actions=[],
             ),
             FlowNode(
                 order=1,
@@ -136,23 +126,18 @@ chatbot_with_summarizer = Agent(
                     options_overrides=None,
                 ),
                 input_settings=NodeInputSettings(
-                    input_source=NodeInputSource(
-                        user_input_sources=[],
-                        context_sources=[SpecialNodeIdEnum.PREVIOUS],
-                    ),
+                    context_sources=[SpecialNodeIdEnum.PREVIOUS],
                 ),
-                storage_settings=StorageSettings(
-                    save={
-                        StorageEntityTypeEnum.conversation: [ConversationFieldEnum.title],
-                        StorageEntityTypeEnum.conversation_node: [],
-                    },
-                    delete={},
-                ),
+                # storage_settings=StorageSettings(
+                #    save={
+                #        StorageEntityTypeEnum.conversation: [ConversationFieldEnum.title],
+                #        StorageEntityTypeEnum.conversation_node: [],
+                #    },
+                #    delete={},
+                # ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
                 ),
-                pre_actions=[],
-                post_actions=[],
             ),
         ],
     ),

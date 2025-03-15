@@ -6,6 +6,8 @@ from pydantic import Field, field_validator
 
 from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 
+# TODO: Cleanup
+
 
 class ResponseProtocolEnum(BaseEnum):
     """Enumeration of available response protocols for node outputs."""

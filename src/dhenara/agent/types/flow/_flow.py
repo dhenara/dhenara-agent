@@ -5,16 +5,13 @@ from pydantic import Field, field_validator, model_validator
 from dhenara.agent.types.flow import (
     AISettings,
     ExecutionStrategyEnum,
-    FlowNodePostActionEnum,
-    FlowNodePreActionEnum,
+    FlowNodeInput,
     FlowNodeTypeEnum,
     NodeInputSettings,
     NodeResponseSettings,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
-    StorageSettings,
     SystemInstructions,
-    UserInput,
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
@@ -73,22 +70,23 @@ class FlowNode(BaseModel):
         ...,
         description="Input Settings",
     )
-    storage_settings: StorageSettings = Field(
-        default_factory=dict,
-        description="DataBase Storage settings",
-    )
+    # storage_settings: StorageSettings = Field(
+    #    default_factory=dict,
+    #    description="DataBase Storage settings",
+    # )
     response_settings: NodeResponseSettings = Field(
         ...,
         description="Response Settings",
     )
-    pre_actions: list[FlowNodePreActionEnum] = Field(
-        default_factory=list,
-        description="Output actions",
-    )
-    post_actions: list[FlowNodePostActionEnum] = Field(
-        default_factory=list,
-        description="Output actions",
-    )
+
+    # pre_actions: list[FlowNodePreActionEnum] = Field(
+    #    default_factory=list,
+    #    description="Output actions",
+    # )
+    # post_actions: list[FlowNodePostActionEnum] = Field(
+    #    default_factory=list,
+    #    description="Output actions",
+    # )
 
     subflow: "FlowDefinition | None" = Field(
         default=None,
@@ -159,32 +157,24 @@ class FlowNode(BaseModel):
     #        )
     #    return self
 
-    async def get_full_input_content(self, user_inputs: list[UserInput] | None = None, **kwargs) -> str:
-        user_input_permitted = (
-            self.input_settings
-            and self.input_settings.input_source
-            and self.input_settings.input_source.user_input_sources
-        )
+    async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
         node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-
-        if not (user_input_permitted or node_prompt):
-            raise ValueError("get_full_input_content: Illegal Node setting for inputs. No source given")
-
-        user_input_content = None
-        if user_input_permitted:
-            if not user_inputs:
-                raise ValueError("get_full_input_content: Node setting is to take user inputs, but no inputs passed")
-
-            user_input_content = " ".join([await user_input.get_content() for user_input in user_inputs])
+        input_content = node_input.content.get_content()
 
         if node_prompt:
-            kwargs.update({"dh_user_input": user_input_content})
-            return node_prompt.format(**kwargs)
-        else:
-            if not user_input_content:
-                raise ValueError("get_full_input_content: Failed to derive full input content")
+            if input_content:
+                kwargs.update({"dh_input_content": input_content})
+                return node_prompt.format(**kwargs)
+            else:
+                return node_prompt
 
-            return user_input_content
+        else:
+            if not input_content:
+                raise ValueError(
+                    f"Illegal Node setting for node {self.identifier}:  node_prompt and input_content are empty"
+                )
+
+            return input_content
 
     def is_streaming(self):
         return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
@@ -340,7 +330,7 @@ class FlowDefinition(BaseModel):
     def validate_node_identifies(self):
         all_node_identifies = {node.identifier for node in self.nodes}
         for node in self.nodes:
-            node.input_settings.input_source.validate_node_references(list(all_node_identifies))
+            node.input_settings.validate_node_references(list(all_node_identifies))
 
         return self
 

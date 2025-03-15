@@ -6,7 +6,6 @@ from dhenara.agent.types import (
     FlowNode,
     FlowNodeTypeEnum,
     NodeInputSettings,
-    NodeInputSource,
     NodeResponseSettings,
     PromptTemplate,
     ResponseProtocolEnum,
@@ -50,10 +49,7 @@ agent_def = Agent(
                 ],
                 ai_settings=None,
                 input_settings=NodeInputSettings(
-                    input_source=NodeInputSource(
-                        user_input_sources=[SpecialNodeIdEnum.FULL],
-                        context_sources=[],
-                    ),
+                    context_sources=[],
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,
@@ -85,10 +81,7 @@ agent_def = Agent(
                     options_overrides=None,
                 ),
                 input_settings=NodeInputSettings(
-                    input_source=NodeInputSource(
-                        user_input_sources=[],
-                        context_sources=[SpecialNodeIdEnum.PREVIOUS],
-                    ),
+                    context_sources=[SpecialNodeIdEnum.PREVIOUS],
                 ),
                 response_settings=NodeResponseSettings(
                     enabled=True,

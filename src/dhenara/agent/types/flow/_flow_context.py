@@ -35,7 +35,7 @@ class StreamingContext(BaseModel):
 class FlowContext(BaseModel):
     # endpoint_id: str
     flow_definition: FlowDefinition
-    initial_input: FlowNodeInput
+    initial_inputs: dict[FlowNodeIdentifier, FlowNodeInput]
     execution_status: FlowExecutionStatusEnum = FlowExecutionStatusEnum.PENDING
     current_node_index: int = 0
     current_node_identifier: FlowNodeIdentifier | None = None
@@ -53,6 +53,12 @@ class FlowContext(BaseModel):
     def set_current_node(self, index: int):
         self.current_node_index = index
         self.current_node_identifier = self.flow_definition.nodes[index].identifier
+
+    def get_initial_input(self) -> FlowNodeInput:
+        if not self.current_node_identifier:
+            raise ValueError("get_initial_input: current_node_identifier is not set")
+
+        return self.initial_inputs.get(self.current_node_identifier, None)
 
     async def notify_streaming_complete(
         self,

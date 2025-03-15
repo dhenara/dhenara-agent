@@ -1,7 +1,7 @@
 from shared_print_utils import ResponseDisplayMixin
 
 from dhenara.agent.client import Client
-from dhenara.agent.types import FlowNodeInput, UserInput
+from dhenara.agent.types import Content, FlowNodeInput
 from dhenara.ai.types import ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 
 
@@ -12,7 +12,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22122651"  # Non streaming
+_refnum = "22152267"  # Non streaming
 
 
 def main():
@@ -21,7 +21,7 @@ def main():
         base_url="http://localhost:8000",
     )
 
-    user_input = UserInput(
+    content = Content(
         content="What is ephatha.  Respond in 300 chars.",
         # content="Count 1 to 10 in words.",  # "When bible was written",
     )
@@ -29,7 +29,7 @@ def main():
     #    user_input=user_input,
     # )
     node_input = FlowNodeInput(
-        user_input=user_input,
+        content=content,
         resources=[
             ResourceConfigItem(
                 item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,

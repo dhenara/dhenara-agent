@@ -1,7 +1,7 @@
 from shared_print_utils import ResponseDisplayMixin
 
 from dhenara.agent.client import Client
-from dhenara.agent.types import FlowNodeInput, UserInput
+from dhenara.agent.types import Content, FlowNodeInput
 from dhenara.ai.types import ChatResponseChunk, ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 from dhenara.ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
 
@@ -22,12 +22,12 @@ def main():
         base_url="http://localhost:8000",
     )
 
-    user_input = UserInput(
+    content = Content(
         content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
         # content="Count 1 to 10 in words.",  # "When bible was written",
     )
     node_input = FlowNodeInput(
-        user_input=user_input,
+        content=content,
         resources=[
             ResourceConfigItem(
                 item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
