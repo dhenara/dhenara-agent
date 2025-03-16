@@ -22,7 +22,7 @@ class FlowNodeExecutionResult(BaseModel, Generic[T]):
     node_identifier: FlowNodeIdentifier
     status: FlowNodeExecutionStatusEnum
     # user_inputs: list[Content] | None
-    node_input: FlowNodeInput
+    node_input: FlowNodeInput | None
     node_output: FlowNodeOutput[T]
     # storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime

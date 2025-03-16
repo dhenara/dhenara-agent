@@ -1,4 +1,4 @@
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, NewType, TypeVar
 
 from pydantic import Field
 
@@ -6,6 +6,8 @@ from dhenara.agent.types.data import Content
 from dhenara.agent.types.flow import FlowExecutionStatusEnum
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
+
+FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
 
 
 class FlowNodeInput(BaseModel):
@@ -77,6 +79,21 @@ class FlowNodeInput(BaseModel):
             return default
 
         return {**default, **self.options}
+
+
+# -----------------------------------------------------------------------------
+#  Custom Dict Subclass with Type Validation
+class FlowNodeInputs(dict[FlowNodeIdentifier, FlowNodeInput]):
+    """Dictionary of flow node inputs with type validation."""
+
+    def __setitem__(self, key: FlowNodeIdentifier, value: FlowNodeInput) -> None:
+        # Optional validation when items are set
+        if not isinstance(value, FlowNodeInput):
+            raise TypeError(f"Value must be FlowNodeInput, got {type(value)}")
+        super().__setitem__(key, value)
+
+
+# FlowNodeInputs = dict[FlowNodeIdentifier, FlowNodeInput]
 
 
 # -----------------------------------------------------------------------------

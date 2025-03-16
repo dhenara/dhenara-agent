@@ -66,12 +66,15 @@ class AIModelCallHandler(NodeHandler):
     ) -> FlowNodeExecutionResult[AIModelCallNodeOutputData] | AsyncGenerator:
         user_selected_resource = None
         initial_input = flow_context.get_initial_input()
-        selected_resources = initial_input.resources or []
+        selected_resources = initial_input.resources if initial_input and initial_input.resources else []
 
         if len(selected_resources) == 1:
             user_selected_resource = selected_resources[0]
         else:
-            user_selected_resource = next((resource for resource in selected_resources if resource.is_default), None)
+            user_selected_resource = next(
+                (resource for resource in selected_resources if resource.is_default),
+                None,
+            )
 
         if user_selected_resource and not flow_node.check_resource_in_node(user_selected_resource):
             self.set_node_execution_failed(
@@ -89,7 +92,10 @@ class AIModelCallHandler(NodeHandler):
         else:
             # Select the default resource
             logger.debug(f"Selecting default resource for node {flow_node.identifier}.")
-            node_resource = next((resource for resource in flow_node.resources if resource.is_default), None)
+            node_resource = next(
+                (resource for resource in flow_node.resources if resource.is_default),
+                None,
+            )
 
         if not node_resource:
             raise ValueError("No default resource found in flow node configuration")
@@ -113,7 +119,7 @@ class AIModelCallHandler(NodeHandler):
         #     )
 
         node_options = flow_node.ai_settings.get_options() if flow_node.ai_settings else {}
-        input_options = flow_node_input.options
+        input_options = flow_node_input.options if flow_node_input and flow_node_input.options else {}
 
         node_options.update(input_options)
 

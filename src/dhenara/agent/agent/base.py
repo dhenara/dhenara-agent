@@ -5,14 +5,14 @@ from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.engine import FlowOrchestrator
 from dhenara.agent.resource.registry import resource_config_registry
+from dhenara.agent.run import RunContext
 from dhenara.agent.types import (
     Agent as AgentType,
 )
 from dhenara.agent.types import (
-    Content,
     FlowContext,
     FlowDefinition,
-    FlowNodeInput,
+    FlowNodeInputs,
 )
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
@@ -23,42 +23,42 @@ logger = logging.getLogger(__name__)
 class BaseAgent:
     """{{agent_name}} agent implementation."""
 
-    def __init__(self, agent_definition, initial_input):
+    def __init__(self, agent_definition):
         """Initialize the agent with optional configuration."""
         self.agent_definition = agent_definition
-        self.initial_input = initial_input
+        # TODO: Configs?
 
         if not isinstance(self.agent_definition, AgentType):
             logger.error(f"Imported object is not a AgentType: {type(self.agent_definition)}")
             return
 
-        if not isinstance(self.initial_input, FlowNodeInput):
-            logger.error(f"Imported input is not a FlowNodeInput: {type(self.initial_input)}")
-            return
+    async def run(
+        self,
+        run_context: RunContext,
+        initial_inputs: FlowNodeInputs | None = None,
+    ):
+        # TODO: Bring inputs
+        input_data = {
+            "initial_inputs": initial_inputs,
+        }
+        input_files = []
 
-    async def run(self, query, context=None):
-        # Example implementation
-        # if not self.client:
-        #    return {"response": "Agent not properly initialized"}
-        #    # Run the async function in an event loop
+        run_context.prepare_input(input_data, input_files)
 
         await self._run_flow(
             flow_definition=self.agent_definition.flow_definition,
-            initial_input=self.initial_input,
+            initial_inputs=run_context.initial_inputs,  # Pass the processed initial_inputs
         )
 
-        # Your agent logic here
-        return {"response": f"Processed: {query}"}
+        return {"response": "Processed: "}
 
     async def _run_flow(
         self,
         flow_definition: FlowDefinition,
-        initial_input,
+        initial_inputs: FlowNodeInputs,
         resource_profile="default",
     ):
         try:
-            node_input = initial_input
-
             # Get resource configuration from registry
             resource_config = resource_config_registry.get(resource_profile)
             if not resource_config:
@@ -74,7 +74,7 @@ class BaseAgent:
 
             flow_context = FlowContext(
                 flow_definition=flow_definition,
-                initial_input=node_input,
+                initial_inputs=initial_inputs,
                 created_at=datetime.now(),
             )
 
@@ -110,9 +110,3 @@ class BaseAgent:
             init_endpoints=True,
         )
         return resource_config
-
-    def _validate_node_input(self, content: Content) -> FlowNodeInput:
-        try:
-            return FlowNodeInput.model_validate(content)
-        except PydanticValidationError as e:
-            raise DhenaraAPIError(f"Invalid input format: {e!s}")

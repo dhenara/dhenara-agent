@@ -69,12 +69,6 @@ async def _run_agent(name, project_root, run_root, input_dir, input_file_name, o
         run_id=run_id,
     )
 
-    # TODO: Bring inputs
-    input_data = {}
-    input_files = []
-
-    run_ctx.prepare_input(input_data, input_files)
-
     try:
         # Load agent
         agent_module = load_agent_module(project_root, f"agents/{name}/agent")
@@ -83,7 +77,11 @@ async def _run_agent(name, project_root, run_root, input_dir, input_file_name, o
 
         # Run agent in a subprocess for isolation
         async with IsolatedExecution(run_ctx) as executor:
-            result = await executor.run(agent_module, input_data)
+            result = await executor.run(
+                agent_module=agent_module,
+                run_context=run_ctx,
+                initial_inputs=None,
+            )
 
         # Process and save results
         run_ctx.save_output("final", result)

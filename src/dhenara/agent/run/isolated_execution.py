@@ -1,5 +1,8 @@
 import os
 
+from dhenara.agent.run import RunContext
+from dhenara.agent.types.flow import FlowNodeInputs
+
 
 class IsolatedExecution:
     """Provides an isolated execution environment for agents."""
@@ -32,7 +35,7 @@ class IsolatedExecution:
         # Return to original directory
         os.chdir(self.run_context.project_root)
 
-    async def run(self, agent_module, input_data):
+    async def run(self, agent_module, run_context: RunContext, initial_inputs: FlowNodeInputs):
         """Run the agent in the isolated environment."""
         # TODO
         # Set up logging for this run
@@ -41,7 +44,10 @@ class IsolatedExecution:
 
         # Execute the agent
         try:
-            result = await agent_module.run(input_data)
+            result = await agent_module.run(
+                run_context=run_context,
+                initial_inputs=initial_inputs,
+            )
             return result
         except Exception as e:
             # logging.exception(f"Agent execution failed: {e}")

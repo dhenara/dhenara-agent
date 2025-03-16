@@ -1,10 +1,11 @@
-from typing import Any, NewType
+from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
 from dhenara.agent.types.flow import (
     AISettings,
     ExecutionStrategyEnum,
+    FlowNodeIdentifier,
     FlowNodeInput,
     FlowNodeTypeEnum,
     NodeInputSettings,
@@ -15,8 +16,6 @@ from dhenara.agent.types.flow import (
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
-
-FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
 
 
 class FlowNode(BaseModel):
@@ -115,7 +114,10 @@ class FlowNode(BaseModel):
 
     @field_validator("resources")
     @classmethod
-    def validate_node_resources(cls, v: list[ResourceConfigItem]) -> list[ResourceConfigItem]:
+    def validate_node_resources(
+        cls,
+        v: list[ResourceConfigItem],
+    ) -> list[ResourceConfigItem]:
         """Validate that node IDs are unique within the same flow level."""
         # Ignore empty lists
         if not v:
@@ -159,7 +161,7 @@ class FlowNode(BaseModel):
 
     async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
         node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-        input_content = node_input.content.get_content() if node_input.content else None
+        input_content = node_input.content.get_content() if node_input and node_input.content else None
 
         if node_prompt:
             if input_content is None:
