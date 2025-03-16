@@ -27,27 +27,23 @@ def run():
 @run.command("agent")
 @click.argument("name")
 @click.option("--project-root", default=None, help="Project repo root")
-@click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
 @click.option(
-    "--input-dir",
+    "--input_root",
     default=None,
-    help="Name of directory containing input files inside run dir",
+    help="Input dir root where  inputs are present. Default is `run_root/input`",
 )
-@click.option("--input-file-name", default=None, help="Input JSON file name")
+@click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
 @click.option("--output-dir", default=None, help="Custom output directory name inside run dir")
-@click.option("--output-file-name", default=None, help="Output JSON file name")
 @click.option("--run-id", default=None, help="Custom run ID (defaults to timestamp)")
-def run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id):
+def run_agent(name, project_root, run_root, input_root, output_dir, run_id):
     """Run an agent with the specified inputs.
 
     NAME is the name of the agent.
     """
-    asyncio.run(
-        _run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id)
-    )
+    asyncio.run(_run_agent(name, project_root, run_root, input_root, output_dir, run_id))
 
 
-async def _run_agent(name, project_root, run_root, input_dir, input_file_name, output_dir, output_file_name, run_id):
+async def _run_agent(name, project_root, run_root, input_root, output_dir, run_id):
     """Async implementation of run_agent."""
     # Find project root
     if not project_root:
@@ -61,11 +57,10 @@ async def _run_agent(name, project_root, run_root, input_dir, input_file_name, o
     run_ctx = RunContext(
         project_root=project_root,
         agent_name=name,
+        input_root=input_root,
+        initial_inputs=None,
         run_root=run_root,
-        input_dir=input_dir,
-        input_file_name=input_file_name,
         output_dir=output_dir,
-        output_file_name=output_file_name,
         run_id=run_id,
     )
 
@@ -77,14 +72,14 @@ async def _run_agent(name, project_root, run_root, input_dir, input_file_name, o
 
         # Run agent in a subprocess for isolation
         async with IsolatedExecution(run_ctx) as executor:
-            result = await executor.run(
+            _result = await executor.run(
                 agent_module=agent_module,
                 run_context=run_ctx,
                 initial_inputs=None,
             )
 
         # Process and save results
-        run_ctx.save_output("final", result)
+        run_ctx.save_output("final")
         run_ctx.complete_run()
 
         click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")

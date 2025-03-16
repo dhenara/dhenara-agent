@@ -83,7 +83,7 @@ class RunOutputRepository(GitBase):
 
         return branch_name
 
-    def commit_run_outputs(self, run_id: str, message: str) -> bool:
+    def commit_run_outputs(self, run_id: str, message: str, files: list[Path] | None = None) -> bool:
         """Commit all changes for a specific run.
 
         Args:
@@ -93,12 +93,14 @@ class RunOutputRepository(GitBase):
         Returns:
             True if changes were committed, False otherwise
         """
-        run_dir = self.output_dir / run_id
-        if not run_dir.exists():
+        if files is None:
+            files = []
+        if not self.output_dir.exists():
             raise ValueError(f"Run directory {run_id} does not exist")
 
         # Add all files in the run directory
-        self.add(run_id)
+        for file in files:
+            self.add(file)
 
         # Commit with message
         return self.commit(f"[{run_id}] {message}")
@@ -168,7 +170,10 @@ class RunOutputRepository(GitBase):
         if branches_exist:
             # Compare branches
             if node_id:
-                return self.diff(f"{branch1}:{run_id1}/{node_id}", f"{branch2}:{run_id2}/{node_id}")
+                return self.diff(
+                    f"{branch1}:{run_id1}/{node_id}",
+                    f"{branch2}:{run_id2}/{node_id}",
+                )
             else:
                 return self.diff(branch1, branch2)
         else:

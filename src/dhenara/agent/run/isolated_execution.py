@@ -8,7 +8,7 @@ class IsolatedExecution:
     """Provides an isolated execution environment for agents."""
 
     def __init__(self, run_context):
-        self.run_context = run_context
+        self.run_context: RunContext = run_context
         self.temp_env = {}
 
     async def __aenter__(self):
@@ -17,12 +17,14 @@ class IsolatedExecution:
         self.temp_env = os.environ.copy()
 
         # Set environment variables for the run
-        os.environ["DHENARA_RUN_ID"] = self.run_context.run_id
-        os.environ["DHENARA_INPUT_DIR"] = str(self.run_context.input_dir)
-        os.environ["DHENARA_OUTPUT_DIR"] = str(self.run_context.output_dir)
+        # TODO_FUTURE
+        # os.environ["DHENARA_RUN_ID"] = self.run_context.run_id
+        # os.environ["DHENARA_INPUT_ROOT"] = str(self.run_context.input_root)
+        # os.environ["DHENARA_OUTPUT_ROOT"] = str(self.run_context.output_root)
+        # os.environ["DHENARA_OUTPUT_DIR"] = str(self.run_context.output_dir)
 
         # Set up working directory isolation
-        os.chdir(self.run_context.input_dir)
+        os.chdir(self.run_context.input_root)
 
         return self
 

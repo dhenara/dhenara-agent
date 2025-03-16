@@ -18,46 +18,56 @@ class RunContext:
         self,
         project_root: Path,
         agent_name: str,
+        input_root: Path | None = None,
+        initial_inputs: FlowNodeInputs | None = None,
         run_root: Path | None = None,
         run_dir: str | None = None,
-        input_dir: Path | None = None,
-        input_file_name: str | None = None,
-        output_dir: Path | None = None,
-        output_file_name: str | None = None,
-        state_dir: Path | None = None,
+        output_dir: str | None = None,
+        # state_dir: str | None = None,
         run_id: str | None = None,
-        initial_inputs: FlowNodeInputs | None = None,
     ):
-        run_dir = run_dir or "runs"
-        input_file_name = input_file_name or "input.json"
-        output_file_name = output_file_name or "output.json"
-
         self.project_root = project_root
+        self.agent_name = agent_name
+
         self.run_root = run_root or project_root
+        _run_dir = run_dir or "runs"
+        self.run_dir = self.run_root / _run_dir
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
-        self.run_id = f"{agent_name}_{_run_id}"
-        self.run_dir = self.run_root / run_dir
-        self.input_dir_root = input_dir or self.run_dir / "input"
-        self.input_dir = self.input_dir_root / self.run_id
-        self.input_file_name = input_file_name
-        self.output_dir_root = output_dir or self.run_dir / "output"
-        self.output_dir = self.output_dir_root / self.run_id
-        self.output_file_name = output_file_name
-        self.state_dir = state_dir or self.run_dir / ".state" / self.run_id
+        _output_dir = output_dir or "output"
+
+        self.input_root = input_root or self.run_dir / "input"
         self.initial_inputs = initial_inputs
+
+        self.run_id = f"{self.agent_name}_{_run_id}"
+
+        self.output_root = self.run_dir / _output_dir
+        self.output_dir = self.output_root / self.run_id
+        self.state_dir = self.output_dir / ".state" / self.run_id
+
+        # Outcome is the final outcome git repo, not just node outputs
+        self.outcome_root = self.output_root / "outcome"
+        _outcome_repo_name = self.agent_name  # TODO_FUTURE:  Pass as cmd line arg
+        self.outcome_repo = self.outcome_root / _outcome_repo_name
 
         self.start_time = datetime.now()
         self.end_time = None
         self.metadata = {}
 
+        if not self.input_root.exists():
+            raise ValueError(f"input_root {self.input_root} does not exists")
+
         # Create directories
-        self.input_dir.mkdir(parents=True, exist_ok=True)
+        self.output_root.mkdir(parents=True, exist_ok=True)
+        self.outcome_root.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.outcome_repo.mkdir(parents=True, exist_ok=True)
 
-        # Initialize git output repository
-        self.output_repo = RunOutputRepository(self.run_dir / "output")
+        # Initialize git outcome repository
+
+        self.output_repo = RunOutputRepository(self.outcome_repo)
         self.output_repo.create_run_branch(self.run_id)
 
         # Save initial metadata
@@ -76,7 +86,7 @@ class RunContext:
 
     def read_initial_inputs(self):
         # Read initial inputs form the root input dir
-        with open(self.input_dir_root / "initial_inputs.json") as f:
+        with open(self.input_root / "initial_inputs.json") as f:
             _data = json.load(f)
             try:
                 return FlowNodeInputs(_data)
@@ -103,11 +113,8 @@ class RunContext:
         if input_files is None:
             input_files = []
 
-        with open(self.input_dir / self.input_file_name, "w") as f:
-            json.dump(input_data, f, indent=2)
-
-        if self.input_dir:
-            input_dir_path = Path(self.input_dir)
+        if self.input_root:
+            input_dir_path = Path(self.input_root)
             if input_dir_path.exists() and input_dir_path.is_dir():
                 input_files += list(input_dir_path.glob("*"))
 
@@ -119,25 +126,28 @@ class RunContext:
         #    for file_path in input_files:
         #        src = Path(file_path)
         #        if src.exists():
-        #            dst = self.input_dir / src.name
+        #            dst = self.input_root / src.name
         #            shutil.copy2(src, dst)
 
-    def save_output(self, node_id, output_data, commit=True):
+    def save_output(self, node_id, commit=True):
         """Save output from a node execution."""
         # Create node output directory
         node_dir = self.output_dir / node_id
         node_dir.mkdir(exist_ok=True)
 
-        # Save output data
-        output_file_name = node_dir / self.output_file_name
-        with open(output_file_name, "w") as f:
-            json.dump(output_data, f, indent=2)
+        # TODO
+        # Extract output data from flow context/ ?
 
-        # Commit changes if requested
-        if commit:
-            self.output_repo.commit_run_outputs(self.run_id, f"Add output from node {node_id}")
+        # # Save output data
+        # output_file = node_dir / output_file_name
+        # with open(output_file, "w") as f:
+        #     json.dump(output_data, f, indent=2)
 
-        return output_file_name
+        # # Commit changes if requested
+        # if commit:
+        #     self.output_repo.commit_run_outputs(self.run_id, f"Add output from node {node_id}")
+
+        # return output_file
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""
