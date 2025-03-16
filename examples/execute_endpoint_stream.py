@@ -13,7 +13,7 @@ def get_api_key():
 
 api_key = get_api_key()
 
-_refnum = "22170364"  #  Streaming
+_refnum = "22131579"  #  Streaming
 
 
 def main():
@@ -22,30 +22,37 @@ def main():
         base_url="http://localhost:8000",
     )
 
+    test_mode = False
     content = Content(
         content="What is ephatha. Explain in less than 200 words.",  # "When bible was written",
         # content="Count 1 to 10 in words.",  # "When bible was written",
     )
-    node_input = FlowNodeInput(
-        content=content,
-        resources=[
-            ResourceConfigItem(
-                item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
-                # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
-                # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
-                # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
-                # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
-                # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
-                # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
-                # query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
-            ),
-        ],
-    )
+
+    initial_inputs = {
+        "ai_model_call_1": FlowNodeInput(
+            content=content,
+            resources=[
+                ResourceConfigItem(
+                    item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
+                    query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
+                    # query={ResourceQueryFieldsEnum.model_name: "gemini-1.5-pro"},
+                    # query={ResourceQueryFieldsEnum.model_name: "claude-3-5-haiku"},
+                    # query={ResourceQueryFieldsEnum.model_name: "us.anthropic.claude-3-5-sonnet-20241022-v2:0"},
+                    # query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
+                    # query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
+                    # query={ResourceQueryFieldsEnum.model_name: "DeepSeek-R1"},
+                    # query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
+                ),
+            ],
+            options={
+                "test_mode": test_mode,
+            },
+        ),
+    }
 
     response = client.execute_endpoint(
         refnum=_refnum,
-        node_input=node_input,
+        initial_inputs=initial_inputs,
         stream=True,
         response_model=ChatResponseChunk,
     )

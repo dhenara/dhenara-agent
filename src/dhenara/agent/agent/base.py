@@ -79,7 +79,7 @@ class BaseAgent:
             )
 
             # Execute
-            await flow_orchestrator.execute(flow_context)
+            await flow_orchestrator.run(flow_context)
 
             # Set `is_streaming` after execution returns
             is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()

@@ -159,14 +159,15 @@ class FlowNode(BaseModel):
 
     async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
         node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-        input_content = node_input.content.get_content()
+        input_content = node_input.content.get_content() if node_input.content else None
 
         if node_prompt:
-            if input_content:
-                kwargs.update({"dh_input_content": input_content})
-                return node_prompt.format(**kwargs)
-            else:
-                return node_prompt
+            if input_content is None:
+                input_content = ""  # An empty string is better that the word None
+
+            kwargs.update({"dh_input_content": input_content})
+
+            return node_prompt.format(**kwargs)
 
         else:
             if not input_content:

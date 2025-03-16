@@ -13,8 +13,8 @@ class FlowNodeInput(BaseModel):
     Input model for execution nodes with validation rules
     """
 
-    content: Content = Field(
-        ...,
+    content: Content | None = Field(
+        None,
         description="Input content",
     )
 

@@ -47,12 +47,6 @@ class PromptTemplate(BaseModel):
         Returns:
             str: The complete formatted text
         """
-
-        # Special kw inputs
-        # dh_input_content = kwargs.pop("dh_input_content", None)
-
-        # NOTE: `dh_input_content`  should be added to the  template inorder to insert input content
-
         # Start with default values and override with runtime values
         format_values = {}
         if self.default_values:
@@ -60,10 +54,20 @@ class PromptTemplate(BaseModel):
         if kwargs:
             format_values.update(kwargs)
 
+        # Get the template we'll be working with
+        template_text = self.template
+
+        # Handle special placeholders
+        # TODO_FUTURE: Use `jinja2` for processing specail jinja2 and remove if not present
+        # special_placeholders = {
+        #    "dh_input_content": self._handle_input_content,
+        #    # more special placeholders and their handlers here
+        # }
+
         # Format template with variables
         if format_values:
-            return self.template.format(**format_values)
-        return self.template
+            return template_text.format(**format_values)
+        return template_text
 
     model_config = {
         "json_schema_extra": {

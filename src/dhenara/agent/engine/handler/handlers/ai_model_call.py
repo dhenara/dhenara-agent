@@ -65,7 +65,8 @@ class AIModelCallHandler(NodeHandler):
         streaming: bool,
     ) -> FlowNodeExecutionResult[AIModelCallNodeOutputData] | AsyncGenerator:
         user_selected_resource = None
-        selected_resources = flow_context.initial_input.resources or []
+        initial_input = flow_context.get_initial_input()
+        selected_resources = initial_input.resources or []
 
         if len(selected_resources) == 1:
             user_selected_resource = selected_resources[0]
@@ -157,7 +158,6 @@ class AIModelCallHandler(NodeHandler):
         previous_prompts_from_conversaion = []  # TODO:
         previous_prompts = previous_prompts_from_conversaion + previous_node_outputs_as_prompts
         logger.debug(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
-        print(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
 
         user_id = "usr_id_abcd"  # TODO
 
@@ -210,13 +210,12 @@ class AIModelCallHandler(NodeHandler):
         status = (
             FlowNodeExecutionStatusEnum.COMPLETED if response.status.successful else FlowNodeExecutionStatusEnum.FAILED
         )
-        storage_data = {}  # TODO
         result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
             node_identifier=flow_node.identifier,
             status=status,
             node_input=flow_node_input,
             node_output=node_output,
-            storage_data=storage_data,
+            # storage_data={},
             created_at=datetime.now(),
         )
 
@@ -260,13 +259,12 @@ class AIModelCallHandler(NodeHandler):
                         if final_response.status.successful
                         else FlowNodeExecutionStatusEnum.FAILED
                     )
-                    storage_data = {}  # TODO
                     result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
                         node_identifier=node_identifier,
                         status=status,
                         node_input=flow_node_input,
                         node_output=node_output,
-                        storage_data=storage_data,
+                        # storage_data=storage_data,
                         created_at=datetime.now(),
                     )
 

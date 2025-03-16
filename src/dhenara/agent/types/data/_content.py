@@ -93,7 +93,7 @@ class Content(BaseModel):
     #        raise ValueError("Content exceeds maximum length of 8192 characters")
     #    return content
 
-    async def get_content(
+    def get_content(
         self,
         return_type: ContentType = ContentType.TEXT,
         separator: str = "\n",

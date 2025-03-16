@@ -90,15 +90,9 @@ class NodeHandler(ABC):
                 # TODO: Check if node is saved to DB as ConversationNode and , and get it from that
                 # For now processing execution results text contents
 
-                prevnode_userinput = previous_node_execution_result.contents[0]
-                if prevnode_userinput:
-                    question = prevnode_userinput.primary_content
-                else:
-                    question = None
-
                 prompts = PromptFormatter.format_conversion_node_as_prompts(
                     model=model,
-                    user_query=question,
+                    user_query=None,
                     attached_files=[],  # TODO: Get from user inputs
                     previous_response=previous_node_output.response.full_response,
                     max_words_query=None,

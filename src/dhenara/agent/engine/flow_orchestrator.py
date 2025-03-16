@@ -56,16 +56,16 @@ class FlowOrchestrator:
             self._handler_instances[flow_node_type] = handler_class()
         return self._handler_instances[flow_node_type]
 
-    async def execute(self, context: FlowContext) -> dict[str, FlowNodeExecutionResult] | AIModelCallResponse:
+    async def run(self, flow_context: FlowContext) -> dict[str, FlowNodeExecutionResult] | AIModelCallResponse:
         """Execute the flow with streaming support"""
 
         try:
-            context.execution_status = FlowExecutionStatusEnum.RUNNING
+            flow_context.execution_status = FlowExecutionStatusEnum.RUNNING
             self.execution_recorder = ExecutionRecorder()
-            await self.execution_recorder.update_execution_in_db(context, create=True)
+            await self.execution_recorder.update_execution_in_db(flow_context, create=True)
 
             if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
-                result = await self._execute_sequential(context)
+                result = await self._execute_sequential(flow_context)
 
                 # if self.has_any_streaming_node():
                 # if isinstance(result, AsyncGenerator):
@@ -77,8 +77,8 @@ class FlowOrchestrator:
                     background_tasks = set()
 
                     # Create a background task to continue processing after streaming
-                    task = create_task(self._continue_after_streaming(context))
-                    context.execution_status = FlowExecutionStatusEnum.PENDING
+                    task = create_task(self._continue_after_streaming(flow_context))
+                    flow_context.execution_status = FlowExecutionStatusEnum.PENDING
 
                     # NOTE: Below 2 lines are from RUFF:RUF006
                     # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
@@ -93,33 +93,35 @@ class FlowOrchestrator:
 
             elif self.flow_definition.execution_strategy == ExecutionStrategyEnum.parallel:
                 # TODO: Missing fns
-                result = await self._execute_parallel(context)
+                result = await self._execute_parallel(flow_context)
 
             else:
                 raise NotImplementedError(f"Unsupported execution strategy: {self.flow_definition.execution_strategy}")
-            context.execution_status = FlowExecutionStatusEnum.COMPLETED
-            logger.debug(f"execute: Execution completed. execution_results={context.execution_results}")
+            flow_context.execution_status = FlowExecutionStatusEnum.COMPLETED
+            logger.debug(f"execute: Execution completed. execution_results={flow_context.execution_results}")
 
-            await self.execution_recorder.update_execution_in_db(context)
+            await self.execution_recorder.update_execution_in_db(flow_context)
             logger.debug("execute: Finished updating DB")
-            return context.execution_results
+            return flow_context.execution_results
 
         except Exception:
-            context.execution_status = FlowExecutionStatusEnum.FAILED
+            flow_context.execution_status = FlowExecutionStatusEnum.FAILED
             logger.exception("Flow execution failed")
             raise
 
-    async def _execute_sequential(self, context: FlowContext) -> AsyncGenerator | dict[str, FlowNodeExecutionResult]:
+    async def _execute_sequential(
+        self, flow_context: FlowContext
+    ) -> AsyncGenerator | dict[str, FlowNodeExecutionResult]:
         """Execute nodes sequentially"""
-        return await self._execute_nodes(context, sequential=True)
+        return await self._execute_nodes(flow_context, sequential=True)
 
-    async def _execute_parallel(self, context: FlowContext) -> dict[str, FlowNodeExecutionResult]:
+    async def _execute_parallel(self, flow_context: FlowContext) -> dict[str, FlowNodeExecutionResult]:
         """Execute nodes in parallel"""
-        return await self._execute_nodes(context, sequential=False)
+        return await self._execute_nodes(flow_context, sequential=False)
 
     async def _execute_nodes(
         self,
-        context: FlowContext,
+        flow_context: FlowContext,
         sequential: bool,
         start_index: int = 0,
     ) -> AsyncGenerator | dict[str, FlowNodeExecutionResult]:
@@ -130,15 +132,15 @@ class FlowOrchestrator:
             for index, flow_node in enumerate(nodes_to_process, start=start_index):
                 result = await self._process_single_node(
                     flow_node=flow_node,
-                    context=context,
+                    flow_context=flow_context,
                     index=index,
                 )
 
                 if result is not None:  # Streaming case will return an async generator
                     return result
 
-                if context.execution_failed:
-                    context.execution_status = FlowExecutionStatusEnum.FAILED
+                if flow_context.execution_failed:
+                    flow_context.execution_status = FlowExecutionStatusEnum.FAILED
                     return None
 
         else:
@@ -147,7 +149,7 @@ class FlowOrchestrator:
                 create_task(
                     self._process_single_node(
                         flow_node=flow_node,
-                        context=context,
+                        flow_context=flow_context,
                         index=index,
                     )
                 )
@@ -158,40 +160,40 @@ class FlowOrchestrator:
             # Handle any exceptions from parallel execution
             for result in results:
                 if isinstance(result, Exception):
-                    context.execution_status = FlowExecutionStatusEnum.FAILED
+                    flow_context.execution_status = FlowExecutionStatusEnum.FAILED
                     raise result
-                if context.execution_failed:
-                    context.execution_status = FlowExecutionStatusEnum.FAILED
+                if flow_context.execution_failed:
+                    flow_context.execution_status = FlowExecutionStatusEnum.FAILED
                     return None
 
         # Execution completed
-        context.completed_at = datetime.now()
-        return context.execution_results
+        flow_context.completed_at = datetime.now()
+        return flow_context.execution_results
 
     async def _process_single_node(
         self,
         flow_node: FlowNode,
-        context: FlowContext,
+        flow_context: FlowContext,
         index: int,
     ) -> Any:
         """Process a single node and handle its result."""
-        context.set_current_node(index)
+        flow_context.set_current_node(index)
 
-        flow_node_input = context.get_initial_input()
+        flow_node_input = flow_context.get_initial_input()
         handler = self.get_node_execution_handler(flow_node.type)
 
         if flow_node.is_streaming():
-            # Configure streaming context
-            context.streaming_contexts[flow_node.identifier] = StreamingContext(
+            # Configure streaming flow_context
+            flow_context.streaming_contexts[flow_node.identifier] = StreamingContext(
                 status=StreamingStatusEnum.STREAMING,
                 completion_event=Event(),
             )
-            context.current_node_index = index
+            flow_context.current_node_index = index
             # Execute streaming node
             result = await handler.handle(
                 flow_node=flow_node,
                 flow_node_input=flow_node_input,
-                context=context,
+                flow_context=flow_context,
                 resource_config=self.resource_config,
             )
             if not isinstance(result, AsyncGenerator):
@@ -206,19 +208,19 @@ class FlowOrchestrator:
         result = await handler.handle(
             flow_node=flow_node,
             flow_node_input=flow_node_input,
-            context=context,
+            flow_context=flow_context,
             resource_config=self.resource_config,
         )
-        return await self._process_single_node_completion(flow_node=flow_node, context=context, result=result)
+        return await self._process_single_node_completion(flow_node=flow_node, flow_context=flow_context, result=result)
 
     async def _process_single_node_completion(
         self,
         flow_node: FlowNode,
-        context: FlowContext,
+        flow_context: FlowContext,
         result,
     ) -> AsyncGenerator | None:
-        context.execution_results[context.current_node_identifier] = result
-        context.updated_at = datetime.now()
+        flow_context.execution_results[flow_context.current_node_identifier] = result
+        flow_context.updated_at = datetime.now()
 
         """ TODO
         # Determine if we should send SSE update
@@ -233,35 +235,37 @@ class FlowOrchestrator:
 
         return None
 
-    async def _continue_after_streaming(self, context: FlowContext) -> None:
+    async def _continue_after_streaming(self, flow_context: FlowContext) -> None:
         """Continue processing remaining nodes after streaming completes"""
         try:
             # Wait for streaming to complete
-            current_streaming_context = context.streaming_contexts[context.current_node_identifier]
-            logger.debug(f"_continue_after_streaming: waiting for completion at node {context.current_node_identifier}")
+            current_streaming_context = flow_context.streaming_contexts[flow_context.current_node_identifier]
+            logger.debug(
+                f"_continue_after_streaming: waiting for completion at node {flow_context.current_node_identifier}"
+            )
             await current_streaming_context.completion_event.wait()
-            logger.debug(f"_continue_after_streaming: streaming completed for {context.current_node_identifier}")
+            logger.debug(f"_continue_after_streaming: streaming completed for {flow_context.current_node_identifier}")
 
             if not current_streaming_context.successfull:
                 raise current_streaming_context.error or ValueError("Streaming unsuccessful")
 
             # NOTE: Streaming result are added to execution results inside notify_streaming_complete()
-            # -- context.execution_results[context.current_node_identifier] = current_streaming_context.result
+            # -- flow_context.execution_results[flow_context.current_node_identifier] = current_streaming_context.result
             # Continue with remaining nodes using the same execution strategy
-            start_index = context.current_node_index + 1
+            start_index = flow_context.current_node_index + 1
             if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
-                await self._execute_nodes(context, sequential=True, start_index=start_index)
+                await self._execute_nodes(flow_context, sequential=True, start_index=start_index)
             else:
-                await self._execute_nodes(context, sequential=False, start_index=start_index)
+                await self._execute_nodes(flow_context, sequential=False, start_index=start_index)
 
-            context.completed_at = datetime.now()
-            context.execution_status = FlowExecutionStatusEnum.COMPLETED
-            await self.execution_recorder.update_execution_in_db(context)
+            flow_context.completed_at = datetime.now()
+            flow_context.execution_status = FlowExecutionStatusEnum.COMPLETED
+            await self.execution_recorder.update_execution_in_db(flow_context)
 
         except Exception:
-            context.execution_status = FlowExecutionStatusEnum.FAILED
+            flow_context.execution_status = FlowExecutionStatusEnum.FAILED
             logger.exception("Post-streaming execution failed")
-            await self.execution_recorder.update_execution_in_db(context)
+            await self.execution_recorder.update_execution_in_db(flow_context)
             raise
 
     '''TODO
@@ -296,35 +300,35 @@ class FlowOrchestrator:
         return generator()
 
 
-    def _create_final_response(self, context: FlowContext) -> dict[str, Any] | AsyncGenerator:
+    def _create_final_response(self, flow_context: FlowContext) -> dict[str, Any] | AsyncGenerator:
         """Create final response based on protocol"""
         if self._final_protocol == ResponseProtocolEnum.HTTP:
-            return self._create_final_http_response(context)
+            return self._create_final_http_response(flow_context)
         else:
-            return self._create_final_sse_response(context)
+            return self._create_final_sse_response(flow_context)
 
-    def _create_final_http_response(self, context: FlowContext) -> dict[str, Any]:
+    def _create_final_http_response(self, flow_context: FlowContext) -> dict[str, Any]:
         """Create final HTTP response with all results"""
         return {
-            "status": context.execution_status,
+            "status": flow_context.execution_status,
             "results": {
                 node_id: result.model_dump()
-                for node_id, result in context.execution_results.items()
+                for node_id, result in flow_context.execution_results.items()
                 if (
-                    self.flow_definition.nodes[context.get_node_index(node_id)]
+                    self.flow_definition.nodes[flow_context.get_node_index(node_id)]
                     .response_settings.include_in_final
                 )
             },
-            "completed_at": context.completed_at.isoformat(),
+            "completed_at": flow_context.completed_at.isoformat(),
         }
 
-    def _create_final_sse_response(self, context: FlowContext) -> AsyncGenerator:
+    def _create_final_sse_response(self, flow_context: FlowContext) -> AsyncGenerator:
         """Create final SSE response"""
         async def generator():
             # Send individual results
-            for node_id, result in context.execution_results.items():
+            for node_id, result in flow_context.execution_results.items():
                 if (
-                    self.flow_definition.nodes[context.get_node_index(node_id)]
+                    self.flow_definition.nodes[flow_context.get_node_index(node_id)]
                     .response_settings.include_in_final
                 ):
                     yield SSENodeExecutionResultResponse(
@@ -336,8 +340,8 @@ class FlowOrchestrator:
             yield SSENodeExecutionResultResponse(
                 event="flow_complete",
                 data={
-                    "status": context.execution_status,
-                    "completed_at": context.completed_at.isoformat(),
+                    "status": flow_context.execution_status,
+                    "completed_at": flow_context.completed_at.isoformat(),
                 },
             )
 

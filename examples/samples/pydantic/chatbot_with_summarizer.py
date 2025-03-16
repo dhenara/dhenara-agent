@@ -118,7 +118,7 @@ chatbot_with_summarizer = Agent(
                         "You are a summarizer which generate a title text under 60 characters from the prompts.",
                     ],
                     node_prompt=PromptTemplate(
-                        template="Summarize in plane text under {number_of_chars} characters.",
+                        template="Summarize in plane text under {number_of_chars} characters. {dh_input_content}",
                         default_values={
                             "number_of_chars": 60,
                         },

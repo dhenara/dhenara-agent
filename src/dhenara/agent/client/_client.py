@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeVar
 
-from dhenara.agent.types.flow import FlowNodeInput
+from dhenara.agent.types.flow import FlowNodeIdentifier, FlowNodeInput
 from dhenara.agent.types.fns import pydantic_endpoint
 from dhenara.agent.types.functional_types import (
     DhenRunEndpointReq,
@@ -68,16 +68,15 @@ class Client(_ClientBase):
     def execute_endpoint(
         self,
         refnum: str,
-        node_input: FlowNodeInput | dict,
+        initial_inputs: dict[FlowNodeIdentifier, FlowNodeInput],
         stream: bool = False,
         response_model: type[T] = ExecuteDhenRunEndpointRes,
     ) -> ApiResponse[ExecuteDhenRunEndpointRes] | Iterator[SSEResponse]:
         """Execute an endpoint synchronously."""
-        input_data = node_input.model_dump() if isinstance(node_input, BaseModel) else node_input
 
         request_data = ExecuteDhenRunEndpointReq(
             refnum=refnum,
-            input=input_data,
+            initial_inputs=initial_inputs,
         )
 
         if stream:
