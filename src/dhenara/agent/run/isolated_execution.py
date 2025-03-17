@@ -19,12 +19,10 @@ class IsolatedExecution:
         # Set environment variables for the run
         # TODO_FUTURE
         # os.environ["DHENARA_RUN_ID"] = self.run_context.run_id
-        # os.environ["DHENARA_INPUT_ROOT"] = str(self.run_context.input_root)
-        # os.environ["DHENARA_OUTPUT_ROOT"] = str(self.run_context.output_root)
-        # os.environ["DHENARA_OUTPUT_DIR"] = str(self.run_context.output_dir)
+        # os.environ["DHENARA_RUN_ROOT"] = str(self.run_context.run_root)
 
         # Set up working directory isolation
-        os.chdir(self.run_context.input_root)
+        os.chdir(self.run_context.run_dir)
 
         return self
 

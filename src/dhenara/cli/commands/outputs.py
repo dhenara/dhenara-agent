@@ -3,8 +3,8 @@ import logging
 
 import click
 
-from dhenara.agent.run.output_repository import RunOutputRepository
-from dhenara.cli.utils.cli_utils import find_project_root
+from dhenara.agent.run import RunOutcomeRepository
+from dhenara.agent.shared.utils import find_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def list_outputs(run_id):
         click.echo("Error: Not in a Dhenara project directory.")
         return
 
-    output_repo = RunOutputRepository(project_root / "runs" / "output")
+    output_repo = RunOutcomeRepository(project_root / "runs" / "output")
 
     if run_id:
         history = output_repo.get_run_history(run_id)
@@ -62,7 +62,7 @@ def compare_outputs(run1, run2, node):
         click.echo("Error: Not in a Dhenara project directory.")
         return
 
-    output_repo = RunOutputRepository(project_root / "runs" / "output")
+    output_repo = RunOutcomeRepository(project_root / "runs" / "output")
     changes = output_repo.compare_runs(run1, run2, node)
 
     click.echo(f"Comparing {run1} and {run2}:")
@@ -84,12 +84,16 @@ def checkout_run(run_id):
         click.echo("Error: Not in a Dhenara project directory.")
         return
 
-    _output_repo = RunOutputRepository(project_root / "runs" / "output")
+    _output_repo = RunOutcomeRepository(project_root / "runs" / "output")
 
     import subprocess
 
     try:
-        subprocess.run(["git", "checkout", f"run/{run_id}"], cwd=project_root / "runs" / "output", check=True)
+        subprocess.run(
+            ["git", "checkout", f"run/{run_id}"],
+            cwd=project_root / "runs" / "output",
+            check=True,
+        )
         click.echo(f"Checked out run {run_id}")
     except subprocess.CalledProcessError:
         click.echo(f"Error: Unable to checkout run {run_id}")

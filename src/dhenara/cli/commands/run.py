@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 
 from dhenara.agent.run import IsolatedExecution, RunContext
-from dhenara.cli.utils.cli_utils import find_project_root
+from dhenara.agent.shared.utils import find_project_root
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +25,51 @@ def run():
 
 
 @run.command("agent")
-@click.argument("name")
+@click.argument("identifier")
 @click.option("--project-root", default=None, help="Project repo root")
-@click.option(
-    "--input_root",
-    default=None,
-    help="Input dir root where  inputs are present. Default is `run_root/input`",
-)
 @click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
-@click.option("--output-dir", default=None, help="Custom output directory name inside run dir")
-@click.option("--run-id", default=None, help="Custom run ID (defaults to timestamp)")
-def run_agent(name, project_root, run_root, input_root, output_dir, run_id):
+@click.option(
+    "--run-id",
+    default=None,
+    help="Custom run ID . Defaults is <agent_identifier>_<timestamp>_<uid>",
+)
+@click.option(
+    "--input_source_path",
+    default=None,
+    help=(
+        "Input source path from where inputs will be copied to `<run_root>/input`. "
+        "Default is `<project-root>/agents/<name>/input`"
+    ),
+)
+def run_agent(
+    identifier,
+    project_root,
+    run_root,
+    run_id,
+    input_source_path,
+):
     """Run an agent with the specified inputs.
 
     NAME is the name of the agent.
     """
-    asyncio.run(_run_agent(name, project_root, run_root, input_root, output_dir, run_id))
+    asyncio.run(
+        _run_agent(
+            identifier,
+            project_root,
+            run_root,
+            run_id,
+            input_source_path,
+        )
+    )
 
 
-async def _run_agent(name, project_root, run_root, input_root, output_dir, run_id):
+async def _run_agent(
+    identifier,
+    project_root,
+    run_root,
+    run_id,
+    input_source_path,
+):
     """Async implementation of run_agent."""
     # Find project root
     if not project_root:
@@ -56,17 +82,16 @@ async def _run_agent(name, project_root, run_root, input_root, output_dir, run_i
     # Create run context
     run_ctx = RunContext(
         project_root=project_root,
-        agent_name=name,
-        input_root=input_root,
+        agent_identifier=identifier,
+        input_source_path=input_source_path,
         initial_inputs=None,
         run_root=run_root,
-        output_dir=output_dir,
         run_id=run_id,
     )
 
     try:
         # Load agent
-        agent_module = load_agent_module(project_root, f"agents/{name}/agent")
+        agent_module = load_agent_module(project_root, f"agents/{identifier}/agent")
         if not agent_module:
             raise ValueError("Failed to get agent module")
 

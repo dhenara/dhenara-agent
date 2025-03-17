@@ -1,11 +1,13 @@
 import json
 import logging
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.run import RunOutputRepository
+from dhenara.agent.run import RunOutcomeRepository
+from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.flow import FlowNodeInputs
 
 logger = logging.getLogger(__name__)
@@ -17,57 +19,65 @@ class RunContext:
     def __init__(
         self,
         project_root: Path,
-        agent_name: str,
-        input_root: Path | None = None,
+        agent_identifier: str,
+        input_source_path: Path | None = None,
         initial_inputs: FlowNodeInputs | None = None,
         run_root: Path | None = None,
-        run_dir: str | None = None,
-        output_dir: str | None = None,
-        # state_dir: str | None = None,
         run_id: str | None = None,
+        # run_dir: str | None = None,
+        # output_dir: str | None = None,
+        # state_dir: str | None = None,
     ):
         self.project_root = project_root
-        self.agent_name = agent_name
+        self.project_identifier = get_project_identifier(project_dir=self.project_root)
+        self.agent_identifier = agent_identifier
 
-        self.run_root = run_root or project_root
-        _run_dir = run_dir or "runs"
-        self.run_dir = self.run_root / _run_dir
+        self.run_root = run_root or project_root / "runs"
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
-        _output_dir = output_dir or "output"
+        self.run_id = f"{self.agent_identifier}_{_run_id}"
+        self.run_dir = self.run_root / self.run_id
 
-        self.input_root = input_root or self.run_dir / "input"
+        _input_dir = "input"
+        _output_dir = "output"
+        _state_dir = ".state"
+
+        self.input_source_path = input_source_path or self.project_root / "agents" / agent_identifier / "inputs"
         self.initial_inputs = initial_inputs
 
-        self.run_id = f"{self.agent_name}_{_run_id}"
+        self.input_dir = self.run_dir / _input_dir
+        self.output_dir = self.run_dir / _output_dir
+        self.state_dir = self.run_dir / _state_dir
 
-        self.output_root = self.run_dir / _output_dir
-        self.output_dir = self.output_root / self.run_id
-        self.state_dir = self.output_dir / ".state" / self.run_id
+        # Outcome is not inside the run id, there is a global outcome with
+        # self.outcome_root = self.run_root
+        self.outcome_dir = self.run_root / "outcome"
 
         # Outcome is the final outcome git repo, not just node outputs
-        self.outcome_root = self.output_root / "outcome"
-        _outcome_repo_name = self.agent_name  # TODO_FUTURE:  Pass as cmd line arg
-        self.outcome_repo = self.outcome_root / _outcome_repo_name
+        _outcome_repo_name = self.project_identifier
+        self.outcome_repo = self.outcome_dir / _outcome_repo_name
 
         self.start_time = datetime.now()
         self.end_time = None
         self.metadata = {}
 
-        if not self.input_root.exists():
-            raise ValueError(f"input_root {self.input_root} does not exists")
+        if not self.input_source_path.exists():
+            raise ValueError(f"input_source_path {self.input_source_path} does not exists")
 
         # Create directories
-        self.output_root.mkdir(parents=True, exist_ok=True)
-        self.outcome_root.mkdir(parents=True, exist_ok=True)
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        self.input_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
+
+        self.outcome_dir.mkdir(parents=True, exist_ok=True)
         self.outcome_repo.mkdir(parents=True, exist_ok=True)
 
+        print(f"AJ: self.outcome_dir={self.outcome_dir}, self.outcome_repo={self.outcome_repo} ")
         # Initialize git outcome repository
 
-        self.output_repo = RunOutputRepository(self.outcome_repo)
+        self.output_repo = RunOutcomeRepository(self.outcome_repo)
         self.output_repo.create_run_branch(self.run_id)
 
         # Save initial metadata
@@ -89,7 +99,7 @@ class RunContext:
 
     def read_initial_inputs(self):
         # Read initial inputs form the root input dir
-        with open(self.input_root / "initial_inputs.json") as f:
+        with open(self.input_dir / "initial_inputs.json") as f:
             _data = json.load(f)
             try:
                 return FlowNodeInputs(_data)
@@ -97,40 +107,39 @@ class RunContext:
                 logger.exception(f"read_initial_inputs: Error: {e}")
                 return None
 
-    def prepare_input(self, input_data: dict, input_files: list | None = None):
+    def prepare_input(self, input_files: list | None = None):
         """Prepare input data and files for the run."""
+        # Save input data
+        if input_files is None:
+            input_files = []
 
+        if self.input_source_path:
+            input_dir_path = self.input_source_path
+            if input_dir_path.exists() and input_dir_path.is_dir():
+                input_files += list(input_dir_path.glob("*"))
+
+        # Copy input files if provided
+        if input_files:
+            for file_path in input_files:
+                src = Path(file_path)
+                if src.exists():
+                    dst = self.input_dir / src.name
+                    shutil.copy2(src, dst)
+
+    def init_inputs(self, input_data: dict):
         _initial_inputs = input_data.get("initial_inputs", None)
         if _initial_inputs:
             # Override
             self.initial_inputs = _initial_inputs
 
+        # Read the initial inputs
         if self.initial_inputs is None:
             self.initial_inputs = self.read_initial_inputs()
 
         if not isinstance(self.initial_inputs, FlowNodeInputs):
             logger.error(f"Imported input is not a FlowNodeInput: {type(self.initial_inputs)}")
-            return
 
-        # Save input data
-        if input_files is None:
-            input_files = []
-
-        if self.input_root:
-            input_dir_path = Path(self.input_root)
-            if input_dir_path.exists() and input_dir_path.is_dir():
-                input_files += list(input_dir_path.glob("*"))
-
-        # TODO: Something is ambigious here. what sort of inputs & how to hanlde them per node
-
-        # TODO
-        ## Copy input files if provided
-        # if input_files:
-        #    for file_path in input_files:
-        #        src = Path(file_path)
-        #        if src.exists():
-        #            dst = self.input_root / src.name
-        #            shutil.copy2(src, dst)
+        print(f"AJ: self.initial_inputs={self.initial_inputs}")
 
     def emit_node_output(
         self,

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from dhenara.cli.utils.cli_utils import is_project_dir
+from dhenara.agent.shared.utils import generate_identifier, is_project_dir, validate_name
 
 
 def register(cli):
@@ -27,13 +27,24 @@ def create_agent(name, description):
         click.echo(click.style("Tip: Run 'dhenara startproject' to create a new project first.", fg="blue"))
         return False
 
+    # Validate the agent name
+    if not validate_name(name):
+        click.echo(
+            click.style(
+                "Error: Invalid agent name. Please use alphanumeric characters, spaces, or hyphens.",
+                fg="red",
+                bold=True,
+            )
+        )
+        return False
+
     _create_agent(name, description)
 
 
 def _create_agent(name, description):
     """Internal function to create an agent."""
-    # Convert to valid directory name
-    agent_name = name.lower().replace(" ", "_").replace("-", "_")
+    # Generate valid agent identifier
+    agent_identifier = generate_identifier(name)
 
     # Get current directory
     current_dir = Path(os.getcwd())
@@ -46,9 +57,9 @@ def _create_agent(name, description):
             f.write("")
 
     # Create agent directory
-    agent_dir = agents_dir / agent_name
+    agent_dir = agents_dir / agent_identifier
     if agent_dir.exists():
-        click.echo(click.style(f"Error: Agent {agent_name} already exists!", fg="red", bold=True))
+        click.echo(click.style(f"Error: Agent {agent_identifier} already exists!", fg="red", bold=True))
         return False
 
     agent_dir.mkdir()
@@ -58,11 +69,8 @@ def _create_agent(name, description):
         f.write(f'"""Dhenara agent: {name}"""\n\nfrom .agent import Agent\n')
 
     # Get template directory path
-    # Look for templates in several plausible locations
     possible_template_dirs = [
         Path(__file__).parent.parent / "templates" / "agent",
-        Path(__file__).parent / "templates" / "agent",
-        Path.home() / ".dhenara" / "templates" / "agent",
     ]
 
     template_dir = None
@@ -71,6 +79,10 @@ def _create_agent(name, description):
             template_dir = path
             break
 
+    if not template_dir:
+        click.echo(click.style("Error: Could not find template directory.", fg="red", bold=True))
+        return False
+
     try:
         for template_file in template_dir.glob("*"):
             if template_file.is_file():
@@ -78,6 +90,7 @@ def _create_agent(name, description):
                 with open(template_file) as src, open(target_file, "w") as dst:
                     content = src.read()
                     # Replace placeholders
+                    content = content.replace("{{agent_identifier}}", agent_identifier)
                     content = content.replace("{{agent_name}}", name)
                     content = content.replace("{{agent_description}}", description)
                     dst.write(content)
@@ -95,21 +108,22 @@ def _create_agent(name, description):
                         with open(sub_file) as src, open(dst_file, "w") as dst:
                             content = src.read()
                             # Replace placeholders
+                            content = content.replace("{{agent_identifier}}", agent_identifier)
                             content = content.replace("{{agent_name}}", name)
                             content = content.replace("{{agent_description}}", description)
                             dst.write(content)
     except Exception as e:
         click.echo(click.style(f"Error copying templates: {e}", fg="red"))
+        # Attempt to clean up on failure
+        import shutil
 
-    ## Create agent config
-    # config = {
-    #    "name": name,
-    #    "description": description,
-    #    "version": "0.0.1",
-    # }
-
-    # with open(agent_dir / "config.yaml", "w") as f:
-    #    yaml.dump(config, f, default_flow_style=False)
+        try:
+            shutil.rmtree(agent_dir)
+        except:
+            pass
+        return False
 
     click.echo(click.style(f"✅ Agent '{name}' created successfully!", fg="green", bold=True))
+    click.echo(f"  - Identifier: {agent_identifier}")
+    click.echo(f"  - Location: {agent_dir}")
     return True

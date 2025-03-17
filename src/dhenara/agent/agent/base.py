@@ -38,7 +38,8 @@ class BaseAgent:
         }
         input_files = []
 
-        run_context.prepare_input(input_data, input_files)
+        run_context.prepare_input(input_files)
+        run_context.init_inputs(input_data)
 
         await self._run_flow(
             run_context=run_context,

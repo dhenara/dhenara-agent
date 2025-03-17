@@ -65,7 +65,7 @@ class GitBase:
                 raise
             return e.returncode, e.stdout or "", e.stderr or ""
 
-    def init_repo(self) -> bool:
+    def _git_init(self) -> bool:
         """Initialize a new git repository.
 
         Returns:
@@ -81,6 +81,39 @@ class GitBase:
         except Exception as e:
             logger.exception(f"Failed to initialize repository: {e}")
             return False
+
+    def init_repo(
+        self,
+        readme_content: str | None = None,
+        commit: bool = True,
+    ) -> None:
+        """Initialzie/Ensure the outcome directory is a git repository with a main branch."""
+        if not self.repo_exists():
+            logger.info(f"Initializing git repository in {self.outcome_dir}")
+            self._git_init()
+
+        # Configure git
+        self._run_git_command(["config", "core.bigFileThreshold", "10m"])
+
+        # Create initial commit in main branch
+        if readme_content:
+            with open(self.outcome_dir / "README.md", "w") as f:
+                f.write(readme_content)
+
+            self.add("README.md")
+            self.commit("Initial commit")
+
+    def ensure_repo(self) -> None:
+        """Ensure the directory is a git repository with a base branch."""
+        if not self.repo_exists():
+            self.init_repo()
+
+            # Ensure we're on main branch (newer git uses 'main', older uses 'master')
+            current_branch = self.get_current_branch()
+
+            # If not on main, rename the branch
+            if current_branch and current_branch != self.base_branch:
+                self._run_git_command(["branch", "-m", current_branch, self.base_branch])
 
     def repo_exists(self) -> bool:
         """Check if a git repository exists.

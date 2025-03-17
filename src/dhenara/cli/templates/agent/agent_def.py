@@ -18,11 +18,18 @@ from dhenara.ai.types import (
     ResourceQueryFieldsEnum,
 )
 
+# NOTE: `agent_identifier` is used for naming run dirs.
+# Its OK to change during bringup, but be aware of the run dir naminig dependency
+agent_identifier = "{{agent_identifier}}"
+
+
+# Agent definition
+# Modify as per your need
 agent_def = Agent(
-    identifier="chatbot",
+    identifier=agent_identifier,
     independent=True,
     multi_phase=False,
-    description="Simple Chatbot Agen. This flow will call a text-generation AI model in sync mode and return output",
+    description="{{agent_description}}",
     flow_definition=FlowDefinition(
         system_instructions=["Always respond in markdown format."],
         execution_strategy=ExecutionStrategyEnum.sequential,

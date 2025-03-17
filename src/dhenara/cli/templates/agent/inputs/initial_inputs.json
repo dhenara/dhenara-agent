@@ -1,11 +1,11 @@
 {
-    "my_node_1_identifier": {
-        "content": {
-            "content": "Tell me a story."
-        },
-        "resources": [],
-        "options": {
-            "test_mode": true
-        }
+  "ai_model_call_1": {
+    "content": {
+      "content": "Tell me a story."
+    },
+    "resources": [],
+    "options": {
+      "test_mode": true
     }
+  }
 }

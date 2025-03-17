@@ -6,7 +6,8 @@ from pathlib import Path
 import click
 import yaml
 
-# Import the internal functions
+from dhenara.agent.shared.utils import generate_identifier, validate_name
+
 from .create import _create_agent
 
 
@@ -23,11 +24,22 @@ def startproject(name, description, git):
 
     NAME is the name of the new project.
     """
-    # Convert to valid directory name
-    project_name = name.lower().replace(" ", "-").replace("_", "-")
+    # Validate the project name
+    if not validate_name(name):
+        click.echo(
+            click.style(
+                "Error: Invalid project name. Please use alphanumeric characters, spaces, or hyphens.",
+                fg="red",
+                bold=True,
+            )
+        )
+        return
+
+    # Generate project identifier (with hyphens for directory name)
+    project_identifier = generate_identifier(name, use_hyphens=True)
 
     # Create project directory
-    project_dir = Path(os.getcwd()) / project_name
+    project_dir = Path(os.getcwd()) / project_identifier
     if project_dir.exists():
         click.echo(click.style(f"Error: Directory {project_dir} already exists!", fg="red", bold=True))
         return
@@ -39,13 +51,13 @@ def startproject(name, description, git):
         ".dhenara/credentials",
         "agents",
         "common/prompts",
-        "common/tools",
-        "data",
-        "experiments",
-        "runs/input",
-        "runs/output",
-        "scripts",
-        "tests",
+        # "common/tools",
+        # "data",
+        # "experiments",
+        "runs/outcome",
+        f"runs/outcome/{project_identifier}",  # Git repo
+        # "scripts",
+        # "tests",
     ]
 
     for dir_path in dirs:
@@ -53,14 +65,24 @@ def startproject(name, description, git):
 
     # Create base configuration files
     config = {
-        "name": name,
-        "description": description,
-        "version": "0.0.1",
-        "created_at": datetime.now().isoformat(),
+        "project": {
+            "name": name,
+            "identifier": project_identifier,
+            "description": description,
+            "version": "0.0.1",
+        },
+        "metadata": {
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+        },
+        "settings": {
+            # Default settings can be added here
+        },
     }
 
+    # Use a proper YAML dumper with good formatting
     with open(project_dir / ".dhenara" / "config.yaml", "w") as f:
-        yaml.dump(config, f, default_flow_style=False)
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     # Create README
     with open(project_dir / "README.md", "w") as f:
@@ -69,7 +91,7 @@ def startproject(name, description, git):
     # Create pyproject.toml
     with open(project_dir / "pyproject.toml", "w") as f:
         f.write(f"""[tool.poetry]
-name = "{project_name}"
+name = "{project_identifier}"
 version = "0.0.1"
 description = "{description}"
 authors = ["Your Name <your.email@example.com>"]
@@ -84,7 +106,7 @@ build-backend = "poetry.core.masonry.api"
 """)
 
     # Create .gitignore
-    with open(project_dir / ".gitignore", "w") as f:
+    with open(project_dir / ".igitgnore", "w") as f:
         f.write("""# Python
 __pycache__/
 *.py[cod]
@@ -114,16 +136,20 @@ runs/
 
     # Initialize git repositories
     if git:
-        # Main project repo
-        subprocess.run(["git", "init"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+        try:
+            # Main project repo
+            subprocess.run(["git", "init"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
 
-        # Initialize output directory as a separate git repo
-        output_dir = project_dir / "runs" / "output"
-        subprocess.run(["git", "init"], cwd=output_dir, check=True, stdout=subprocess.PIPE)
+            # Initialize output directory as a separate git repo
+            outcome_dir = project_dir / "runs" / "outcome" / project_identifier
+            subprocess.run(["git", "init"], cwd=outcome_dir, check=True, stdout=subprocess.PIPE)
 
-        # Create output .gitignore to allow tracking everything
-        with open(output_dir / ".gitignore", "w") as f:
-            f.write("# Track everything in this directory\n# This is an output repository\n")
+            # Create output .gitignore to allow tracking everything
+            with open(outcome_dir / ".gitignore", "w") as f:
+                f.write("# Track everything in this directory\n# This is an output repository\n")
+        except subprocess.SubprocessError as e:
+            click.echo(click.style(f"Warning: Failed to initialize git repositories: {e}", fg="yellow"))
+            click.echo("You can manually initialize Git later if needed.")
 
     # Change to the project directory to create an initial agent
     os.chdir(project_dir)
@@ -131,4 +157,12 @@ runs/
     # Create an initial agent with the same name as the project
     _create_agent(name, description)
 
+    # Print success message with more details
     click.echo(click.style(f"✅ Project '{name}' created successfully!", fg="green", bold=True))
+    click.echo(f"  - Project identifier: {project_identifier}")
+    click.echo(f"  - Location: {project_dir}")
+    click.echo(f"  - Initial agent created: {name}")
+    click.echo("\nNext steps:")
+    click.echo("  1. cd " + project_identifier)
+    click.echo("  2. Initialize your environment (poetry install, etc.)")
+    click.echo("  3. Run 'dhenara create agent' to create additional agents")

@@ -7,42 +7,22 @@ from dhenara.agent.utils.git import GitBase
 logger = logging.getLogger(__name__)
 
 
-class RunOutputRepository(GitBase):
-    """Manages git repository for agent run outputs with branch-based organization."""
+class RunOutcomeRepository(GitBase):
+    """Manages git repository for agent run outcomes with branch-based organization."""
 
-    def __init__(self, output_dir: Path):
-        """Initialize the output repository.
+    def __init__(self, outcome_dir: Path):
+        """Initialize the outcome repository.
 
         Args:
-            output_dir: Directory for storing run outputs
+            outcome_dir: Directory for storing run outcomes
         """
-        super().__init__(repo_path=output_dir)
-        self.output_dir = output_dir
+        super().__init__(repo_path=outcome_dir)
+        self.outcome_dir = outcome_dir
         self.base_branch = "main"
-        self._ensure_repo()
-
-    def _ensure_repo(self) -> None:
-        """Ensure the output directory is a git repository with a main branch."""
-        if not self.repo_exists():
-            logger.info(f"Initializing git repository in {self.output_dir}")
-            self.init_repo()
-
-            # Configure git
-            self._run_git_command(["config", "core.bigFileThreshold", "10m"])
-
-            # Create initial commit in main branch
-            with open(self.output_dir / "README.md", "w") as f:
-                f.write("# Agent Execution Outputs\n\nThis repository contains outputs from agent executions.\n")
-
-            self.add("README.md")
-            self.commit("Initial commit")
-
-            # Ensure we're on main branch (newer git uses 'main', older uses 'master')
-            current_branch = self.get_current_branch()
-
-            # If not on main, rename the branch
-            if current_branch and current_branch != self.base_branch:
-                self._run_git_command(["branch", "-m", current_branch, self.base_branch])
+        self.init_repo(
+            readme_content="# Agent Execution Outputs\n\nThis repository contains outcomes from agent executions.\n",
+            commit=True,
+        )
 
     def create_run_branch(self, run_id: str) -> str:
         """Create a new branch for a run.
@@ -71,8 +51,8 @@ class RunOutputRepository(GitBase):
                 self._run_git_command(["branch", "-m", current_branch, self.base_branch])
             else:
                 # Create the base branch with an initial commit
-                with open(self.output_dir / "README.md", "w") as f:
-                    f.write("# Agent Execution Outputs\n\nThis repository contains outputs from agent executions.\n")
+                with open(self.outcome_dir / "README.md", "w") as f:
+                    f.write("# Agent Execution Outputs\n\nThis repository contains outcomes from agent executions.\n")
 
                 self.add("README.md")
                 self.commit("Initial commit")
@@ -83,7 +63,7 @@ class RunOutputRepository(GitBase):
 
         return branch_name
 
-    def commit_run_outputs(self, run_id: str, message: str, files: list[Path] | None = None) -> bool:
+    def commit_run_outcomes(self, run_id: str, message: str, files: list[Path] | None = None) -> bool:
         """Commit all changes for a specific run.
 
         Args:
@@ -95,7 +75,7 @@ class RunOutputRepository(GitBase):
         """
         if files is None:
             files = []
-        if not self.output_dir.exists():
+        if not self.outcome_dir.exists():
             raise ValueError(f"Run directory {run_id} does not exist")
 
         # Add all files in the run directory
@@ -115,7 +95,7 @@ class RunOutputRepository(GitBase):
         timestamp = datetime.now().isoformat(timespec="seconds")
 
         # Final commit
-        self.commit_run_outputs(run_id, f"Run {status} at {timestamp}")
+        self.commit_run_outcomes(run_id, f"Run {status} at {timestamp}")
 
         # Create a tag for this run
         tag_name = f"run-{run_id}-{status}"
@@ -150,7 +130,7 @@ class RunOutputRepository(GitBase):
         return self.get_logs()
 
     def compare_runs(self, run_id1: str, run_id2: str, node_id: str | None = None) -> list[dict[str, str]]:
-        """Compare outputs between two runs, optionally for a specific node.
+        """Compare outcomes between two runs, optionally for a specific node.
 
         Args:
             run_id1: First run ID
