@@ -1,5 +1,5 @@
 from asyncio import Event
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from datetime import datetime
 from typing import Any
 
@@ -49,6 +49,10 @@ class FlowContext(BaseModel):
     completed_at: datetime | None = None
     streaming_contexts: dict[FlowNodeIdentifier, StreamingContext | None] = {}
     stream_generator: AsyncGenerator | None = None
+
+    # Build in callables
+    emit_node_output: Callable | None = None
+    emit_outcome: Callable | None = None
 
     def set_current_node(self, index: int):
         self.current_node_index = index

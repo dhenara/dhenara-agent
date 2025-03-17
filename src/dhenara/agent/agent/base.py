@@ -4,16 +4,11 @@ from datetime import datetime
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.engine import FlowOrchestrator
+from dhenara.agent.engine.types import FlowContext
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
-from dhenara.agent.types import (
-    Agent as AgentType,
-)
-from dhenara.agent.types import (
-    FlowContext,
-    FlowDefinition,
-    FlowNodeInputs,
-)
+from dhenara.agent.types import Agent as AgentType
+from dhenara.agent.types import FlowDefinition, FlowNodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
@@ -46,18 +41,23 @@ class BaseAgent:
         run_context.prepare_input(input_data, input_files)
 
         await self._run_flow(
-            flow_definition=self.agent_definition.flow_definition,
+            run_context=run_context,
             initial_inputs=run_context.initial_inputs,  # Pass the processed initial_inputs
         )
 
-        return {"response": "Processed: "}
+        # Process and save results
+        run_context.complete_run()
+
+        return True
 
     async def _run_flow(
         self,
-        flow_definition: FlowDefinition,
+        run_context: RunContext,
         initial_inputs: FlowNodeInputs,
         resource_profile="default",
     ):
+        flow_definition: FlowDefinition = self.agent_definition.flow_definition
+
         try:
             # Get resource configuration from registry
             resource_config = resource_config_registry.get(resource_profile)
@@ -76,10 +76,17 @@ class BaseAgent:
                 flow_definition=flow_definition,
                 initial_inputs=initial_inputs,
                 created_at=datetime.now(),
+                emit_node_output=run_context.emit_node_output,
+                emit_outcome=run_context.emit_outcome,
             )
 
+            # Initialize flow_context  in run_context
+            run_context.flow_context = flow_context
+
             # Execute
-            await flow_orchestrator.run(flow_context)
+            await flow_orchestrator.run(
+                flow_context=flow_context,
+            )
 
             # Set `is_streaming` after execution returns
             is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()

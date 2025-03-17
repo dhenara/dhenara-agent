@@ -4,9 +4,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from dhenara.agent.engine.types import FlowContext
+from dhenara.agent.run import RunOutputRepository
 from dhenara.agent.types.flow import FlowNodeInputs
-
-from .output_repository import RunOutputRepository
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,9 @@ class RunContext:
         # Save initial metadata
         self._save_metadata()
 
+        # FlowContext
+        self.flow_context: FlowContext | None = None
+
     def _save_metadata(self):
         """Save metadata about this run."""
         metadata = {
@@ -129,25 +132,53 @@ class RunContext:
         #            dst = self.input_root / src.name
         #            shutil.copy2(src, dst)
 
-    def save_output(self, node_id, commit=True):
+    def emit_node_output(
+        self,
+        node_identifier,
+        output_file_name,
+        output_data,
+    ):
         """Save output from a node execution."""
-        # Create node output directory
-        node_dir = self.output_dir / node_id
-        node_dir.mkdir(exist_ok=True)
+        try:
+            # Create node output directory
+            node_dir = self.output_dir / node_identifier
+            node_dir.mkdir(exist_ok=True)
 
-        # TODO
-        # Extract output data from flow context/ ?
+            output_file = node_dir / output_file_name
+            with open(output_file, "w") as f:
+                json.dump(output_data, f, indent=2)
+        except Exception as e:
+            logger.exception(f"emit_node_output: Error: {e}")
+            return False
 
-        # # Save output data
-        # output_file = node_dir / output_file_name
-        # with open(output_file, "w") as f:
-        #     json.dump(output_data, f, indent=2)
+    def emit_outcome(
+        self,
+        file_name,
+        path_in_repo,
+        content,
+        commit=True,
+        commit_msg=None,
+    ):
+        """Save an outcome file into the repo."""
+        try:
+            _file_path = self.output_repo / path_in_repo
+            _file_path.mkdir(parents=True, exist_ok=True)
 
-        # # Commit changes if requested
-        # if commit:
-        #     self.output_repo.commit_run_outputs(self.run_id, f"Add output from node {node_id}")
+            # # Save output data
+            output_file = _file_path / file_name
+            with open(output_file, "w") as f:
+                f.write(content)
 
-        # return output_file
+            if commit:
+                if not commit_msg:
+                    timestamp = self._get_timestamp_str()
+                    commit_msg = f"Outcome at {timestamp}"
+                self.output_repo.commit_run_outputs(self.run_id, commit_msg)
+
+            return True
+        except Exception as e:
+            logger.exception(f"emit_outcome: Error: {e}")
+            return False
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""

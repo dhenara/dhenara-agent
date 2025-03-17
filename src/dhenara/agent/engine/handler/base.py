@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from dhenara.agent.engine.types import FlowContext
 from dhenara.agent.types import (
-    FlowContext,
     FlowNode,
     FlowNodeInput,
     SpecialNodeIdEnum,

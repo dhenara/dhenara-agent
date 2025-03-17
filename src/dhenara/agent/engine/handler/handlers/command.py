@@ -2,7 +2,8 @@ import asyncio
 from typing import Any
 
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.types.flow import FlowContext, FlowNode
+from dhenara.agent.engine.types import FlowContext
+from dhenara.agent.types import FlowNode
 from dhenara.ai.types.resource import ResourceConfig
 
 

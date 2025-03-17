@@ -2,6 +2,7 @@
 # flow_orchestrator.py
 #  from tenacity import retry, stop_after_attempt, wait_exponential : TODO Future
 import asyncio
+import json
 import logging
 from asyncio import Event, create_task
 from collections.abc import AsyncGenerator
@@ -9,17 +10,15 @@ from datetime import datetime
 from typing import Any
 
 from dhenara.agent.engine import NodeHandler, node_handler_registry
+from dhenara.agent.engine.types import FlowContext, StreamingContext, StreamingStatusEnum
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.types import (
     ExecutionStrategyEnum,
-    FlowContext,
     FlowDefinition,
     FlowExecutionStatusEnum,
     FlowNode,
     FlowNodeExecutionResult,
     FlowNodeTypeEnum,
-    StreamingContext,
-    StreamingStatusEnum,
 )
 
 # from common.csource.apps.model_apps.app_ai_connect.libs.tsg.orchestrator import AIModelCallOrchestrator
@@ -56,7 +55,10 @@ class FlowOrchestrator:
             self._handler_instances[flow_node_type] = handler_class()
         return self._handler_instances[flow_node_type]
 
-    async def run(self, flow_context: FlowContext) -> dict[str, FlowNodeExecutionResult] | AIModelCallResponse:
+    async def run(
+        self,
+        flow_context: FlowContext,
+    ) -> dict[str, FlowNodeExecutionResult] | AIModelCallResponse:
         """Execute the flow with streaming support"""
 
         try:
@@ -221,6 +223,13 @@ class FlowOrchestrator:
     ) -> AsyncGenerator | None:
         flow_context.execution_results[flow_context.current_node_identifier] = result
         flow_context.updated_at = datetime.now()
+
+        if flow_context.emit_node_output:
+            flow_context.emit_node_output(
+                node_identifier=flow_node.identifier,
+                output_file_name="node.json",
+                output_data=json.loads(result.model_dump_json()),
+            )
 
         """ TODO
         # Determine if we should send SSE update

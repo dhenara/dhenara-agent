@@ -78,10 +78,6 @@ async def _run_agent(name, project_root, run_root, input_root, output_dir, run_i
                 initial_inputs=None,
             )
 
-        # Process and save results
-        run_ctx.save_output("final")
-        run_ctx.complete_run()
-
         click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
         click.echo(f"   Output directory: {run_ctx.output_dir}")
 

@@ -1,7 +1,6 @@
 from dhenara.agent.agent import BaseAgent
 
 from .agent_def import agent_def
-from .inputs.initial import initial_input
 
 
 class Agent(BaseAgent):
@@ -16,5 +15,4 @@ class Agent(BaseAgent):
 
 agent = Agent(
     agent_definition=agent_def,
-    initial_input=initial_input,
 )

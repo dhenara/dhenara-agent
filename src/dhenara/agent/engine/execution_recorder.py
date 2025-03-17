@@ -2,7 +2,7 @@
 
 import logging
 
-from dhenara.agent.types import FlowContext
+from dhenara.agent.engine.types import FlowContext
 
 logger = logging.getLogger(__name__)
 
