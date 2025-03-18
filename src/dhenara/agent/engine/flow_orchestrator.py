@@ -224,11 +224,13 @@ class FlowOrchestrator:
         flow_context.execution_results[flow_context.current_node_identifier] = result
         flow_context.updated_at = datetime.now()
 
-        if flow_context.emit_node_output:
-            flow_context.emit_node_output(
+        _result_json = json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
+
+        if flow_context.artifact_manager:
+            flow_context.artifact_manager.record_node_output(
                 node_identifier=flow_node.identifier,
                 output_file_name="node.json",
-                output_data=json.loads(result.model_dump_json()),
+                output_data=json.loads(_result_json),
             )
 
         """ TODO

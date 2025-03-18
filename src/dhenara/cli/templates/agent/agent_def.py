@@ -23,9 +23,9 @@ from dhenara.ai.types import (
 agent_identifier = "{{agent_identifier}}"
 
 
-# Agent definition
-# Modify as per your need
-agent_def = Agent(
+# Agent definition,  modify as per your need
+# NOTE: The instance name should be `agent_definition`
+agent_definition = Agent(
     identifier=agent_identifier,
     independent=True,
     multi_phase=False,

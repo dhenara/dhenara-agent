@@ -1,10 +1,11 @@
 from dhenara.agent.agent import BaseAgent
 
-from .agent_def import agent_def
+# NOTE: Do not remove below 2 lines
+from .agent_def import agent_definition
 from .agent_def import agent_identifier as agent_id
 
 
-class Agent(BaseAgent):
+class MyAgent(BaseAgent):
     """
     {{agent_name}}
 
@@ -14,8 +15,11 @@ class Agent(BaseAgent):
     pass
 
 
+# NOTE:  Do not modifiy below line
 agent_identifier = agent_id
 
-agent = Agent(
-    agent_definition=agent_def,
+# Create agent instance
+# NOTE: The object name should be `agent`
+agent = MyAgent(
+    agent_definition=agent_definition,  # pass agent_definition
 )

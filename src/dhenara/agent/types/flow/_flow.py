@@ -4,10 +4,13 @@ from pydantic import Field, field_validator, model_validator
 
 from dhenara.agent.types.flow import (
     AISettings,
+    CommandSettings,
     ExecutionStrategyEnum,
     FlowNodeIdentifier,
     FlowNodeInput,
     FlowNodeTypeEnum,
+    FolderAnalyzerSettings,
+    GitRepoAnalyzerSettings,
     NodeInputSettings,
     NodeResponseSettings,
     ResponseProtocolEnum,
@@ -61,20 +64,32 @@ class FlowNode(BaseModel):
         default_factory=list,
         description="Tools",
     )
+    command_settings: CommandSettings | None = Field(
+        default=None,
+        description="Settings for command execution nodes",
+    )
+    folder_analyzer_settings: FolderAnalyzerSettings | None = Field(
+        default=None, description="Settings for folder analyzer nodes"
+    )
+
+    git_repo_analyzer_settings: GitRepoAnalyzerSettings | None = Field(
+        default=None, description="Settings for git repository analyzer nodes"
+    )
+
     ai_settings: AISettings | None = Field(
         default=None,
         description="Node specific AP API settings/ options ",
     )
-    input_settings: NodeInputSettings = Field(
-        ...,
+    input_settings: NodeInputSettings | None = Field(
+        default=None,
         description="Input Settings",
     )
     # storage_settings: StorageSettings = Field(
     #    default_factory=dict,
     #    description="DataBase Storage settings",
     # )
-    response_settings: NodeResponseSettings = Field(
-        ...,
+    response_settings: NodeResponseSettings | None = Field(
+        default=None,
         description="Response Settings",
     )
 
@@ -135,6 +150,25 @@ class FlowNode(BaseModel):
             if default_count < 1:
                 raise ValueError("resources: One resource should be set as default")
             return v
+
+    @model_validator(mode="after")
+    def validate_node_type_settings(self) -> "FlowNode":
+        """Validate that settings match the node type."""
+        if self.type == FlowNodeTypeEnum.command and self.command_settings is None:
+            raise ValueError("command_settings must be provided for nodes of type 'command'")
+
+        if self.type == FlowNodeTypeEnum.folder_analyzer and self.folder_analyzer_settings is None:
+            raise ValueError("folder_analyzer_settings must be provided for nodes of type 'folder_analyzer'")
+
+        if self.type == FlowNodeTypeEnum.git_repo_analyzer and self.git_repo_analyzer_settings is None:
+            raise ValueError("git_repo_analyzer_settings must be provided for nodes of type 'git_repo_analyzer'")
+
+        if self.type in [FlowNodeTypeEnum.ai_model_call, FlowNodeTypeEnum.ai_model_call_stream] and (
+            self.ai_settings is None or self.input_settings is None
+        ):
+            raise ValueError("ai_settings & input_settings  must be provided for nodes of type 'ai_model_call*'")
+
+        return self
 
     # @model_validator(mode="after")
     # def validate_input_settings(self) -> "FlowNode":
@@ -333,7 +367,8 @@ class FlowDefinition(BaseModel):
     def validate_node_identifies(self):
         all_node_identifies = {node.identifier for node in self.nodes}
         for node in self.nodes:
-            node.input_settings.validate_node_references(list(all_node_identifies))
+            if node.input_settings:
+                node.input_settings.validate_node_references(list(all_node_identifies))
 
         return self
 

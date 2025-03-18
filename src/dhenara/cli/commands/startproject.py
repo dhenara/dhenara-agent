@@ -106,7 +106,7 @@ build-backend = "poetry.core.masonry.api"
 """)
 
     # Create .gitignore
-    with open(project_dir / ".igitgnore", "w") as f:
+    with open(project_dir / ".gitignore", "w") as f:
         f.write("""# Python
 __pycache__/
 *.py[cod]

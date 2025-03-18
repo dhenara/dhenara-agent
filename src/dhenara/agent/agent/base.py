@@ -77,8 +77,8 @@ class BaseAgent:
                 flow_definition=flow_definition,
                 initial_inputs=initial_inputs,
                 created_at=datetime.now(),
-                emit_node_output=run_context.emit_node_output,
-                emit_outcome=run_context.emit_outcome,
+                run_env_params=run_context.run_env_params,
+                artifact_manager=run_context.artifact_manager,
             )
 
             # Initialize flow_context  in run_context
@@ -97,14 +97,12 @@ class BaseAgent:
                 return False
 
             if is_streaming:
-                response_stream_generator = flow_context.stream_generator
-                print(f"Steam generator is: {response_stream_generator}")
+                _response_stream_generator = flow_context.stream_generator
             else:
-                response_data = {
+                _response_data = {
                     "execution_status": flow_context.execution_status,
                     "execution_results": flow_context.execution_results,
                 }
-                print(f"response_data: {response_data}")
 
         except PydanticValidationError as e:
             raise DhenaraAPIError(f"Invalid Inputs {e}")

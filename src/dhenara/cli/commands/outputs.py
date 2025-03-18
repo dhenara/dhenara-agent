@@ -3,8 +3,8 @@ import logging
 
 import click
 
-from dhenara.agent.run import RunOutcomeRepository
 from dhenara.agent.shared.utils import find_project_root
+from dhenara.agent.utils.git import RunOutcomeRepository
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,9 @@ def list_outputs(run_id):
 
         click.echo(f"Execution History for {run_id}:")
         for i, entry in enumerate(history):
-            click.echo(f"{i + 1}. [{entry['date']}] {entry['message']} ({entry['commit']})")
+            click.echo(
+                f"{i + 1}. [{entry['date']}] {entry['message']} ({entry['commit']})"
+            )
     else:
         # List all runs
         runs = output_repo.list_runs()
@@ -71,7 +73,9 @@ def compare_outputs(run1, run2, node):
         return
 
     for change in changes:
-        status_marker = "+" if change["status"] == "A" else "-" if change["status"] == "D" else "M"
+        status_marker = (
+            "+" if change["status"] == "A" else "-" if change["status"] == "D" else "M"
+        )
         click.echo(f"{status_marker} {change['path']}")
 
 

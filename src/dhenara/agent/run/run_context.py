@@ -5,10 +5,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.run import RunOutcomeRepository
 from dhenara.agent.shared.utils import get_project_identifier
+from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.types.flow import FlowNodeInputs
+from dhenara.agent.utils.git import RunOutcomeRepository
+from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class RunContext:
 
         # Outcome is the final outcome git repo, not just node outputs
         _outcome_repo_name = self.project_identifier
-        self.outcome_repo = self.outcome_dir / _outcome_repo_name
+        self.outcome_repo_dir = self.outcome_dir / _outcome_repo_name
 
         self.start_time = datetime.now()
         self.end_time = None
@@ -72,19 +73,35 @@ class RunContext:
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
         self.outcome_dir.mkdir(parents=True, exist_ok=True)
-        self.outcome_repo.mkdir(parents=True, exist_ok=True)
+        self.outcome_repo_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"AJ: self.outcome_dir={self.outcome_dir}, self.outcome_repo={self.outcome_repo} ")
         # Initialize git outcome repository
 
-        self.output_repo = RunOutcomeRepository(self.outcome_repo)
-        self.output_repo.create_run_branch(self.run_id)
+        self.outcome_repo = RunOutcomeRepository(self.outcome_repo_dir)
+        self.outcome_repo.create_run_branch(self.run_id)
 
         # Save initial metadata
         self._save_metadata()
 
+        self.run_env_params = RunEnvParams(
+            run_id=self.run_id,
+            project_root=str(self.project_root),
+            project_identifier=str(self.project_identifier),
+            agent_identifier=str(self.agent_identifier),
+            run_dir=str(self.run_dir),
+            input_dir=str(self.input_dir),
+            output_dir=str(self.output_dir),
+            state_dir=str(self.state_dir),
+            outcome_dir=str(self.outcome_dir),
+            outcome_repo_dir=str(self.outcome_repo_dir),
+        )
+        self.artifact_manager = ArtifactManager(
+            run_env_params=self.run_env_params,
+            outcome_repo=self.outcome_repo,
+        )
+
         # FlowContext
-        self.flow_context: FlowContext | None = None
+        self.flow_context = None
 
     def _save_metadata(self):
         """Save metadata about this run."""
@@ -139,56 +156,6 @@ class RunContext:
         if not isinstance(self.initial_inputs, FlowNodeInputs):
             logger.error(f"Imported input is not a FlowNodeInput: {type(self.initial_inputs)}")
 
-        print(f"AJ: self.initial_inputs={self.initial_inputs}")
-
-    def emit_node_output(
-        self,
-        node_identifier,
-        output_file_name,
-        output_data,
-    ):
-        """Save output from a node execution."""
-        try:
-            # Create node output directory
-            node_dir = self.output_dir / node_identifier
-            node_dir.mkdir(exist_ok=True)
-
-            output_file = node_dir / output_file_name
-            with open(output_file, "w") as f:
-                json.dump(output_data, f, indent=2)
-        except Exception as e:
-            logger.exception(f"emit_node_output: Error: {e}")
-            return False
-
-    def emit_outcome(
-        self,
-        file_name,
-        path_in_repo,
-        content,
-        commit=True,
-        commit_msg=None,
-    ):
-        """Save an outcome file into the repo."""
-        try:
-            _file_path = self.output_repo / path_in_repo
-            _file_path.mkdir(parents=True, exist_ok=True)
-
-            # # Save output data
-            output_file = _file_path / file_name
-            with open(output_file, "w") as f:
-                f.write(content)
-
-            if commit:
-                if not commit_msg:
-                    timestamp = self._get_timestamp_str()
-                    commit_msg = f"Outcome at {timestamp}"
-                self.output_repo.commit_run_outputs(self.run_id, commit_msg)
-
-            return True
-        except Exception as e:
-            logger.exception(f"emit_outcome: Error: {e}")
-            return False
-
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""
         self.end_time = datetime.now()
@@ -198,4 +165,4 @@ class RunContext:
         self._save_metadata()
 
         # Complete run in git repository
-        self.output_repo.complete_run(self.run_id, status)
+        self.outcome_repo.complete_run(self.run_id, status)

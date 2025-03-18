@@ -13,14 +13,46 @@ class GitBase:
     by various components that need to interact with Git repositories.
     """
 
-    def __init__(self, repo_path: str | Path):
+    def __init__(
+        self,
+        repo_path: str | Path,
+    ):
         """Initialize with repository path.
 
         Args:
-            repo_path: Path to the Git repository
+            repo_path: Path to the Git repository.
         """
         self.repo_path = Path(repo_path)
         self._git_available = self._check_git_available()
+
+    def clone_repository(self, url: str, branch: str | None = None, depth: int | None = None) -> bool:
+        """
+        Clone a repository from the given URL
+
+        Args:
+            url: Repository URL to clone
+            branch: Optional branch to clone
+            depth: Optional depth parameter for shallow clones
+
+        Returns:
+            True if cloning was successful, False otherwise
+        """
+        try:
+            cmd = ["clone", url, str(self.repo_path)]
+
+            if branch:
+                cmd.extend(["--branch", branch])
+
+            if depth:
+                cmd.extend(["--depth", str(depth)])
+
+            _result = subprocess.run(["git", *cmd], check=True, capture_output=True, text=True)
+
+            logger.info(f"Successfully cloned repository from {url}")
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to clone repository: {e.stderr}")
+            return False
 
     def _check_git_available(self) -> bool:
         """Check if git is available on the system."""

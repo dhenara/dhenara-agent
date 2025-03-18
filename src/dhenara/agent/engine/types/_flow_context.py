@@ -1,8 +1,9 @@
 from asyncio import Event
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
+from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.types.flow import (
     FlowDefinition,
     FlowExecutionResults,
@@ -11,6 +12,7 @@ from dhenara.agent.types.flow import (
     FlowNodeIdentifier,
     FlowNodeInput,
 )
+from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 
 
@@ -51,8 +53,8 @@ class FlowContext(BaseModel):
     stream_generator: AsyncGenerator | None = None
 
     # Build in callables
-    emit_node_output: Callable | None = None
-    emit_outcome: Callable | None = None
+    artifact_manager: ArtifactManager | None = None
+    run_env_params: RunEnvParams | None = None
 
     def set_current_node(self, index: int):
         self.current_node_index = index
