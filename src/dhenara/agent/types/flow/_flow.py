@@ -50,6 +50,11 @@ class FlowNode(BaseModel):
         pattern="^[a-zA-Z0-9_-]+$",
         examples=["initial_model_call", "context_retrieval", "final_summary"],
     )
+    info: str | None = Field(
+        default=None,
+        description=("General purpose string. Can be user to show a message to the user while executing this node"),
+    )
+
     type: FlowNodeTypeEnum = Field(
         ...,
         description="Type of operation this node performs",

@@ -11,10 +11,14 @@ AgentIdentifier = NewType("AgentIdentifier", str)
 class Agent(BaseModel):
     identifier: AgentIdentifier = Field(
         ...,
-        description="Unique human readable identifier for the agent ",
+        description="Unique human readable identifier for the agent",
         min_length=1,
         max_length=150,
         pattern="^[a-zA-Z0-9_-]+$",
+    )
+    info: str | None = Field(
+        default=None,
+        description=("General purpose string. Can be user to show a message to the user while executing this agent"),
     )
     description: str | None = Field(
         ...,

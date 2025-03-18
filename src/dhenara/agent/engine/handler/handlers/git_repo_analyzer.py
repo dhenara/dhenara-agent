@@ -85,7 +85,7 @@ class GitRepoAnalyzerHandler(FolderAnalyzerHandler):
         from dhenara.agent.utils.git import GitRepoAnalyzer
 
         repo_analyzer = GitRepoAnalyzer(path)
-        analysis = repo_analyzer.analyze_structure()
+        analysis = repo_analyzer.analyze_repo_structure()
 
         # If we have additional git settings, enhance the analysis
         git_base = GitBase(path)
