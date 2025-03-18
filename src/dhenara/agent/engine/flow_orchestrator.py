@@ -13,12 +13,16 @@ from dhenara.agent.engine import NodeHandler, node_handler_registry
 from dhenara.agent.engine.types import FlowContext, StreamingContext, StreamingStatusEnum
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.types import (
+    ConditionalFlow,
     ExecutionStrategyEnum,
     FlowDefinition,
     FlowExecutionStatusEnum,
     FlowNode,
     FlowNodeExecutionResult,
     FlowNodeTypeEnum,
+    FlowTypeEnum,
+    LoopFlow,
+    SwitchFlow,
 )
 
 # from common.csource.apps.model_apps.app_ai_connect.libs.tsg.orchestrator import AIModelCallOrchestrator
@@ -59,46 +63,63 @@ class FlowOrchestrator:
         self,
         flow_context: FlowContext,
     ) -> dict[str, FlowNodeExecutionResult] | AIModelCallResponse:
-        """Execute the flow with streaming support"""
-
+        """Execute the flow with support for control flow."""
         try:
             flow_context.execution_status = FlowExecutionStatusEnum.RUNNING
             self.execution_recorder = ExecutionRecorder()
             await self.execution_recorder.update_execution_in_db(flow_context, create=True)
 
-            if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
-                result = await self._execute_sequential(flow_context)
+            # Handle different flow types
+            flow_def = self.flow_definition
 
-                # if self.has_any_streaming_node():
-                # if isinstance(result, AsyncGenerator):
-                if (
-                    isinstance(result, AIModelCallResponse)
-                    and result.stream_generator
-                    and isinstance(result.stream_generator, AsyncGenerator)
-                ):
-                    background_tasks = set()
+            if flow_def.flow_type == FlowTypeEnum.standard:
+                # Standard flow with nodes
 
-                    # Create a background task to continue processing after streaming
-                    task = create_task(self._continue_after_streaming(flow_context))
-                    flow_context.execution_status = FlowExecutionStatusEnum.PENDING
+                if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
+                    result = await self._execute_sequential(flow_context)
 
-                    # NOTE: Below 2 lines are from RUFF:RUF006
-                    # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
-                    # Add task to the set. This creates a strong reference.
-                    background_tasks.add(task)
+                    # if self.has_any_streaming_node():
+                    # if isinstance(result, AsyncGenerator):
+                    if (
+                        isinstance(result, AIModelCallResponse)
+                        and result.stream_generator
+                        and isinstance(result.stream_generator, AsyncGenerator)
+                    ):
+                        background_tasks = set()
 
-                    # To prevent keeping references to finished tasks forever,
-                    # make each task remove its own reference from the set after completion:
-                    task.add_done_callback(background_tasks.discard)
+                        # Create a background task to continue processing after streaming
+                        task = create_task(self._continue_after_streaming(flow_context))
+                        flow_context.execution_status = FlowExecutionStatusEnum.PENDING
 
-                    return result
+                        # NOTE: Below 2 lines are from RUFF:RUF006
+                        # https://docs.astral.sh/ruff/rules/asyncio-dangling-task/
+                        # Add task to the set. This creates a strong reference.
+                        background_tasks.add(task)
 
-            elif self.flow_definition.execution_strategy == ExecutionStrategyEnum.parallel:
-                # TODO: Missing fns
-                result = await self._execute_parallel(flow_context)
+                        # To prevent keeping references to finished tasks forever,
+                        # make each task remove its own reference from the set after completion:
+                        task.add_done_callback(background_tasks.discard)
+
+                        return result
+
+                elif flow_def.execution_strategy == ExecutionStrategyEnum.parallel:
+                    result = await self._execute_parallel(flow_context)
+                else:
+                    raise NotImplementedError(f"Unsupported execution strategy: {flow_def.execution_strategy}")
+
+            elif flow_def.flow_type == FlowTypeEnum.condition:
+                result = await self._execute_conditional_flow(flow_context, flow_def)
+
+            elif flow_def.flow_type == FlowTypeEnum.loop:
+                result = await self._execute_loop_flow(flow_context, flow_def)
+
+            elif flow_def.flow_type == FlowTypeEnum.switch:
+                result = await self._execute_switch_flow(flow_context, flow_def)
 
             else:
-                raise NotImplementedError(f"Unsupported execution strategy: {self.flow_definition.execution_strategy}")
+                raise NotImplementedError(f"Unsupported flow type: {flow_def.flow_type}")
+
+            # completion logic
             flow_context.execution_status = FlowExecutionStatusEnum.COMPLETED
             logger.debug(f"execute: Execution completed. execution_results={flow_context.execution_results}")
 
@@ -110,6 +131,236 @@ class FlowOrchestrator:
             flow_context.execution_status = FlowExecutionStatusEnum.FAILED
             logger.exception("Flow execution failed")
             raise
+
+    async def _execute_conditional_flow(
+        self, flow_context: FlowContext, flow_def: ConditionalFlow
+    ) -> dict[str, FlowNodeExecutionResult]:
+        """Execute a conditional flow."""
+        # Update evaluation context
+        flow_context.update_evaluation_context()
+
+        # Evaluate condition
+        try:
+            condition_result = flow_context.evaluation_context.evaluate(flow_def.condition_expr)
+
+            # Determine which branch to execute
+            branch = flow_def.true_branch if condition_result else flow_def.false_branch
+
+            if not branch:
+                # No branch to execute
+                logger.info(f"Condition evaluated to {condition_result}, but no applicable branch exists")
+                return {}
+
+            # Create sub-orchestrator for the branch
+            sub_orchestrator = FlowOrchestrator(flow_definition=branch, resource_config=self.resource_config)
+
+            # Execute the branch
+            # Mark which branch we're executing in the path
+            branch_name = "true_branch" if condition_result else "false_branch"
+            flow_context.push_subflow(branch_name)
+
+            try:
+                await sub_orchestrator.run(flow_context)
+            finally:
+                flow_context.pop_subflow()
+
+            # Return execution results
+            return flow_context.execution_results
+
+        except Exception as e:
+            logger.exception(f"Error in conditional flow: {e}")
+            flow_context.execution_status = FlowExecutionStatusEnum.FAILED
+            flow_context.execution_failed = True
+            flow_context.execution_failed_message = f"Conditional flow execution failed: {e}"
+            return {}
+
+    async def _execute_loop_flow(
+        self, flow_context: FlowContext, flow_def: LoopFlow
+    ) -> dict[str, FlowNodeExecutionResult]:
+        """Execute a loop flow."""
+        # Initialize loop state
+        loop_id = f"loop_{id(flow_def)}"
+        loop_state = flow_context.start_loop(loop_id)
+
+        # Create sub-orchestrator for the loop body
+        body_orchestrator = FlowOrchestrator(flow_definition=flow_def.body, resource_config=self.resource_config)
+
+        try:
+            if flow_def.loop_type == "for":
+                # For loop - evaluate items expression
+                flow_context.update_evaluation_context()
+                items = flow_context.evaluation_context.evaluate(flow_def.items_expr)
+
+                # Iterate over items
+                for i, item in enumerate(items):
+                    if flow_def.max_iterations and i >= flow_def.max_iterations:
+                        logger.warning(f"Loop reached max iterations ({flow_def.max_iterations})")
+                        break
+
+                    # Update loop state
+                    loop_state.iteration = i
+                    loop_state.item = item
+
+                    # Update evaluation context with loop variables
+                    flow_context.evaluation_context.variables[flow_def.iteration_var] = i
+                    if flow_def.item_var:
+                        flow_context.evaluation_context.variables[flow_def.item_var] = item
+
+                    # Execute the loop body
+                    flow_context.push_subflow(f"{loop_id}_iteration_{i}")
+                    try:
+                        await body_orchestrator.run(flow_context)
+
+                        # Capture results if requested
+                        if flow_def.capture_results:
+                            # Get results for this iteration
+                            iteration_results = {}
+                            for node_id, result in flow_context.execution_results.items():
+                                # Only include results from the current iteration path
+                                if node_id.startswith(flow_context.get_current_subflow_id()):
+                                    iteration_results[node_id] = result  # noqa: PERF403 : TODO_FUTURE
+
+                            loop_state.iteration_results.append(iteration_results)
+
+                        # Store context if pass_state is enabled
+                        if flow_def.pass_state:
+                            # Save current context state to pass to next iteration
+                            loop_state.context = {
+                                key: value
+                                for key, value in flow_context.evaluation_context.variables.items()
+                                if key not in ["iteration", "item"]  # Don't include loop control variables
+                            }
+                    finally:
+                        flow_context.pop_subflow()
+
+                    # Check for execution failure
+                    if flow_context.execution_failed:
+                        break
+
+            elif flow_def.loop_type == "while":
+                # While loop - continue until condition is false
+                i = 0
+                while True:
+                    # Check max iterations
+                    if flow_def.max_iterations and i >= flow_def.max_iterations:
+                        logger.warning(f"While loop reached max iterations ({flow_def.max_iterations})")
+                        break
+
+                    # Evaluate condition
+                    flow_context.update_evaluation_context()
+
+                    # Add loop state to context
+                    flow_context.evaluation_context.variables[flow_def.iteration_var] = i
+
+                    # Add previous iteration context if available
+                    if flow_def.pass_state and loop_state.context:
+                        for key, value in loop_state.context.items():
+                            flow_context.evaluation_context.variables[key] = value
+
+                    try:
+                        condition_result = flow_context.evaluation_context.evaluate(flow_def.condition_expr)
+                        if not condition_result:
+                            break
+
+                        # Update loop state
+                        loop_state.iteration = i
+
+                        # Execute the loop body
+                        flow_context.push_subflow(f"{loop_id}_iteration_{i}")
+                        try:
+                            await body_orchestrator.run(flow_context)
+
+                            # Capture results if requested
+                            if flow_def.capture_results:
+                                # Get results for this iteration
+                                iteration_results = {}
+                                for node_id, result in flow_context.execution_results.items():
+                                    # Only include results from the current iteration path
+                                    if node_id.startswith(flow_context.get_current_subflow_id()):
+                                        iteration_results[node_id] = result
+
+                                loop_state.iteration_results.append(iteration_results)
+
+                            # Store context if pass_state is enabled
+                            if flow_def.pass_state:
+                                # Save current context state to pass to next iteration
+                                loop_state.context = {
+                                    key: value
+                                    for key, value in flow_context.evaluation_context.variables.items()
+                                    if key != "iteration"  # Don't include loop control variables
+                                }
+                        finally:
+                            flow_context.pop_subflow()
+
+                        # Increment iteration counter
+                        i += 1
+
+                        # Check for execution failure
+                        if flow_context.execution_failed:
+                            break
+
+                    except Exception as e:
+                        logger.exception(f"Error evaluating while condition: {e}")
+                        flow_context.execution_failed = True
+                        flow_context.execution_failed_message = f"While loop condition evaluation failed: {e}"
+                        break
+
+        except Exception as e:
+            logger.exception(f"Error in loop flow: {e}")
+            flow_context.execution_status = FlowExecutionStatusEnum.FAILED
+            flow_context.execution_failed = True
+            flow_context.execution_failed_message = f"Loop flow execution failed: {e}"
+
+        # Include loop results in context
+        flow_context.evaluation_context.variables[f"loop_result.{loop_id}"] = {
+            "iterations": loop_state.iteration + 1,
+            "results": loop_state.iteration_results,
+        }
+
+        return flow_context.execution_results
+
+    async def _execute_switch_flow(
+        self, flow_context: FlowContext, flow_def: SwitchFlow
+    ) -> dict[str, FlowNodeExecutionResult]:
+        """Execute a switch flow."""
+        # Update evaluation context
+        flow_context.update_evaluation_context()
+
+        try:
+            # Evaluate switch expression
+            switch_value = str(flow_context.evaluation_context.evaluate(flow_def.switch_expr))
+
+            # Determine which case to execute
+            if switch_value in flow_def.cases:
+                case_flow = flow_def.cases[switch_value]
+                case_name = switch_value
+            elif flow_def.default:
+                case_flow = flow_def.default
+                case_name = "default"
+            else:
+                # No matching case and no default
+                logger.info(f"Switch value '{switch_value}' did not match any case and no default provided")
+                return {}
+
+            # Create sub-orchestrator for the case
+            sub_orchestrator = FlowOrchestrator(flow_definition=case_flow, resource_config=self.resource_config)
+
+            # Execute the case
+            flow_context.push_subflow(f"case_{case_name}")
+            try:
+                await sub_orchestrator.run(flow_context)
+            finally:
+                flow_context.pop_subflow()
+
+            # Return execution results
+            return flow_context.execution_results
+
+        except Exception as e:
+            logger.exception(f"Error in switch flow: {e}")
+            flow_context.execution_status = FlowExecutionStatusEnum.FAILED
+            flow_context.execution_failed = True
+            flow_context.execution_failed_message = f"Switch flow execution failed: {e}"
+            return {}
 
     async def _execute_sequential(
         self, flow_context: FlowContext

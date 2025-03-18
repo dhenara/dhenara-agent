@@ -28,14 +28,28 @@ class ExecutionStrategyEnum(BaseEnum):
     parallel = "parallel"
 
 
+class FlowTypeEnum(BaseEnum):
+    standard = "standard"
+    condition = "condition"  # If-else branching
+    loop = "loop"  # Iteration
+    switch = "switch"  # Multiple branching
+    # custom = "custom"
+
+
 class FlowNodeTypeEnum(BaseEnum):
-    ai_model_call = "ai_model_call"
-    ai_model_call_stream = "ai_model_call_stream"
-    rag_index = "rag_index"
-    rag_query = "rag_query"
     command = "command"  # To execute a unix command
     folder_analyzer = "folder_analyzer"
     git_repo_analyzer = "git_repo_analyzer"
+
+    # AI Model
+    ai_model_call = "ai_model_call"
+    ai_model_call_stream = "ai_model_call_stream"
+
+    # RAG: TODO: Not implemented
+    rag_index = "rag_index"
+    rag_query = "rag_query"
+
+    # Custom
     custom = "custom"
 
 

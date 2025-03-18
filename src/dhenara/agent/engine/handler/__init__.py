@@ -1,17 +1,17 @@
 from .base import NodeHandler as NodeHandler
 
+from .handlers.command import CommandHandler as CommandHandler
+
+from .handlers.git_command import GitCommandHandler as GitCommandHandler
+from .handlers.folder_analyzer import FolderAnalyzerHandler as FolderAnalyzerHandler
+from .handlers.git_repo_analyzer import GitRepoAnalyzerHandler as GitRepoAnalyzerHandler
+
 from .handlers.ai_model_call import (
     AIModelCallHandler as AIModelCallHandler,
     AIModelCallStreamHandler as AIModelCallStreamHandler,
 )
 from .handlers.rag_index import RAGIndexHandler as RAGIndexHandler
 from .handlers.rag_query import RAGQueryHandler as RAGQueryHandler
-
-
-from .handlers.command import CommandHandler as CommandHandler
-from .handlers.git_command import GitCommandHandler as GitCommandHandler
-from .handlers.folder_analyzer import FolderAnalyzerHandler as FolderAnalyzerHandler
-from .handlers.git_repo_analyzer import GitRepoAnalyzerHandler as GitRepoAnalyzerHandler
 
 
 from .registry import NodeHandlerRegistry as NodeHandlerRegistry

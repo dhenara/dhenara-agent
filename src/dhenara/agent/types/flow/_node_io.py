@@ -8,6 +8,7 @@ from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
 
 FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
+FlowIdentifier = NewType("FlowIdentifier", str)
 
 
 class FlowNodeInput(BaseModel):
