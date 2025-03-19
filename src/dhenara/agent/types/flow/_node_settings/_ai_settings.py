@@ -1,5 +1,6 @@
 from typing import Any
 
+from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field, field_validator
 
 from dhenara.agent.types.data import PromptTemplate, SystemInstructions
@@ -20,14 +21,16 @@ class AISettings(BaseModel):
         default_factory=list,
         description="Node specific system instructions",
     )
-
     node_prompt: PromptTemplate | None = Field(
         default=None,
         description="Node specific prompts generation sinstruction/option parameters",
     )
+    structured_output: type[PydanticBaseModel] | None = Field(
+        default=None,
+        description="Structured output model for the AI model response",
+    )
     options_overrides: dict[str, Any] | None = Field(
         default=None,
-        default_factory=None,
         description="Options to override default AI model API call parameters",
     )
 
@@ -132,7 +135,8 @@ class NodeInputSettings(BaseModel):
         invalid_node_outputs = {
             source_id
             for source_id in self.context_sources
-            if source_id not in available_node_ids and source_id != SpecialNodeIdEnum.PREVIOUS.value
+            if source_id not in available_node_ids
+            and source_id != SpecialNodeIdEnum.PREVIOUS.value
         }
         if invalid_node_outputs:
             raise ValueError(

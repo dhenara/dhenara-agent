@@ -1,59 +1,31 @@
+# dhenara/agent/nodes/base.py
+import json
+import re
+from typing import Any
+
 from pydantic import Field, field_validator, model_validator
 
+from dhenara.agent.dsl.flow import FlowExecutionContext, FlowNodeDefinition
+from dhenara.agent.engine.handler.handlers.ai_model_call import AIModelCallHandler
 from dhenara.agent.types.flow import (
     AISettings,
-    CommandSettings,
-    FlowNodeIdentifier,
     FlowNodeInput,
     FlowNodeTypeEnum,
-    FolderAnalyzerSettings,
-    GitRepoAnalyzerSettings,
     NodeInputSettings,
-    NodeResponseSettings,
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
 
 
-class FlowNode(BaseModel):
-    """Model representing a single node in the flow.
+# dhenara/agent/nodes/ai_model.py
+class AIModelOutput(BaseModel):
+    """Base model for AI model outputs."""
 
-    A node defines an operational unit within a flow, containing its execution
-    parameters, configuration
+    # TODO: This should match with dhenara.ai package output
+    raw_text: str
 
-    Attributes:
-        identifier: Unique identifier for the node
-        type: Operation type this node performs
-        order: Execution sequence number
-        config: FlowNode-specific configuration parameters
-    """
 
-    order: int = Field(
-        ...,
-        description="Execution sequence number",
-        ge=0,
-        examples=[1],
-    )
-
-    identifier: FlowNodeIdentifier = Field(
-        ...,
-        description="Unique human readable identifier for the node",
-        min_length=1,
-        max_length=150,
-        pattern="^[a-zA-Z0-9_-]+$",
-        examples=["initial_model_call", "context_retrieval", "final_summary"],
-    )
-    info: str | None = Field(
-        default=None,
-        description=("General purpose string. Can be user to show a message to the user while executing this node"),
-    )
-
-    type: FlowNodeTypeEnum = Field(
-        ...,
-        description="Type of operation this node performs",
-        examples=["ai_model_call", "rag_query"],
-    )
-
+class AIModelCall(FlowNodeDefinition):
     resources: list[ResourceConfigItem] = Field(
         default_factory=list,
         description="List of resources to be used",
@@ -62,18 +34,6 @@ class FlowNode(BaseModel):
         default_factory=list,
         description="Tools",
     )
-    command_settings: CommandSettings | None = Field(
-        default=None,
-        description="Settings for command execution nodes",
-    )
-    folder_analyzer_settings: FolderAnalyzerSettings | None = Field(
-        default=None, description="Settings for folder analyzer nodes"
-    )
-
-    git_repo_analyzer_settings: GitRepoAnalyzerSettings | None = Field(
-        default=None, description="Settings for git repository analyzer nodes"
-    )
-
     ai_settings: AISettings | None = Field(
         default=None,
         description="Node specific AP API settings/ options ",
@@ -81,42 +41,7 @@ class FlowNode(BaseModel):
     input_settings: NodeInputSettings | None = Field(
         default=None,
         description="Input Settings",
-    )
-    # storage_settings: StorageSettings = Field(
-    #    default_factory=dict,
-    #    description="DataBase Storage settings",
-    # )
-    response_settings: NodeResponseSettings | None = Field(
-        default=None,
-        description="Response Settings",
-    )
-
-    # pre_actions: list[FlowNodePreActionEnum] = Field(
-    #    default_factory=list,
-    #    description="Output actions",
-    # )
-    # post_actions: list[FlowNodePostActionEnum] = Field(
-    #    default_factory=list,
-    #    description="Output actions",
-    # )
-
-    @field_validator("identifier")
-    @classmethod
-    def validate_identifier(cls, v: str) -> str:
-        """Validate node identifier format.
-
-        Args:
-            v: The identifier string to validate
-
-        Returns:
-            The validated identifier string
-
-        Raises:
-            ValueError: If identifier is empty or contains only whitespace
-        """
-        if not v.strip():
-            raise ValueError("FlowNode identifier cannot be empty or whitespace")
-        return v
+    )  # TODO: Consider removing this field and take care of previous context seperately
 
     @field_validator("resources")
     @classmethod
@@ -143,21 +68,9 @@ class FlowNode(BaseModel):
             return v
 
     @model_validator(mode="after")
-    def validate_node_type_settings(self) -> "FlowNode":
-        """Validate that settings match the node type."""
-        if self.type == FlowNodeTypeEnum.command and self.command_settings is None:
-            raise ValueError("command_settings must be provided for nodes of type 'command'")
-
-        if self.type == FlowNodeTypeEnum.folder_analyzer and self.folder_analyzer_settings is None:
-            raise ValueError("folder_analyzer_settings must be provided for nodes of type 'folder_analyzer'")
-
-        if self.type == FlowNodeTypeEnum.git_repo_analyzer and self.git_repo_analyzer_settings is None:
-            raise ValueError("git_repo_analyzer_settings must be provided for nodes of type 'git_repo_analyzer'")
-
-        if self.type in [FlowNodeTypeEnum.ai_model_call, FlowNodeTypeEnum.ai_model_call_stream] and not (
-            self.ai_settings or self.input_settings
-        ):
-            raise ValueError("ai_settings & input_settings  must be provided for nodes of type 'ai_model_call*'")
+    def validate_node_type_settings(self):
+        if not (self.ai_settings or self.input_settings):
+            raise ValueError("ai_settings or input_settings is required for AIModelCall")
 
         return self
 
@@ -221,3 +134,86 @@ class FlowNode(BaseModel):
             return False
 
         return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+
+    async def execute(self, context: "FlowExecutionContext") -> AIModelOutput:
+        """Execute an AI model call."""
+        handler = AIModelCallHandler()
+        return await handler.handle(
+            flow_node=self,
+            flow_context=context,
+            resource_config=context.resource_config,
+        )
+
+
+# TODO: Integrate structured output into legacy handlers
+class TODOAIModelCall(FlowNodeDefinition):
+    """Definition for an AI model call node."""
+
+    def __init__(
+        self,
+        model_name: str,
+        prompt_template: str,
+        system_instructions: list[str] | None = None,
+        options: dict[str, Any] | None = None,
+        # outcome_settings: Optional[OutcomeSettings] = None,
+    ):
+        # super().__init__(outcome_settings=outcome_settings)
+        self.model_name = model_name
+        self.prompt_template = prompt_template
+        self.system_instructions = system_instructions or []
+        self.options = options or {}
+        # self.structured_output = structured_output
+
+    async def execute(self, context: "FlowExecutionContext") -> AIModelOutput:
+        """Execute an AI model call."""
+        # Resolve the prompt template
+        prompt = context.evaluate_template(self.prompt_template)
+
+        # Add structured output schema if needed
+        if self.structured_output:
+            schema = self.structured_output.model_json_schema()
+            schema_text = json.dumps(schema, indent=2)
+            prompt += f"\n\nRespond with JSON matching this schema:\n```json\n{schema_text}\n```"
+
+        # Get an AI model client
+        model = context.get_model(self.model_name)
+
+        # Execute the call
+        response = await model.generate(
+            prompt=prompt,
+            system_instructions=self.system_instructions,
+            options=self.options,
+        )
+
+        # Parse structured output if requested
+        result = AIModelOutput(raw_text=response.text)
+        if self.structured_output:
+            try:
+                # Extract and parse JSON
+                json_text = self._extract_json(response.text)
+                structured = self.structured_output.model_validate(json.loads(json_text))
+                result.structured = structured
+            except Exception as e:
+                context.logger.warning(f"Failed to parse structured output: {e}")
+
+        # Record outcome if configured
+        if self.outcome_settings:
+            await context.record_outcome(self, result)
+
+        return result
+
+    def _extract_json(self, text: str) -> str:
+        """Extract JSON from text."""
+        # First try to extract JSON blocks
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+        if json_match:
+            return json_match.group(1)
+
+        # If that fails, try to find JSON objects
+        json_pattern = r"(\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\})"
+        matches = re.findall(json_pattern, text)
+        if matches:
+            return max(matches, key=len)
+
+        # If all else fails, return the text as-is
+        return text

@@ -4,6 +4,7 @@
 from .types import *
 from .config import *
 from .resource import *
+from .dsl import *
 
 from .engine import *
 from .run import *
