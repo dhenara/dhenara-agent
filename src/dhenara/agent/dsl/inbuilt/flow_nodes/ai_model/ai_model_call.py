@@ -28,18 +28,21 @@ class AIModelCall(FlowNodeDefinition):
         default_factory=list,
         description="List of resources to be used",
     )
+    ai_settings: AISettings | None = Field(
+        default=None,
+        description="Node specific AP API settings/options",
+    )
     tools: list = Field(
         default_factory=list,
         description="Tools",
-    )
-    ai_settings: AISettings | None = Field(
-        default=None,
-        description="Node specific AP API settings/ options ",
     )
     input_settings: NodeInputSettings | None = Field(
         default=None,
         description="Input Settings",
     )  # TODO: Consider removing this field and take care of previous context seperately
+
+    def get_handler(self):
+        return AIModelCallHandler()
 
     @field_validator("resources")
     @classmethod
@@ -71,9 +74,6 @@ class AIModelCall(FlowNodeDefinition):
             raise ValueError("ai_settings or input_settings is required for AIModelCall")
 
         return self
-
-    def get_handler(self):
-        return AIModelCallHandler()
 
     # @model_validator(mode="after")
     # def validate_input_settings(self) -> "FlowNode":

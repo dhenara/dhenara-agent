@@ -1,8 +1,8 @@
 from typing import Any
 
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.types.flow import FlowNode, FlowNodeInput
+from dhenara.agent.types.flow import NodeInput
 from dhenara.ai.types.resource import ResourceConfig
 
 
@@ -14,9 +14,9 @@ class RAGIndexHandler(NodeHandler):
 
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         # Implement RAG indexing logic

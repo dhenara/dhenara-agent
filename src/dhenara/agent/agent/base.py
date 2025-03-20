@@ -7,7 +7,7 @@ from dhenara.agent.dsl.base import ComponentDefinition
 from dhenara.agent.dsl.flow import FlowExecutor
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
-from dhenara.agent.types import FlowNodeInputs
+from dhenara.agent.types import NodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
@@ -23,13 +23,15 @@ class BaseAgent:
         # TODO: Configs?
 
         if not isinstance(self.agent_node, AgentNode):
-            logger.error(f"Imported object is not an AgentNode: {type(self.agent_node)}")
+            logger.error(
+                f"Imported object is not an AgentNode: {type(self.agent_node)}"
+            )
             return
 
     async def run(
         self,
         run_context: RunContext,
-        initial_inputs: FlowNodeInputs | None = None,
+        initial_inputs: NodeInputs | None = None,
     ):
         # TODO: Bring inputs
         input_data = {
@@ -54,7 +56,7 @@ class BaseAgent:
     async def _run_flow(
         self,
         run_context: RunContext,
-        initial_inputs: FlowNodeInputs,
+        initial_inputs: NodeInputs,
         resource_profile="default",
     ):
         flow_definition: ComponentDefinition = self.agent_node.flow
@@ -79,7 +81,7 @@ class BaseAgent:
 
             # Execute
             # await flow_orchestrator.run(
-            #    flow_context=flow_context,
+            #    execution_context=execution_context,
             # )
 
             # Execute the flow
@@ -89,18 +91,19 @@ class BaseAgent:
                 resource_config=resource_config,
             )
 
-            if run_context.flow_context.execution_failed:
-                logger.exception(f"Execution Failed: {run_context.flow_context.execution_failed_message}")
-                return False
+            # TODO
+            # if run_context.execution_context.execution_failed:
+            #    logger.exception(f"Execution Failed: {run_context.execution_context.execution_failed_message}")
+            #    return False
 
             ## Set `is_streaming` after execution returns
             # is_streaming = executor.definition.has_any_streaming_node()
             # if is_streaming:
-            #    _response_stream_generator = flow_context.stream_generator
+            #    _response_stream_generator = execution_context.stream_generator
             # else:
             #    _response_data = {
-            #        "execution_status": flow_context.execution_status,
-            #        "execution_results": flow_context.execution_results,
+            #        "execution_status": execution_context.execution_status,
+            #        "execution_results": execution_context.execution_results,
             #    }
 
         except PydanticValidationError as e:

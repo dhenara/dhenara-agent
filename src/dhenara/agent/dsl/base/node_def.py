@@ -5,9 +5,12 @@ from datetime import datetime
 from typing import Any, Generic, TypeVar
 
 from dhenara.agent.dsl.base import ExecutableNodeOutcomeSettings, ExecutionContext
-from dhenara.agent.engine.handler.base import NodeHandler
 from dhenara.agent.types.base import BaseModelABC
-from dhenara.agent.types.flow import ExecutionStrategyEnum, FlowExecutionStatusEnum, FlowNodeInput
+from dhenara.agent.types.flow import (
+    ExecutionStatusEnum,
+    ExecutionStrategyEnum,
+    NodeInput,
+)
 from dhenara.ai.types.resource import ResourceConfigItem
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
@@ -26,7 +29,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     async def execute(
         self,
         execution_context: ContextT,
-        node_input: FlowNodeInput,
+        node_input: NodeInput,
         # resource_config: ResourceConfig,
     ) -> Any:
         # self.resource_config = resource_config
@@ -42,18 +45,18 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             return result
 
         if execution_context.execution_failed:
-            execution_context.execution_status = FlowExecutionStatusEnum.FAILED
+            execution_context.execution_status = ExecutionStatusEnum.FAILED
             return None
 
     @abstractmethod
-    def get_handler(self) -> NodeHandler:
+    def get_handler(self):  # NodeHandler:
         """Get the handler for this node definition."""
         pass
 
     async def process_node(
         self,
         execution_context: ContextT,
-        node_input: FlowNodeInput,
+        node_input: NodeInput,
     ) -> Any:
         """Process a single node and handle its result."""
         handler = self.get_handler()
@@ -82,23 +85,28 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
 
         # Execute non-streaming node
         result = await handler.handle(
-            flow_node=self,  # TODO: Change type in handler
-            flow_node_input=node_input,
-            # execution_context=execution_context,
-            flow_context=execution_context,  # TODO: rename in class
+            node_definition=self,  # TODO: Change type in handler
+            node_input=node_input,
+            execution_context=execution_context,
             resource_config=execution_context.resource_config,
         )
-        return await self.process_node_completion(execution_context=execution_context, result=result)
+        return await self.process_node_completion(
+            execution_context=execution_context, result=result
+        )
 
     async def process_node_completion(
         self,
         execution_context: ContextT,
         result,
     ) -> AsyncGenerator | None:
-        execution_context.execution_results[execution_context.current_node_identifier] = result
+        execution_context.execution_results[
+            execution_context.current_node_identifier
+        ] = result
         execution_context.updated_at = datetime.now()
 
-        _result_json = json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
+        _result_json = (
+            json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
+        )
 
         if execution_context.artifact_manager:
             execution_context.artifact_manager.record_node_output(
@@ -124,7 +132,9 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         """Continue processing remaining nodes after streaming completes"""
         try:
             # Wait for streaming to complete
-            current_streaming_context = execution_context.streaming_contexts[execution_context.current_node_identifier]
+            current_streaming_context = execution_context.streaming_contexts[
+                execution_context.current_node_identifier
+            ]
             execution_context.logger.debug(
                 f"_continue_after_streaming: waiting for completion at node {execution_context.current_node_identifier}"
             )
@@ -134,23 +144,32 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             )
 
             if not current_streaming_context.successfull:
-                raise current_streaming_context.error or ValueError("Streaming unsuccessful")
+                raise current_streaming_context.error or ValueError(
+                    "Streaming unsuccessful"
+                )
 
             # NOTE: Streaming result are added to execution results inside notify_streaming_complete()
             # -- execution_context.execution_results[execution_context.current_node_identifier] = c_str_context.result
             # Continue with remaining nodes using the same execution strategy
             start_index = execution_context.current_node_index + 1
-            if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
-                await self._execute_nodes(execution_context, sequential=True, start_index=start_index)
+            if (
+                self.flow_definition.execution_strategy
+                == ExecutionStrategyEnum.sequential
+            ):
+                await self._execute_nodes(
+                    execution_context, sequential=True, start_index=start_index
+                )
             else:
-                await self._execute_nodes(execution_context, sequential=False, start_index=start_index)
+                await self._execute_nodes(
+                    execution_context, sequential=False, start_index=start_index
+                )
 
             execution_context.completed_at = datetime.now()
-            execution_context.execution_status = FlowExecutionStatusEnum.COMPLETED
+            execution_context.execution_status = ExecutionStatusEnum.COMPLETED
             await self.execution_recorder.update_execution_in_db(execution_context)
 
         except Exception:
-            execution_context.execution_status = FlowExecutionStatusEnum.FAILED
+            execution_context.execution_status = ExecutionStatusEnum.FAILED
             execution_context.logger.exception("Post-streaming execution failed")
             await self.execution_recorder.update_execution_in_db(execution_context)
             raise
@@ -158,9 +177,17 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     # -------------------------------------------------------------------------
     # TODO: From  previous FlowNode
     # -------------------------------------------------------------------------
-    async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
-        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-        input_content = node_input.content.get_content() if node_input and node_input.content else None
+    async def get_full_input_content(self, node_input: NodeInput, **kwargs) -> str:
+        node_prompt = (
+            self.ai_settings.node_prompt
+            if self.ai_settings and self.ai_settings.node_prompt
+            else None
+        )
+        input_content = (
+            node_input.content.get_content()
+            if node_input and node_input.content
+            else None
+        )
 
         if node_prompt:
             if input_content is None:
@@ -194,4 +221,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         if not self.resources:
             return False
 
-        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+        return any(
+            existing_resource.is_same_as(resource)
+            for existing_resource in self.resources
+        )

@@ -7,7 +7,7 @@ from pydantic import Field
 from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
-from dhenara.agent.types.flow._node_io import FlowNodeInputs
+from dhenara.agent.types.flow._node_io import NodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
@@ -29,13 +29,13 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
     async def execute(
         self,
-        initial_inputs: FlowNodeInputs,  # TODO_FUTURE: Make generic
+        initial_inputs: NodeInputs,  # TODO_FUTURE: Make generic
         resource_config: ResourceConfig = None,
     ) -> dict[str, Any]:
         """Execute a flow with the given initial data."""
         # Create the execution context
 
-        flow_context = self.context_class(
+        execution_context = self.context_class(
             # flow_definition=flow_definition,
             initial_inputs=initial_inputs,
             resource_config=resource_config,
@@ -44,10 +44,10 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             artifact_manager=self.run_context.artifact_manager,
         )
 
-        # Initialize flow_context  in run_context
-        self.run_context.flow_context = flow_context
+        # Initialize execution_context  in run_context
+        self.run_context.execution_context = execution_context
 
         # Execute the flow
         block = self.block_class(self.definition.elements)
-        await block.execute(flow_context)
-        return flow_context.results
+        await block.execute(execution_context)
+        return execution_context.results

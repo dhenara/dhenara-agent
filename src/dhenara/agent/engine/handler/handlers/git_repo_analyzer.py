@@ -3,8 +3,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.types import FlowNode, FlowNodeInput, GitRepoAnalyzerSettings
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
+from dhenara.agent.types import GitRepoAnalyzerSettings, NodeInput
 from dhenara.agent.utils.git import GitBase
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
@@ -23,25 +23,25 @@ class GitRepoAnalyzerHandler(FolderAnalyzerHandler):
 
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         """Analyze git repository as defined in the flow node."""
         try:
             # Validate git repo analyzer settings
-            if not flow_node.git_repo_analyzer_settings:
+            if not node_definition.git_repo_analyzer_settings:
                 raise ValueError("git_repo_analyzer_settings is required for git_repo_analyzer nodes")
 
             # If git_repo_analyzer_settings is a dict, convert it to a GitRepoAnalyzerSettings object
-            if isinstance(flow_node.git_repo_analyzer_settings, dict):
-                settings = GitRepoAnalyzerSettings(**flow_node.git_repo_analyzer_settings)
+            if isinstance(node_definition.git_repo_analyzer_settings, dict):
+                settings = GitRepoAnalyzerSettings(**node_definition.git_repo_analyzer_settings)
             else:
-                settings = flow_node.git_repo_analyzer_settings
+                settings = node_definition.git_repo_analyzer_settings
 
             # Resolve path with variable interpolation
-            path = settings.get_formatted_path(run_env_params=flow_context.run_env_params)
+            path = settings.get_formatted_path(run_env_params=execution_context.run_env_params)
             path = Path(path).expanduser().resolve()
 
             # Check if path exists and is a directory
@@ -60,7 +60,7 @@ class GitRepoAnalyzerHandler(FolderAnalyzerHandler):
                 }
 
             # First, do the basic folder analysis
-            folder_analysis = await super().handle(flow_node, flow_node_input, flow_context, resource_config)
+            folder_analysis = await super().handle(node_definition, node_input, execution_context, resource_config)
 
             # Then add git-specific information
             git_analysis = self._analyze_git_repo(path, settings)

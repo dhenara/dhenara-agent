@@ -1,4 +1,4 @@
-from ._base_type import BaseModelABC, BaseModel
+from ._base_type import BaseModelABC, BaseModel, BaseEnum
 
 
-__all__ = ["BaseModel", "BaseModelABC"]
+__all__ = ["BaseEnum", "BaseModel", "BaseModelABC"]

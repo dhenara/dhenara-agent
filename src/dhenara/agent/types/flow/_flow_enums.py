@@ -7,7 +7,9 @@ class SpecialNodeIdEnum(BaseEnum):
     PREVIOUS = "previous"  # Reference to previous node
 
 
-class FlowExecutionStatusEnum(BaseEnum):
+class ExecutionStatusEnum(BaseEnum):
+    """Generic execution status enum that can be used by any DSL component."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"

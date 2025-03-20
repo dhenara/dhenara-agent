@@ -2,7 +2,7 @@
 
 import logging
 
-from dhenara.agent.engine.types import FlowContext
+from dhenara.agent.dsl.base import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class ExecutionRecorder:
     #            f"Endpoint not found for id {obj_id}/ reference_number {obj_ref_num}",
     #        )
 
-    async def update_execution_in_db(self, context: FlowContext, create: bool = False):
+    async def update_execution_in_db(self, context: ExecutionContext, create: bool = False):
         return  # TODO
         # TODO: Run in backround as non blocking
         try:
@@ -39,14 +39,14 @@ class ExecutionRecorder:
                 data = {  # noqa: F841
                     "endpoint": endpoint,
                     "execution_status": context.execution_status,
-                    "flow_context": context.model_dump_json(),
+                    "execution_context": context.model_dump_json(),
                 }
                 self.execution_record = "todo"
             else:
                 if not self.execution_record:
                     raise ValueError("execution_record is None")
 
-                self.execution_record.flow_context = context
+                self.execution_record.execution_context = context
                 self.execution_record.execution_status = context.execution_status
                 await self.execution_record.asave()
 

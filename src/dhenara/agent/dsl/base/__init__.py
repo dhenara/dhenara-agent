@@ -1,5 +1,5 @@
 # Base Element
-from .context import ExecutionContext, ExecutableNodeID
+from .context import ExecutionContext, StreamingContext, StreamingStatusEnum
 from .element import ExecutableElement
 from .settings import ExecutableNodeOutcomeSettings
 from .node_def import ExecutableNodeDefinition
@@ -23,9 +23,10 @@ __all__ = [
     "ExecutableElement",
     "ExecutableNode",
     "ExecutableNodeDefinition",
-    "ExecutableNodeID",
     "ExecutableNodeOutcomeSettings",
     "ExecutableReference",
     "ExecutionContext",
     "ForEach",
+    "StreamingContext",
+    "StreamingStatusEnum",
 ]

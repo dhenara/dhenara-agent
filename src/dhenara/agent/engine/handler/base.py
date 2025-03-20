@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from dhenara.agent.engine.types import FlowContext
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.types import (
-    FlowNode,
-    FlowNodeInput,
+    NodeInput,
     SpecialNodeIdEnum,
 )
 from dhenara.ai.providers.common import PromptFormatter
@@ -31,9 +30,9 @@ class NodeHandler(ABC):
     @abstractmethod
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         """
@@ -43,21 +42,21 @@ class NodeHandler(ABC):
 
     def set_node_execution_failed(
         self,
-        flow_node: FlowNode,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
         message: str,
     ):
-        flow_context.execution_failed = True
-        flow_context.execution_failed_message = message
+        execution_context.execution_failed = True
+        execution_context.execution_failed_message = message
 
     async def process_input_contents_and_node_prompt(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
         model: AIModel,
     ) -> list[dict]:
-        final_content = await flow_node.get_full_input_content(
-            node_input=flow_node_input,
+        final_content = await node_definition.get_full_input_content(
+            node_input=node_input,
             # TODO: kwargs
         )
 
@@ -74,21 +73,21 @@ class NodeHandler(ABC):
 
     async def get_previous_node_outputs_as_prompts(
         self,
-        flow_node: FlowNode,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
         model: AIModel,
     ) -> list:
-        context_sources = flow_node.input_settings.context_sources if flow_node.input_settings else []
+        context_sources = node_definition.input_settings.context_sources if node_definition.input_settings else []
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
                 if source_node_identifier == SpecialNodeIdEnum.PREVIOUS:
-                    previous_node_identifier = flow_context.flow_definition.get_previous_node_identifier(
-                        flow_context.current_node_identifier,
+                    previous_node_identifier = execution_context.flow_definition.get_previous_node_identifier(
+                        execution_context.current_node_identifier,
                     )
-                    previous_node_execution_result = flow_context.execution_results.get(previous_node_identifier)
+                    previous_node_execution_result = execution_context.execution_results.get(previous_node_identifier)
                 else:
-                    previous_node_execution_result = flow_context.execution_results.get(source_node_identifier)
+                    previous_node_execution_result = execution_context.execution_results.get(source_node_identifier)
 
                 previous_node_output = previous_node_execution_result.node_output.data
 

@@ -4,11 +4,11 @@ from datetime import datetime
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.engine import FlowOrchestrator
-from dhenara.agent.engine.types import FlowContext
+from dhenara.agent.engine.types import LegacyFlowContext
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
 from dhenara.agent.types import Agent as AgentType
-from dhenara.agent.types import FlowDefinition, FlowNodeInputs
+from dhenara.agent.types import FlowDefinition, NodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
@@ -30,7 +30,7 @@ class LegacyBaseAgent:
     async def run(
         self,
         run_context: RunContext,
-        initial_inputs: FlowNodeInputs | None = None,
+        initial_inputs: NodeInputs | None = None,
     ):
         # TODO: Bring inputs
         input_data = {
@@ -54,7 +54,7 @@ class LegacyBaseAgent:
     async def _run_flow(
         self,
         run_context: RunContext,
-        initial_inputs: FlowNodeInputs,
+        initial_inputs: NodeInputs,
         resource_profile="default",
     ):
         flow_definition: FlowDefinition = self.agent_definition.flow_definition
@@ -73,7 +73,7 @@ class LegacyBaseAgent:
                 resource_config=resource_config,
             )
 
-            flow_context = FlowContext(
+            execution_context = LegacyFlowContext(
                 flow_definition=flow_definition,
                 initial_inputs=initial_inputs,
                 created_at=datetime.now(),
@@ -81,27 +81,27 @@ class LegacyBaseAgent:
                 artifact_manager=run_context.artifact_manager,
             )
 
-            # Initialize flow_context  in run_context
-            run_context.flow_context = flow_context
+            # Initialize execution_context  in run_context
+            run_context.execution_context = execution_context
 
             # Execute
             await flow_orchestrator.run(
-                flow_context=flow_context,
+                execution_context=execution_context,
             )
 
             # Set `is_streaming` after execution returns
             is_streaming = flow_orchestrator.flow_definition.has_any_streaming_node()
 
-            if flow_context.execution_failed:
-                logger.exception(f"Execution Failed: {flow_context.execution_failed_message}")
+            if execution_context.execution_failed:
+                logger.exception(f"Execution Failed: {execution_context.execution_failed_message}")
                 return False
 
             if is_streaming:
-                _response_stream_generator = flow_context.stream_generator
+                _response_stream_generator = execution_context.stream_generator
             else:
                 _response_data = {
-                    "execution_status": flow_context.execution_status,
-                    "execution_results": flow_context.execution_results,
+                    "execution_status": execution_context.execution_status,
+                    "execution_results": execution_context.execution_results,
                 }
 
         except PydanticValidationError as e:

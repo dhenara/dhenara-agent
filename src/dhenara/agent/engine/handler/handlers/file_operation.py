@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from typing import Any
 
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.types import FlowNode, FlowNodeInput, FlowNodeOutput
+from dhenara.agent.types import FlowNodeOutput, NodeInput
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
@@ -21,13 +21,13 @@ class FileOperationHandler(NodeHandler):
 
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         # Extract file operations from input
-        file_ops_input = flow_node_input.content.get_content()
+        file_ops_input = node_input.content.get_content()
 
         try:
             # Parse the file operations (expected JSON format)

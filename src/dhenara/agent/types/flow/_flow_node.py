@@ -3,11 +3,11 @@ from pydantic import Field, field_validator, model_validator
 from dhenara.agent.types.flow import (
     AISettings,
     CommandSettings,
-    FlowNodeIdentifier,
-    FlowNodeInput,
     FlowNodeTypeEnum,
     FolderAnalyzerSettings,
     GitRepoAnalyzerSettings,
+    NodeID,
+    NodeInput,
     NodeInputSettings,
     NodeResponseSettings,
 )
@@ -15,7 +15,7 @@ from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
 
 
-class FlowNode(BaseModel):
+class LegacyFlowNode(BaseModel):  # TODO: Delete
     """Model representing a single node in the flow.
 
     A node defines an operational unit within a flow, containing its execution
@@ -35,7 +35,7 @@ class FlowNode(BaseModel):
         examples=[1],
     )
 
-    identifier: FlowNodeIdentifier = Field(
+    identifier: NodeID = Field(
         ...,
         description="Unique human readable identifier for the node",
         min_length=1,
@@ -143,7 +143,7 @@ class FlowNode(BaseModel):
             return v
 
     @model_validator(mode="after")
-    def validate_node_type_settings(self) -> "FlowNode":
+    def validate_node_type_settings(self) -> "LegacyFlowNode":
         """Validate that settings match the node type."""
         if self.type == FlowNodeTypeEnum.command and self.command_settings is None:
             raise ValueError("command_settings must be provided for nodes of type 'command'")
@@ -184,7 +184,7 @@ class FlowNode(BaseModel):
     #        )
     #    return self
 
-    async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
+    async def get_full_input_content(self, node_input: NodeInput, **kwargs) -> str:
         node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
         input_content = node_input.content.get_content() if node_input and node_input.content else None
 

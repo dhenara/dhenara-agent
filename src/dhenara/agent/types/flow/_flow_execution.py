@@ -6,9 +6,9 @@ from pydantic import Field, RootModel
 
 from dhenara.agent.types.flow import (
     FlowNodeExecutionStatusEnum,
-    FlowNodeIdentifier,
-    FlowNodeInput,
     FlowNodeOutput,
+    NodeID,
+    NodeInput,
 )
 from dhenara.ai.types.shared.base import BaseModel
 
@@ -18,11 +18,11 @@ T = TypeVar("T", bound=BaseModel)
 
 
 # -----------------------------------------------------------------------------
-class FlowNodeExecutionResult(BaseModel, Generic[T]):
-    node_identifier: FlowNodeIdentifier
+class NodeExecutionResult(BaseModel, Generic[T]):
+    node_identifier: NodeID
     status: FlowNodeExecutionStatusEnum
     # user_inputs: list[Content] | None
-    node_input: FlowNodeInput | None
+    node_input: NodeInput | None
     node_output: FlowNodeOutput[T]
     # storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime
@@ -33,10 +33,10 @@ class FlowNodeExecutionResult(BaseModel, Generic[T]):
 
 # INFO:
 #  Below root model definition is to create an object field like
-#  ---      FlowExecutionResults[T] = dict[FlowNodeIdentifier, FlowNodeExecutionResult[Generic[T]]]
+#  ---      ExecutionResults[T] = dict[NodeID, NodeExecutionResult[Generic[T]]]
 
 
-class FlowExecutionResults(RootModel[T], Generic[T]):
+class ExecutionResults(RootModel[T], Generic[T]):
     """
     Represents the execution results of a flow, mapping node identifiers to their execution results.
 
@@ -46,7 +46,7 @@ class FlowExecutionResults(RootModel[T], Generic[T]):
         root: Dictionary mapping node identifiers to their execution results
     """
 
-    root: dict[FlowNodeIdentifier, FlowNodeExecutionResult[T]] = Field(
+    root: dict[NodeID, NodeExecutionResult[T]] = Field(
         default_factory=dict,
         description="Mapping of node identifiers to their execution results",
     )
@@ -55,7 +55,7 @@ class FlowExecutionResults(RootModel[T], Generic[T]):
         """Provide dictionary-like items() access to the root dictionary."""
         return self.root.items()
 
-    def __getitem__(self, key: str) -> "FlowNodeExecutionResult[T]":
+    def __getitem__(self, key: str) -> "NodeExecutionResult[T]":
         """Enable dictionary-like access to results."""
         return self.root[key]
 
@@ -65,15 +65,15 @@ class FlowExecutionResults(RootModel[T], Generic[T]):
 
 
 ''' TODO: Delete
-class FlowExecutionResults(RootModel[T]):  # Note: RootModel
+class ExecutionResults(RootModel[T]):  # Note: RootModel
     """
     Represents the execution results of a flow, mapping node identifiers to their execution results.
 
     Attributes:
-        __root__: A dictionary mapping FlowNodeIdentifier to FlowNodeExecutionResult of type T.
+        __root__: A dictionary mapping NodeID to NodeExecutionResult of type T.
     """
 
-    root: dict[FlowNodeIdentifier, FlowNodeExecutionResult[T]] = Field(
+    root: dict[NodeID, NodeExecutionResult[T]] = Field(
         ...,
         description="Mapping of node identifiers to their execution results.",
         example={

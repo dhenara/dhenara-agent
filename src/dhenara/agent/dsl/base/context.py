@@ -1,35 +1,84 @@
+# dhenara/agent/dsl/base/context.py
+import json
 import logging
-from abc import abstractmethod
-from typing import Any, ClassVar, NewType, Optional
+from asyncio import Event
+from collections.abc import AsyncGenerator
+from datetime import datetime
+from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
-from dhenara.agent.types.base import BaseModelABC
-from dhenara.agent.types.flow._node_io import FlowNodeInputs
+from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
+from dhenara.agent.types.data import RunEnvParams
+from dhenara.agent.types.flow import (
+    ExecutionResults,
+    ExecutionStatusEnum,
+    NodeExecutionResult,
+    NodeID,
+    NodeInput,
+    NodeInputs,
+)
 from dhenara.ai.types.resource import ResourceConfig
 
-ExecutableNodeID = NewType("ExecutableNodeID", str)
+
+class StreamingStatusEnum(BaseEnum):
+    NOT_STARTED = "not_started"
+    STREAMING = "streaming"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class StreamingContext(BaseModel):
+    status: StreamingStatusEnum = StreamingStatusEnum.NOT_STARTED
+    completion_event: Event | None = None
+    result: NodeExecutionResult | None = None
+    error: Exception | None = None
+
+    @property
+    def successfull(self) -> bool:
+        return self.status == StreamingStatusEnum.COMPLETED
 
 
 class ExecutionContext(BaseModelABC):
     """A generic execution context for any DSL execution."""
 
-    results = Field(default_factory=dict)
-    # initial_data: dict[ExecutableNodeID, Any] = Field(default_factory=dict)
-    initial_inputs: FlowNodeInputs  # TODO_FUTURE: Make generic
+    # Core data structures
     resource_config: ResourceConfig = None
-    data: dict[str, Any] = Field(default_factory=dict)  # Add this
+    data: dict[str, Any] = Field(default_factory=dict)
     parent: Optional["ExecutionContext"] = Field(default=None)
     results: dict[str, Any] = Field(default_factory=dict)
+
+    # Flow-specific tracking
+    current_node_identifier: NodeID | None = None
+    initial_inputs: NodeInputs = Field(default_factory=dict)
+
+    execution_status: ExecutionStatusEnum = ExecutionStatusEnum.PENDING
+    execution_results: ExecutionResults[Any] = Field(default_factory=dict)
+    execution_failed: bool = False
+    execution_failed_message: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime | None = None
+    completed_at: datetime | None = None
+
+    # Streaming support
+    streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
+    stream_generator: AsyncGenerator | None = None
+
+    # Services and utilities
     artifact_manager: Any = Field(default=None)
+    # Environment
+    run_env_params: RunEnvParams | None = None
+    # Logging
+    logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")
 
-    logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")  # TODO: Pass correct id
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Initialize data from initial_data if provided
-        # if self.initial_data:
-        #    self.data.update(self.initial_data)
+    # TODO: Enable event bus
+    # event_bus: EventBus = Field(default_factory=EventBus)
+    # async def publish_event(self, event_type: str, data: Any):
+    #    """Publish an event from the current node"""
+    #    await self.event_bus.publish(
+    #        event_type, data, self.current_node_identifier
+    #    )
 
     def get_value(self, path: str) -> Any:
         """Get a value from the context by path."""
@@ -120,10 +169,43 @@ class ExecutionContext(BaseModelABC):
             result = result.replace(f"${{{expr}}}", str(value))
         return result
 
-    @abstractmethod
+    def set_execution_failed(self, message: str) -> None:
+        """Mark execution as failed with a message."""
+        self.execution_failed = True
+        self.execution_failed_message = message
+        self.execution_status = ExecutionStatusEnum.FAILED
+        self.logger.error(f"Execution failed: {message}")
+
+    # Node specific methods
+    def set_current_node(self, identifier: str):
+        """Set the current node being executed."""
+        self.current_node_identifier = identifier
+
+    def get_initial_input(self) -> NodeInput:
+        """Get the input for the current node."""
+        if not self.current_node_identifier:
+            raise ValueError("get_initial_input: current_node_identifier is not set")
+        return self.initial_inputs.get(self.current_node_identifier, None)
+
+    async def notify_streaming_complete(
+        self,
+        identifier: NodeID,
+        streaming_status: StreamingStatusEnum,
+        result: NodeExecutionResult,
+    ) -> None:
+        streaming_context = self.streaming_contexts[identifier]
+        if not streaming_context:
+            raise ValueError(f"notify_streaming_complete: Failed to get streaming_context for id {identifier}")
+
+        streaming_context.status = streaming_status
+        streaming_context.result = result
+        self.execution_results[identifier] = result
+        streaming_context.completion_event.set()
+
+    # ------------: TODO: Review
     def create_iteration_context(self, iteration_data: dict[str, Any]) -> "ExecutionContext":
         """Create a new context for a loop iteration."""
-        pass
+        return ExecutionContext(initial_data=iteration_data, parent=self, artifact_manager=self.artifact_manager)
 
     def merge_iteration_context(self, iteration_context: "ExecutionContext") -> None:
         """Merge results from an iteration context back to this context."""
@@ -131,12 +213,40 @@ class ExecutionContext(BaseModelABC):
             iteration_key = f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
             self.results[iteration_key] = value
 
-    @abstractmethod
     async def record_outcome(self, node_def, result: Any) -> None:
         """Record the outcome of a node execution."""
-        pass
+        if not self.artifact_manager or not node_def.outcome_settings:
+            return
 
-    @abstractmethod
+        settings = node_def.outcome_settings
+        if not settings.enabled:
+            return
+
+        # Resolve templates
+        path = self.evaluate_template(settings.path_template)
+        filename = self.evaluate_template(settings.filename_template)
+
+        # Generate content
+        if settings.content_template:
+            content = self.evaluate_template(settings.content_template)
+        else:
+            # Default to JSON serialization
+            if hasattr(result, "model_dump"):
+                content = json.dumps(result.model_dump(), indent=2)
+            else:
+                content = json.dumps(result, indent=2, default=str)
+
+        # Record the outcome
+        commit_msg = None
+        if settings.commit_message_template:
+            commit_msg = self.evaluate_template(settings.commit_message_template)
+
+        await self.artifact_manager.record_outcome(
+            file_name=filename, path_in_repo=path, content=content, commit=settings.commit, commit_msg=commit_msg
+        )
+
     async def record_iteration_outcome(self, loop_element, iteration: int, item: Any, result: Any) -> None:
         """Record the outcome of a loop iteration."""
+        # Implementation depends on whether the loop has outcome settings
+        # Similar to record_outcome but with iteration-specific values
         pass

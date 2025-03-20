@@ -93,6 +93,15 @@ class NodeResponseSettings(BaseModel):
         description="Custom headers to include in the response",
     )
 
+    # New field to trigger notification events (for pushing updates to UI or other agents)
+    emit_notification: bool = Field(
+        default=False, description="Whether the node should send notification events during execution."
+    )
+    # New field to indicate that the node should "unblock" events to others
+    unblock_on_complete: bool = Field(
+        default=False, description="Whether finishing this node should unblock downstream agents/nodes."
+    )
+
     @field_validator("streaming_chunk_size")
     @classmethod
     def validate_streaming_chunk_size(cls, v, values):

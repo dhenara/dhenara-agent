@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.types import FlowNode, FlowNodeInput, FlowNodeTypeEnum, FolderAnalyzerSettings
+from dhenara.agent.types import FlowNodeTypeEnum, FolderAnalyzerSettings, NodeInput
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
@@ -23,26 +23,26 @@ class FolderAnalyzerHandler(NodeHandler):
 
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         """Analyze folder structure as defined in the flow node."""
         try:
-            if flow_node.type == FlowNodeTypeEnum.folder_analyzer:
-                settings = flow_node.folder_analyzer_settings
-            elif flow_node.type == FlowNodeTypeEnum.git_repo_analyzer:
-                settings = flow_node.git_repo_analyzer_settings
+            if node_definition.type == FlowNodeTypeEnum.folder_analyzer:
+                settings = node_definition.folder_analyzer_settings
+            elif node_definition.type == FlowNodeTypeEnum.git_repo_analyzer:
+                settings = node_definition.git_repo_analyzer_settings
             else:
-                raise ValueError(f"Illegal node type {flow_node.type} for analyzer handler")
+                raise ValueError(f"Illegal node type {node_definition.type} for analyzer handler")
 
             # Validate folder analyzer settings
             if not settings:
                 raise ValueError("analyzer_settings is required for analyzer nodes")
 
             # Resolve path with variable interpolation
-            path = settings.get_formatted_path(run_env_params=flow_context.run_env_params)
+            path = settings.get_formatted_path(run_env_params=execution_context.run_env_params)
             path = Path(path).expanduser().resolve()
 
             # Check if path exists and is a directory

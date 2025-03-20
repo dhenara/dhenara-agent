@@ -1,7 +1,7 @@
 from shared_print_utils import ResponseDisplayMixin
 
 from dhenara.agent.client import Client
-from dhenara.agent.types import Content, FlowNodeInput
+from dhenara.agent.types import Content, NodeInput
 from dhenara.ai.types import ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 
 
@@ -28,7 +28,7 @@ def main():
     )
 
     initial_inputs = {
-        "ai_model_call_1": FlowNodeInput(
+        "ai_model_call_1": NodeInput(
             content=content,
             resources=[
                 ResourceConfigItem(
@@ -47,7 +47,7 @@ def main():
                 "test_mode": test_mode,
             },
         ).model_dump(),
-        "generate_conversation_title": FlowNodeInput(
+        "generate_conversation_title": NodeInput(
             options={
                 "test_mode": test_mode,
             },

@@ -4,9 +4,9 @@ import logging
 import os
 from typing import Any
 
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.engine.types import FlowContext
-from dhenara.agent.types import FlowNode, FlowNodeInput
+from dhenara.agent.types import NodeInput
 from dhenara.agent.types.flow import CommandSettings
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
@@ -22,22 +22,22 @@ class CommandHandler(NodeHandler):
 
     async def handle(
         self,
-        flow_node: FlowNode,
-        flow_node_input: FlowNodeInput,
-        flow_context: FlowContext,
+        node_definition: ExecutableNodeDefinition,
+        node_input: NodeInput,
+        execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
         """Execute commands defined in the flow node."""
         try:
             # Validate command settings
-            if not hasattr(flow_node, "command_settings"):
+            if not hasattr(node_definition, "command_settings"):
                 raise ValueError("command_settings is required for command nodes")
 
             # If command_settings is a dict, convert it to a CommandSettings object
-            if isinstance(flow_node.command_settings, dict):
-                command_settings = CommandSettings(**flow_node.command_settings)
+            if isinstance(node_definition.command_settings, dict):
+                command_settings = CommandSettings(**node_definition.command_settings)
             else:
-                command_settings = flow_node.command_settings
+                command_settings = node_definition.command_settings
 
             # Set up execution environment
             env = os.environ.copy()
@@ -47,7 +47,7 @@ class CommandHandler(NodeHandler):
             # Execute commands sequentially
             results = []
             formatted_commands, working_dir = command_settings.get_formatted_commands_and_dir(
-                run_env_params=flow_context.run_env_params
+                run_env_params=execution_context.run_env_params
             )
 
             for formatted_cmd in formatted_commands:

@@ -1,17 +1,19 @@
+from collections.abc import AsyncGenerator
+from datetime import datetime
 from typing import Any, Generic, NewType, TypeVar
 
 from pydantic import Field
 
 from dhenara.agent.types.data import Content
-from dhenara.agent.types.flow import FlowExecutionStatusEnum
+from dhenara.agent.types.flow import ExecutionStatusEnum
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
 
-FlowNodeIdentifier = NewType("FlowNodeIdentifier", str)
+NodeID = NewType("NodeID", str)
 FlowIdentifier = NewType("FlowIdentifier", str)
 
 
-class FlowNodeInput(BaseModel):
+class NodeInput(BaseModel):  # TODO: Rename to NodeInput
     """
     Input model for execution nodes with validation rules
     """
@@ -22,9 +24,10 @@ class FlowNodeInput(BaseModel):
     )
 
     # Replacement for prompt variables
-    prompt_vars: dict = Field(
+    # prompt_vars
+    variables: dict[str, Any] = Field(
         default_factory=dict,
-        description="Prompt Variable with thier values",
+        description="Variables for template resolution",
         example={"style": "modern", "name": "Annie"},
     )
 
@@ -44,13 +47,15 @@ class FlowNodeInput(BaseModel):
             "top_p": 1.0,
         },
     )
+    # Context from other nodes
+    context: dict[str, Any] = Field(default_factory=dict, description="Context from previous nodes")
 
     # NOTE:
     # `is_default` validations for resoures are added inside flow models,
     # note input models
 
     # @model_validator(mode="after")
-    # def validate_action_requirements(self) -> "FlowNodeInput":
+    # def validate_action_requirements(self) -> "NodeInput":
     #    node_objects = [
     #        obj for obj in self.internal_data_objs if obj.object_type == InternalDataObjectTypeEnum.conversation_node
     #    ]
@@ -84,39 +89,45 @@ class FlowNodeInput(BaseModel):
 
 # -----------------------------------------------------------------------------
 #  Custom Dict Subclass with Type Validation
-class FlowNodeInputs(dict[FlowNodeIdentifier, FlowNodeInput]):
+class NodeInputs(dict[NodeID, NodeInput]):  # TODO: Rename to NodeInputs
     """Dictionary of flow node inputs with type validation."""
 
-    def __setitem__(self, key: FlowNodeIdentifier, value: FlowNodeInput) -> None:
+    def __setitem__(self, key: NodeID, value: NodeInput) -> None:
         # Optional validation when items are set
-        if not isinstance(value, FlowNodeInput):
-            raise TypeError(f"Value must be FlowNodeInput, got {type(value)}")
+        if not isinstance(value, NodeInput):
+            raise TypeError(f"Value must be NodeInput, got {type(value)}")
         super().__setitem__(key, value)
 
 
-# FlowNodeInputs = dict[FlowNodeIdentifier, FlowNodeInput]
+# NodeInputs = dict[NodeID, NodeInput]
 
 
 # -----------------------------------------------------------------------------
 # Instead of inheritance, use type alias
-FlowNodeExecutionStatusEnum = FlowExecutionStatusEnum
+FlowNodeExecutionStatusEnum = ExecutionStatusEnum
 
 
 T = TypeVar("T", bound=BaseModel)
 
 
 # -----------------------------------------------------------------------------
-class FlowNodeOutput(BaseModel, Generic[T]):
-    """
-    Base Output model for execution nodes.
+class OutputEvent(BaseModel):
+    """Event generated during node execution"""
 
-    """
+    event_type: str  # notification, completion, error, etc.
+    payload: dict[str, Any]
+    timestamp: datetime = Field(default_factory=datetime.now)
 
-    data: T = Field(
-        ...,
-        description="Data",
-    )
-    metadata: dict = Field(
-        default_factory=dict,
-        description="Additional metadata about the execution",
-    )
+
+class FlowNodeOutput(BaseModel, Generic[T]):  # rename to NodeOutput
+    # Primary output content
+    data: T
+
+    # Metadata about the execution
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    # Events generated during execution
+    events: list[OutputEvent] = Field(default_factory=list)
+
+    # Stream reference (if streaming)
+    stream: AsyncGenerator | None = None

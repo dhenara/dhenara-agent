@@ -2,8 +2,9 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ExecutableElement, ExecutableNodeDefinition, ExecutableNodeID, ExecutionContext
+from dhenara.agent.dsl.base import ExecutableElement, ExecutableNodeDefinition, ExecutionContext
 from dhenara.agent.types.base import BaseModel
+from dhenara.agent.types.flow import NodeID
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
@@ -15,7 +16,7 @@ NodeDefT = TypeVar("NodeDefT", bound=ExecutableNodeDefinition)
 class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
     """A single execution node in the DSL."""
 
-    id: ExecutableNodeID = Field(
+    id: NodeID = Field(
         ...,
         description="Unique human readable identifier for the node",
         min_length=1,

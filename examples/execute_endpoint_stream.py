@@ -1,7 +1,7 @@
 from shared_print_utils import ResponseDisplayMixin
 
 from dhenara.agent.client import Client
-from dhenara.agent.types import Content, FlowNodeInput
+from dhenara.agent.types import Content, NodeInput
 from dhenara.ai.types import ChatResponseChunk, ResourceConfigItem, ResourceConfigItemTypeEnum, ResourceQueryFieldsEnum
 from dhenara.ai.types.shared.api import SSEErrorResponse, SSEEventType, SSEResponse
 
@@ -29,7 +29,7 @@ def main():
     )
 
     initial_inputs = {
-        "ai_model_call_1": FlowNodeInput(
+        "ai_model_call_1": NodeInput(
             content=content,
             resources=[
                 ResourceConfigItem(

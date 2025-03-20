@@ -1,12 +1,12 @@
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ExecutableNodeID
 from dhenara.agent.dsl.flow import Flow
 from dhenara.agent.types.base import BaseModel
+from dhenara.agent.types.flow import NodeID
 
 
 class AgentNode(BaseModel):  # TODO_FUTURE:  AgentNode & AgentNodeDefinition
-    id: ExecutableNodeID = Field(
+    id: NodeID = Field(
         ...,
         description="Unique human readable identifier for the agent",
         min_length=1,

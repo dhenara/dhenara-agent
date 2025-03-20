@@ -8,12 +8,12 @@ from pydantic import Field
 
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.types.flow import (
+    ExecutionResults,
+    ExecutionStatusEnum,
     FlowDefinition,
-    FlowExecutionResults,
-    FlowExecutionStatusEnum,
-    FlowNodeExecutionResult,
-    FlowNodeIdentifier,
-    FlowNodeInput,
+    NodeExecutionResult,
+    NodeID,
+    NodeInput,
 )
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.shared.base import BaseEnum, BaseModel
@@ -21,22 +21,22 @@ from dhenara.ai.types.shared.base import BaseEnum, BaseModel
 logger = logging.getLogger(__name__)
 
 
-class StreamingStatusEnum(BaseEnum):
+class LegacyStreamingStatusEnum(BaseEnum):
     NOT_STARTED = "not_started"
     STREAMING = "streaming"
     COMPLETED = "completed"
     FAILED = "failed"
 
 
-class StreamingContext(BaseModel):
-    status: StreamingStatusEnum = StreamingStatusEnum.NOT_STARTED
+class LegacyStreamingContext(BaseModel):
+    status: LegacyStreamingStatusEnum = LegacyStreamingStatusEnum.NOT_STARTED
     completion_event: Event | None = None
-    result: FlowNodeExecutionResult | None = None
+    result: NodeExecutionResult | None = None
     error: Exception | None = None
 
     @property
     def successfull(self) -> bool:
-        return self.status == StreamingStatusEnum.COMPLETED
+        return self.status == LegacyStreamingStatusEnum.COMPLETED
 
 
 class LoopState(BaseModel):
@@ -45,7 +45,7 @@ class LoopState(BaseModel):
     iteration: int = 0
     item: Any = None
     # iteration_results: list[dict[str, Any]] = Field(default_factory=list)
-    iteration_results: list[dict[FlowNodeIdentifier, FlowNodeExecutionResult]] = Field(default_factory=list)
+    iteration_results: list[dict[NodeID, NodeExecutionResult]] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
     continue_loop: bool = True
 
@@ -85,14 +85,14 @@ class EvaluationContext(BaseModel):
             raise ValueError(f"Expression evaluation failed: {e}")
 
 
-class FlowContext(BaseModel):
+class LegacyFlowContext(BaseModel):  # TODO: Delete
     # endpoint_id: str
     flow_definition: FlowDefinition
-    initial_inputs: dict[FlowNodeIdentifier, FlowNodeInput]
-    execution_status: FlowExecutionStatusEnum = FlowExecutionStatusEnum.PENDING
+    initial_inputs: dict[NodeID, NodeInput]
+    execution_status: ExecutionStatusEnum = ExecutionStatusEnum.PENDING
     current_node_index: int = 0
-    current_node_identifier: FlowNodeIdentifier | None = None
-    execution_results: FlowExecutionResults[Any] = {}
+    current_node_identifier: NodeID | None = None
+    execution_results: ExecutionResults[Any] = {}
     execution_failed: bool = False
     execution_failed_message: str | None = None
     # final_output: FlowNodeOutput : Not reuired as it can be found from execution_results
@@ -100,7 +100,7 @@ class FlowContext(BaseModel):
     created_at: datetime
     updated_at: datetime | None = None
     completed_at: datetime | None = None
-    streaming_contexts: dict[FlowNodeIdentifier, StreamingContext | None] = {}
+    streaming_contexts: dict[NodeID, LegacyStreamingContext | None] = {}
     stream_generator: AsyncGenerator | None = None
 
     # Build in callables
@@ -109,7 +109,7 @@ class FlowContext(BaseModel):
 
     # fields for control flow
     # loop_states: dict[str, LoopState] = Field(default_factory=dict)
-    loop_states: dict[FlowNodeIdentifier, LoopState] = Field(default_factory=dict)
+    loop_states: dict[NodeID, LoopState] = Field(default_factory=dict)
     current_subflow_path: list[str] = Field(default_factory=list)
     evaluation_context: EvaluationContext = Field(default_factory=EvaluationContext)
 
@@ -117,7 +117,7 @@ class FlowContext(BaseModel):
         self.current_node_index = index
         self.current_node_identifier = self.flow_definition.nodes[index].identifier
 
-    def get_initial_input(self) -> FlowNodeInput:
+    def get_initial_input(self) -> NodeInput:
         if not self.current_node_identifier:
             raise ValueError("get_initial_input: current_node_identifier is not set")
 
@@ -125,9 +125,9 @@ class FlowContext(BaseModel):
 
     async def notify_streaming_complete(
         self,
-        identifier: FlowNodeIdentifier,
-        streaming_status: StreamingStatusEnum,
-        result: FlowNodeExecutionResult,
+        identifier: NodeID,
+        streaming_status: LegacyStreamingStatusEnum,
+        result: NodeExecutionResult,
     ) -> None:
         streaming_context = self.streaming_contexts[identifier]
         if not streaming_context:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
-from dhenara.agent.types.flow import FlowNodeInputs
+from dhenara.agent.types.flow import NodeInputs
 from dhenara.agent.utils.git import RunOutcomeRepository
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 
@@ -22,7 +22,7 @@ class RunContext:
         project_root: Path,
         agent_identifier: str,
         input_source_path: Path | None = None,
-        initial_inputs: FlowNodeInputs | None = None,
+        initial_inputs: NodeInputs | None = None,
         run_root: Path | None = None,
         run_id: str | None = None,
         # run_dir: str | None = None,
@@ -100,8 +100,7 @@ class RunContext:
             outcome_repo=self.outcome_repo,
         )
 
-        # FlowContext
-        self.flow_context = None
+        # self.execution_context = None
 
     def _save_metadata(self):
         """Save metadata about this run."""
@@ -119,7 +118,7 @@ class RunContext:
         with open(self.input_dir / "initial_inputs.json") as f:
             _data = json.load(f)
             try:
-                return FlowNodeInputs(_data)
+                return NodeInputs(_data)
             except Exception as e:
                 logger.exception(f"read_initial_inputs: Error: {e}")
                 return None
@@ -153,8 +152,8 @@ class RunContext:
         if self.initial_inputs is None:
             self.initial_inputs = self.read_initial_inputs()
 
-        if not isinstance(self.initial_inputs, FlowNodeInputs):
-            logger.error(f"Imported input is not a FlowNodeInput: {type(self.initial_inputs)}")
+        if not isinstance(self.initial_inputs, NodeInputs):
+            logger.error(f"Imported input is not a NodeInput: {type(self.initial_inputs)}")
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""

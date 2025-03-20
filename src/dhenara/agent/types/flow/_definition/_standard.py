@@ -5,8 +5,8 @@ from pydantic import Field, field_validator, model_validator
 from dhenara.agent.types.flow import (
     BaseFlow,
     ExecutionStrategyEnum,
-    FlowNode,
     FlowTypeEnum,
+    LegacyFlowNode,
     ResponseProtocolEnum,
     SpecialNodeIdEnum,
 )
@@ -23,13 +23,13 @@ class StandardFlow(BaseFlow):
         examples=["sequential"],
     )
 
-    nodes: list[FlowNode] = Field(
+    nodes: list[LegacyFlowNode] = Field(
         ...,
         description="List of nodes in execution order",
         min_items=1,
     )
 
-    def _collect_all_identifiers(self, node: FlowNode, identifiers: set[str]) -> None:
+    def _collect_all_identifiers(self, node: LegacyFlowNode, identifiers: set[str]) -> None:
         """Recursively collect all node identifiers including subflows.
 
         Args:
@@ -49,7 +49,7 @@ class StandardFlow(BaseFlow):
 
     @field_validator("nodes")
     @classmethod
-    def validate_node_order(cls, v: list[FlowNode]) -> list[FlowNode]:
+    def validate_node_order(cls, v: list[LegacyFlowNode]) -> list[LegacyFlowNode]:
         """Validate that node orders are sequential within the flow.
 
         Args:
@@ -63,21 +63,21 @@ class StandardFlow(BaseFlow):
         """
         orders = [node.order for node in v]
         # if len(orders) != len(set(orders)):
-        #    raise ValueError("FlowNode orders must be unique")
+        #    raise ValueError("LegacyFlowNode orders must be unique")
         # if sorted(orders) != list(range(min(orders), max(orders) + 1)):
-        #    raise ValueError("FlowNode orders must be sequential")
+        #    raise ValueError("LegacyFlowNode orders must be sequential")
         # return v
 
         expected_orders = list(range(len(v)))
         if orders != expected_orders:
             raise ValueError(
-                "FlowNode orders must be sequential starting from 0 within each flow",
+                "LegacyFlowNode orders must be sequential starting from 0 within each flow",
             )
         return v
 
     @field_validator("nodes")
     @classmethod
-    def validate_node_identifiers(cls, v: list[FlowNode]) -> list[FlowNode]:
+    def validate_node_identifiers(cls, v: list[LegacyFlowNode]) -> list[LegacyFlowNode]:
         """Validate that node IDs are unique within the same flow level.
 
         Args:
@@ -91,11 +91,11 @@ class StandardFlow(BaseFlow):
         """
         ids = [node.identifier for node in v]
         if len(ids) != len(set(ids)):
-            raise ValueError("FlowNode IDs must be unique within the same flow level")
+            raise ValueError("LegacyFlowNode IDs must be unique within the same flow level")
 
         for node_id in ids:
             if node_id in SpecialNodeIdEnum.values():
-                raise ValueError(f"FlowNode IDs `{v}` is a reserved identifier")
+                raise ValueError(f"LegacyFlowNode IDs `{v}` is a reserved identifier")
 
         return v
 
@@ -159,8 +159,8 @@ class StandardFlow(BaseFlow):
 
         Examples:
             >>> flow = FlowDefinition(nodes=[
-            ...     FlowNode(identifier="node1", ...),
-            ...     FlowNode(identifier="node2", ...),
+            ...     LegacyFlowNode(identifier="node1", ...),
+            ...     LegacyFlowNode(identifier="node2", ...),
             ... ])
             >>> flow.get_previous_node_identifier("node2")
             'node1'
