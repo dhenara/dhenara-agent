@@ -185,7 +185,14 @@ class ExecutionContext(BaseModelABC):
         """Get the input for the current node."""
         if not self.current_node_identifier:
             raise ValueError("get_initial_input: current_node_identifier is not set")
-        return self.initial_inputs.get(self.current_node_identifier, None)
+
+        input_data = self.initial_inputs.get(self.current_node_identifier, None)
+        if isinstance(input_data, NodeInput):
+            return input_data
+        elif isinstance(input_data, dict):
+            return NodeInput(**input_data)
+        else:
+            return None
 
     async def notify_streaming_complete(
         self,
@@ -205,7 +212,11 @@ class ExecutionContext(BaseModelABC):
     # ------------: TODO: Review
     def create_iteration_context(self, iteration_data: dict[str, Any]) -> "ExecutionContext":
         """Create a new context for a loop iteration."""
-        return ExecutionContext(initial_data=iteration_data, parent=self, artifact_manager=self.artifact_manager)
+        return ExecutionContext(
+            initial_data=iteration_data,
+            parent=self,
+            artifact_manager=self.artifact_manager,
+        )
 
     def merge_iteration_context(self, iteration_context: "ExecutionContext") -> None:
         """Merge results from an iteration context back to this context."""
@@ -242,7 +253,11 @@ class ExecutionContext(BaseModelABC):
             commit_msg = self.evaluate_template(settings.commit_message_template)
 
         await self.artifact_manager.record_outcome(
-            file_name=filename, path_in_repo=path, content=content, commit=settings.commit, commit_msg=commit_msg
+            file_name=filename,
+            path_in_repo=path,
+            content=content,
+            commit=settings.commit,
+            commit_msg=commit_msg,
         )
 
     async def record_iteration_outcome(self, loop_element, iteration: int, item: Any, result: Any) -> None:

@@ -1,11 +1,14 @@
 {
-  "ai_model_call_1": {
+  "create_plan": {
     "content": {
-      "content": "Tell me a story."
+      "content": ""
+    },
+    "variables": {
+      "requested_plan": "A new standlone nextjs projct structre for reusability and scalability"
     },
     "resources": [],
     "options": {
-      "test_mode": true
+      "test_mode": false
     }
   }
 }

@@ -63,7 +63,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
 
         # if self.is_streaming:
         #    # Configure streaming execution_context
-        #    execution_context.streaming_contexts[self.identifier] = StreamingContext(
+        #    execution_context.streaming_contexts[execution_context.current_node_identifier] = StreamingContext(
         #        status=StreamingStatusEnum.STREAMING,
         #        completion_event=Event(),
         #    )
@@ -90,23 +90,17 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             execution_context=execution_context,
             resource_config=execution_context.resource_config,
         )
-        return await self.process_node_completion(
-            execution_context=execution_context, result=result
-        )
+        return await self.process_node_completion(execution_context=execution_context, result=result)
 
     async def process_node_completion(
         self,
         execution_context: ContextT,
         result,
     ) -> AsyncGenerator | None:
-        execution_context.execution_results[
-            execution_context.current_node_identifier
-        ] = result
+        execution_context.execution_results[execution_context.current_node_identifier] = result
         execution_context.updated_at = datetime.now()
 
-        _result_json = (
-            json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
-        )
+        _result_json = json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
 
         if execution_context.artifact_manager:
             execution_context.artifact_manager.record_node_output(
@@ -132,9 +126,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         """Continue processing remaining nodes after streaming completes"""
         try:
             # Wait for streaming to complete
-            current_streaming_context = execution_context.streaming_contexts[
-                execution_context.current_node_identifier
-            ]
+            current_streaming_context = execution_context.streaming_contexts[execution_context.current_node_identifier]
             execution_context.logger.debug(
                 f"_continue_after_streaming: waiting for completion at node {execution_context.current_node_identifier}"
             )
@@ -144,25 +136,16 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             )
 
             if not current_streaming_context.successfull:
-                raise current_streaming_context.error or ValueError(
-                    "Streaming unsuccessful"
-                )
+                raise current_streaming_context.error or ValueError("Streaming unsuccessful")
 
             # NOTE: Streaming result are added to execution results inside notify_streaming_complete()
             # -- execution_context.execution_results[execution_context.current_node_identifier] = c_str_context.result
             # Continue with remaining nodes using the same execution strategy
             start_index = execution_context.current_node_index + 1
-            if (
-                self.flow_definition.execution_strategy
-                == ExecutionStrategyEnum.sequential
-            ):
-                await self._execute_nodes(
-                    execution_context, sequential=True, start_index=start_index
-                )
+            if self.flow_definition.execution_strategy == ExecutionStrategyEnum.sequential:
+                await self._execute_nodes(execution_context, sequential=True, start_index=start_index)
             else:
-                await self._execute_nodes(
-                    execution_context, sequential=False, start_index=start_index
-                )
+                await self._execute_nodes(execution_context, sequential=False, start_index=start_index)
 
             execution_context.completed_at = datetime.now()
             execution_context.execution_status = ExecutionStatusEnum.COMPLETED
@@ -175,33 +158,29 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             raise
 
     # -------------------------------------------------------------------------
-    # TODO: From  previous FlowNode
-    # -------------------------------------------------------------------------
-    async def get_full_input_content(self, node_input: NodeInput, **kwargs) -> str:
-        node_prompt = (
-            self.ai_settings.node_prompt
-            if self.ai_settings and self.ai_settings.node_prompt
-            else None
-        )
-        input_content = (
-            node_input.content.get_content()
-            if node_input and node_input.content
-            else None
-        )
+    async def get_full_input_content(
+        self,
+        node_id: str,
+        node_input: NodeInput,
+    ) -> str:
+        if node_input is None:
+            raise ValueError(f"node_input is missing for node {node_id}")
+
+        prompt_variables = node_input.variables or {}
+        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
+        input_content = node_input.content.get_content() if node_input and node_input.content else None
 
         if node_prompt:
             if input_content is None:
-                input_content = ""  # An empty string is better that the word None
+                input_content = ""  # NOTE: An empty string is better that the word None
 
-            kwargs.update({"dh_input_content": input_content})
+            prompt_variables.update({"dh_input_content": input_content})
 
-            return node_prompt.format(**kwargs)
+            return node_prompt.format(**prompt_variables)
 
         else:
             if not input_content:
-                raise ValueError(
-                    f"Illegal Node setting for node {self.identifier}:  node_prompt and input_content are empty"
-                )
+                raise ValueError(f"Illegal Node setting for node {node_id}:  node_prompt and input_content are empty")
 
             return input_content
 
@@ -221,7 +200,4 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         if not self.resources:
             return False
 
-        return any(
-            existing_resource.is_same_as(resource)
-            for existing_resource in self.resources
-        )
+        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
