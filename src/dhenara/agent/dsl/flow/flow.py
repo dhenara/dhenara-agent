@@ -10,4 +10,5 @@ class Flow(ComponentDefinition[FlowElement, FlowNode, FlowNodeDefinition, FlowEx
 
 
 class FlowExecutor(ComponentExecutor[FlowElement, FlowBlock, FlowExecutionContext, Flow]):
-    pass
+    block_class = FlowBlock
+    context_class = FlowExecutionContext

@@ -1,11 +1,10 @@
 import logging
-from datetime import datetime
 
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.dsl.agent import AgentNode
 from dhenara.agent.dsl.base import ComponentDefinition
-from dhenara.agent.dsl.flow import FlowExecutionContext, FlowExecutor
+from dhenara.agent.dsl.flow import FlowExecutor
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
 from dhenara.agent.types import FlowNodeInputs
@@ -24,9 +23,7 @@ class BaseAgent:
         # TODO: Configs?
 
         if not isinstance(self.agent_node, AgentNode):
-            logger.error(
-                f"Imported object is not an AgentNode: {type(self.agent_node)}"
-            )
+            logger.error(f"Imported object is not an AgentNode: {type(self.agent_node)}")
             return
 
     async def run(
@@ -73,23 +70,12 @@ class BaseAgent:
             # Create orchestrator with resolved resources
             executor = FlowExecutor(
                 definition=flow_definition,
-                artifact_manager=run_context.artifact_manager,
+                run_context=run_context,
             )
             # flow_orchestrator = FlowOrchestrator(
             #    flow_definition=flow_definition,
             #    resource_config=resource_config,
             # )
-
-            flow_context = FlowExecutionContext(
-                flow_definition=flow_definition,
-                initial_inputs=initial_inputs,
-                created_at=datetime.now(),
-                run_env_params=run_context.run_env_params,
-                artifact_manager=run_context.artifact_manager,
-            )
-
-            # Initialize flow_context  in run_context
-            run_context.flow_context = flow_context
 
             # Execute
             # await flow_orchestrator.run(
@@ -98,15 +84,13 @@ class BaseAgent:
 
             # Execute the flow
             _results = await executor.execute(
-                initial_data={
-                    "input_text": "Create a command-line tool that converts CSV to JSON"
-                },
+                # initial_data={"input_text": "Create a command-line tool that converts CSV to JSON"},
+                initial_inputs=initial_inputs,
+                resource_config=resource_config,
             )
 
-            if flow_context.execution_failed:
-                logger.exception(
-                    f"Execution Failed: {flow_context.execution_failed_message}"
-                )
+            if run_context.flow_context.execution_failed:
+                logger.exception(f"Execution Failed: {run_context.flow_context.execution_failed_message}")
                 return False
 
             ## Set `is_streaming` after execution returns

@@ -41,7 +41,12 @@ class NodeHandler(ABC):
         """
         pass
 
-    def set_node_execution_failed(self, flow_node: FlowNode, flow_context: FlowContext, message):
+    def set_node_execution_failed(
+        self,
+        flow_node: FlowNode,
+        flow_context: FlowContext,
+        message: str,
+    ):
         flow_context.execution_failed = True
         flow_context.execution_failed_message = message
 
@@ -73,13 +78,13 @@ class NodeHandler(ABC):
         flow_context: FlowContext,
         model: AIModel,
     ) -> list:
-        context_sources = flow_node.input_settings.context_sources
+        context_sources = flow_node.input_settings.context_sources if flow_node.input_settings else []
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
                 if source_node_identifier == SpecialNodeIdEnum.PREVIOUS:
                     previous_node_identifier = flow_context.flow_definition.get_previous_node_identifier(
-                        flow_node.identifier,
+                        flow_context.current_node_identifier,
                     )
                     previous_node_execution_result = flow_context.execution_results.get(previous_node_identifier)
                 else:

@@ -1,9 +1,12 @@
+import logging
 from abc import abstractmethod
-from typing import Any, NewType, Optional
+from typing import Any, ClassVar, NewType, Optional
 
 from pydantic import Field
 
 from dhenara.agent.types.base import BaseModelABC
+from dhenara.agent.types.flow._node_io import FlowNodeInputs
+from dhenara.ai.types.resource import ResourceConfig
 
 ExecutableNodeID = NewType("ExecutableNodeID", str)
 
@@ -12,17 +15,21 @@ class ExecutionContext(BaseModelABC):
     """A generic execution context for any DSL execution."""
 
     results = Field(default_factory=dict)
-    initial_data: dict[ExecutableNodeID, Any] = Field(default_factory=dict)
+    # initial_data: dict[ExecutableNodeID, Any] = Field(default_factory=dict)
+    initial_inputs: FlowNodeInputs  # TODO_FUTURE: Make generic
+    resource_config: ResourceConfig = None
     data: dict[str, Any] = Field(default_factory=dict)  # Add this
     parent: Optional["ExecutionContext"] = Field(default=None)
     results: dict[str, Any] = Field(default_factory=dict)
     artifact_manager: Any = Field(default=None)
 
+    logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")  # TODO: Pass correct id
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # Initialize data from initial_data if provided
-        if self.initial_data:
-            self.data.update(self.initial_data)
+        # if self.initial_data:
+        #    self.data.update(self.initial_data)
 
     def get_value(self, path: str) -> Any:
         """Get a value from the context by path."""

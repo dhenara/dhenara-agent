@@ -22,7 +22,7 @@ class ComponentDefinition(BaseModelABC, Generic[ElementT, NodeT, NodeDefT, Conte
     """Base class for an Executable definitions. ( ie a gorup of nodes)"""
 
     elements: list[ElementT] = Field(default_factory=list)
-    node_class: ClassVar[type]
+    node_class: ClassVar[type[NodeT]]
 
     def element(self, element: ElementT) -> ElementT:
         """Add an element to the flow."""

@@ -1,11 +1,14 @@
 # dhenara/agent/engine/executor.py
-from typing import Any, Generic, TypeVar
+from datetime import datetime
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext
+from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
-from dhenara.agent.utils.io.artifact_manager import ArtifactManager
+from dhenara.agent.types.flow._node_io import FlowNodeInputs
+from dhenara.ai.types.resource import ResourceConfig
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 BlockT = TypeVar("BlockT", bound=ExecutableBlock)
@@ -17,20 +20,34 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     """Executor for Flow definitions."""
 
     definition: ComponentDefT = Field(...)
-    artifact_manager: ArtifactManager | None = Field(default=None)
+
+    # Concrete classes to use
+    context_class: ClassVar[type[ContextT]]
+    block_class: ClassVar[type[BlockT]]
+
+    run_context: RunContext
 
     async def execute(
         self,
-        initial_data: dict[str, Any] | None = None,
+        initial_inputs: FlowNodeInputs,  # TODO_FUTURE: Make generic
+        resource_config: ResourceConfig = None,
     ) -> dict[str, Any]:
         """Execute a flow with the given initial data."""
         # Create the execution context
-        context = ContextT(
-            initial_data=initial_data,
-            artifact_manager=self.artifact_manager,
+
+        flow_context = self.context_class(
+            # flow_definition=flow_definition,
+            initial_inputs=initial_inputs,
+            resource_config=resource_config,
+            created_at=datetime.now(),
+            run_env_params=self.run_context.run_env_params,
+            artifact_manager=self.run_context.artifact_manager,
         )
 
+        # Initialize flow_context  in run_context
+        self.run_context.flow_context = flow_context
+
         # Execute the flow
-        block = BlockT(self.definition.elements)
-        await block.execute(context)
-        return context.results
+        block = self.block_class(self.definition.elements)
+        await block.execute(flow_context)
+        return flow_context.results

@@ -107,6 +107,7 @@ async def _run_agent(
         click.echo(f"   Output directory: {run_ctx.output_dir}")
 
     except Exception as e:
+        logger.exception(f"Error running agent {identifier}: {e}")
         run_ctx.metadata["error"] = str(e)
         run_ctx.complete_run(status="failed")
         click.echo(f"❌ Run failed: {e}")

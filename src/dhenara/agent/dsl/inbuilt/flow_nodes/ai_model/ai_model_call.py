@@ -9,8 +9,6 @@ from dhenara.agent.dsl.flow import FlowExecutionContext, FlowNodeDefinition
 from dhenara.agent.engine.handler.handlers.ai_model_call import AIModelCallHandler
 from dhenara.agent.types.flow import (
     AISettings,
-    FlowNodeInput,
-    FlowNodeTypeEnum,
     NodeInputSettings,
 )
 from dhenara.ai.types import ResourceConfigItem
@@ -74,6 +72,9 @@ class AIModelCall(FlowNodeDefinition):
 
         return self
 
+    def get_handler(self):
+        return AIModelCallHandler()
+
     # @model_validator(mode="after")
     # def validate_input_settings(self) -> "FlowNode":
     #    """Validates that input settings and AI settings are not conflicting.
@@ -96,53 +97,6 @@ class AIModelCall(FlowNodeDefinition):
     #            "use the `pre` and `post` fields of `node_prompt`, not the `prompt` field.",
     #        )
     #    return self
-
-    async def get_full_input_content(self, node_input: FlowNodeInput, **kwargs) -> str:
-        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-        input_content = node_input.content.get_content() if node_input and node_input.content else None
-
-        if node_prompt:
-            if input_content is None:
-                input_content = ""  # An empty string is better that the word None
-
-            kwargs.update({"dh_input_content": input_content})
-
-            return node_prompt.format(**kwargs)
-
-        else:
-            if not input_content:
-                raise ValueError(
-                    f"Illegal Node setting for node {self.identifier}:  node_prompt and input_content are empty"
-                )
-
-            return input_content
-
-    def is_streaming(self):
-        return self.type in [FlowNodeTypeEnum.ai_model_call_stream]
-
-    def check_resource_in_node(self, resource: ResourceConfigItem) -> bool:
-        """
-        Checks if a given resource exists in the node's resource list.
-
-        Args:
-            resource: ResourceConfigItem object to check for
-
-        Returns:
-            bool: True if the resource exists in the node's resources, False otherwise
-        """
-        if not self.resources:
-            return False
-
-        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
-
-    async def execute(self, context: "FlowExecutionContext") -> AIModelOutput:
-        """Execute an AI model call."""
-        handler = AIModelCallHandler()
-        return await handler.handle(
-            flow_node=self,
-            flow_context=context,
-            resource_config=context.resource_config,
-        )
 
 
 # TODO: Integrate structured output into legacy handlers

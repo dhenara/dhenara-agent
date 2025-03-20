@@ -65,7 +65,9 @@ class AIModelCallHandler(NodeHandler):
     ) -> FlowNodeExecutionResult[AIModelCallNodeOutputData] | AsyncGenerator:
         user_selected_resource = None
         initial_input = flow_context.get_initial_input()
-        selected_resources = initial_input.resources if initial_input and initial_input.resources else []
+        selected_resources = (
+            initial_input.resources if initial_input and initial_input.resources else []
+        )
 
         if len(selected_resources) == 1:
             user_selected_resource = selected_resources[0]
@@ -75,7 +77,9 @@ class AIModelCallHandler(NodeHandler):
                 None,
             )
 
-        if user_selected_resource and not flow_node.check_resource_in_node(user_selected_resource):
+        if user_selected_resource and not flow_node.check_resource_in_node(
+            user_selected_resource
+        ):
             self.set_node_execution_failed(
                 flow_node=flow_node,
                 flow_context=flow_context,
@@ -90,7 +94,9 @@ class AIModelCallHandler(NodeHandler):
             node_resource = user_selected_resource
         else:
             # Select the default resource
-            logger.debug(f"Selecting default resource for node {flow_node.identifier}.")
+            logger.debug(
+                f"Selecting default resource for node {flow_context.current_node_identifier}."
+            )
             node_resource = next(
                 (resource for resource in flow_node.resources if resource.is_default),
                 None,
@@ -117,8 +123,14 @@ class AIModelCallHandler(NodeHandler):
         #         dest_model=model_endpoint.ai_model,
         #     )
 
-        node_options = flow_node.ai_settings.get_options() if flow_node.ai_settings else {}
-        input_options = flow_node_input.options if flow_node_input and flow_node_input.options else {}
+        node_options = (
+            flow_node.ai_settings.get_options() if flow_node.ai_settings else {}
+        )
+        input_options = (
+            flow_node_input.options
+            if flow_node_input and flow_node_input.options
+            else {}
+        )
 
         node_options.update(input_options)
 
@@ -144,8 +156,10 @@ class AIModelCallHandler(NodeHandler):
 
         # Process system instructos
         instructions = []
-        if flow_context.flow_definition.system_instructions:
-            instructions += flow_context.flow_definition.system_instructions
+
+        # TODO_FUTRE: Add system instructions/appropriate settings to element base
+        # if flow_node.system_instructions:
+        #    instructions += flow_node.system_instructions
 
         if flow_node.ai_settings and flow_node.ai_settings.system_instructions:
             instructions += flow_node.ai_settings.system_instructions
@@ -153,16 +167,22 @@ class AIModelCallHandler(NodeHandler):
         logger.debug(f"call_ai_model: instructions={instructions}")
 
         # Process previous prompts
-        previous_node_outputs_as_prompts: list = await self.get_previous_node_outputs_as_prompts(
-            flow_node,
-            flow_context,
-            ai_model_ep.ai_model,
+        previous_node_outputs_as_prompts: list = (
+            await self.get_previous_node_outputs_as_prompts(
+                flow_node,
+                flow_context,
+                ai_model_ep.ai_model,
+            )
         )
         # logger.debug(f"call_ai_model:  previous_node_output_prompt={previous_node_outputs_as_prompts}")
 
         previous_prompts_from_conversaion = []  # TODO:
-        previous_prompts = previous_prompts_from_conversaion + previous_node_outputs_as_prompts
-        logger.debug(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
+        previous_prompts = (
+            previous_prompts_from_conversaion + previous_node_outputs_as_prompts
+        )
+        logger.debug(
+            f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}"
+        )
 
         user_id = "usr_id_abcd"  # TODO
 
@@ -192,7 +212,9 @@ class AIModelCallHandler(NodeHandler):
 
         if streaming:
             if not isinstance(response.stream_generator, AsyncGenerator):
-                logger.exception(f"Streaming should return an AsyncGenerator, not {type(response)}")
+                logger.exception(
+                    f"Streaming should return an AsyncGenerator, not {type(response)}"
+                )
 
             # stream_generator = response.stream_generator
             stream_generator = self.generate_stream_response(
@@ -213,10 +235,12 @@ class AIModelCallHandler(NodeHandler):
         )
 
         status = (
-            FlowNodeExecutionStatusEnum.COMPLETED if response.status.successful else FlowNodeExecutionStatusEnum.FAILED
+            FlowNodeExecutionStatusEnum.COMPLETED
+            if response.status.successful
+            else FlowNodeExecutionStatusEnum.FAILED
         )
         result = FlowNodeExecutionResult[AIModelCallNodeOutputData](
-            node_identifier=flow_node.identifier,
+            node_identifier=flow_context.current_node_identifier,
             status=status,
             node_input=flow_node_input,
             node_output=node_output,
@@ -250,9 +274,11 @@ class AIModelCallHandler(NodeHandler):
                 if final_response:
                     logger.debug(f"Final streaming response: {final_response}")
                     if not isinstance(final_response, AIModelCallResponse):
-                        logger.fatal(f"Final streaming response type {type(final_response)} is not AIModelCallResponse")
+                        logger.fatal(
+                            f"Final streaming response type {type(final_response)} is not AIModelCallResponse"
+                        )
 
-                    node_identifier = flow_node.identifier
+                    node_identifier = flow_context.current_node_identifier
                     node_output = FlowNodeOutput[AIModelCallNodeOutputData](
                         data=AIModelCallNodeOutputData(
                             response=final_response,

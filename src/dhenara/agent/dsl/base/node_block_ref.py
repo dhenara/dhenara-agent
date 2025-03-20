@@ -39,8 +39,12 @@ class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
         return v
 
     async def execute(self, context: ContextT) -> Any:
-        result = await self.definition.execute(context)
+        context.set_current_node(self.id)
+        node_input = context.get_initial_input()
+        result = await self.definition.execute(context, node_input)
+
         context.set_result(self.id, result)
+
         return result
 
 

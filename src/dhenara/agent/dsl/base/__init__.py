@@ -1,7 +1,9 @@
 # Base Element
 from .context import ExecutionContext, ExecutableNodeID
 from .element import ExecutableElement
-from .settings_and_def import ExecutableNodeOutcomeSettings, ExecutableNodeDefinition
+from .settings import ExecutableNodeOutcomeSettings
+from .node_def import ExecutableNodeDefinition
+
 from .node_block_ref import (
     ExecutableNode,
     ExecutableBlock,
