@@ -50,7 +50,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         if result is not None:  # Streaming case will return an async generator
             return result
 
-        execution_context.set_result(self.id, result)
+        execution_context.set_result(node_id, result)
         # TODO
         # if execution_context.execution_failed:
         #    execution_context.execution_status = ExecutionStatusEnum.FAILED

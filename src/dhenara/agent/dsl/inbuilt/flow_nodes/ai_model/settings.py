@@ -3,7 +3,7 @@
 from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import NodeSettings, SpecialNodeIDEnum
-from dhenara.ai.types.genai.dhenara import AIModelCallConfig, Prompt, SystemInstructions
+from dhenara.ai.types.genai.dhenara import AIModelCallConfig, Prompt, SystemInstruction
 
 
 class AIModelNodeSettings(NodeSettings):
@@ -29,7 +29,7 @@ class AIModelNodeSettings(NodeSettings):
         ),
         example=["previous", "node_1", "node_2"],
     )
-    system_instructions: SystemInstructions | None = Field(
+    system_instructions: list[SystemInstruction] | None = Field(
         default=None,
         description="Node specific system instructions",
     )

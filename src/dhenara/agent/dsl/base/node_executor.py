@@ -12,6 +12,7 @@ from dhenara.agent.dsl.base import (
     ExecutionStrategyEnum,
     NodeID,
     NodeInput,
+    NodeSettings,
 )
 from dhenara.ai.types.resource import ResourceConfig
 
@@ -27,6 +28,10 @@ class NodeExecutor(ABC):
     All node type handlers should inherit from this class and implement
     the handle method to process their specific node type.
     """
+
+    input_model: type[NodeInput]
+    setting_model: type[NodeSettings]
+    output_data_model: type
 
     def __init__(
         self,
@@ -61,6 +66,11 @@ class NodeExecutor(ABC):
         # elif node.input_setting.type = "daynamic"
         node_input = await self.get_live_input()
         logger.debug(f"Node Input: {node_input}")
+
+        if not isinstance(node_input, self.input_model):
+            raise ValueError(
+                f"Input validation failed. Expects a type of {self.input_model} but got a type of {type(node_input)}"
+            )
 
         # if self.is_streaming:
         #    # Configure streaming execution_context

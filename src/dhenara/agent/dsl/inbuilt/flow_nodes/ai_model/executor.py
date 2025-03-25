@@ -28,6 +28,7 @@ from dhenara.ai.types import (
     AIModelCallConfig,
     AIModelCallResponse,
 )
+from dhenara.ai.types.genai.dhenara.request import Prompt, SystemInstruction
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.api import (
     SSEErrorCode,
@@ -41,6 +42,10 @@ logger = logging.getLogger(__name__)
 
 
 class AIModelNodeExecutor(FlowNodeExecutor):
+    input_model = AIModelNodeInput
+    setting_model = AIModelNodeSettings
+    output_data_model = AIModelNodeOutputData
+
     def __init__(
         self,
         identifier: str = "ai_model_call_handler",
@@ -48,7 +53,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         super().__init__(identifier=identifier)
         self.resource_config: ResourceConfig | None = None
 
-    async def get_live_input(self):
+    async def get_live_input(self) -> AIModelNodeInput:
         # TODO:
         return AIModelNodeInput(
             prompt_variables={
@@ -71,6 +76,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             raise ValueError("resource_config must be set for ai_model_call")
 
         result = await self._call_ai_model(
+            node_id=node_id,
             node_definition=node_definition,
             node_input=node_input,
             execution_context=execution_context,
@@ -80,6 +86,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
     async def _call_ai_model(
         self,
+        node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
         node_input: NodeInput,
         execution_context: ExecutionContext,
@@ -91,6 +98,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if node_input is None:
             raise ValueError("Failed to get inputs for node ")
 
+        # 1. Fix node resource
+        # -------------------
         user_selected_resource = None
         selected_resources = initial_input.resources if initial_input and initial_input.resources else []
 
@@ -126,41 +135,70 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if not node_resource:
             raise ValueError("No default resource found in flow node configuration")
 
+        # 2. Fix Setting
+        # -------------------
+        settings: AIModelNodeSettings = node_definition.select_settings(
+            node_id=node_id,
+            node_input=node_input,
+        )
+        if settings is None or not isinstance(settings, AIModelNodeSettings):
+            raise ValueError(f"Invalid setting for node. selected settings is: {settings}")
+
+        # 3. Fix AI Model endpoint
+        # -------------------
         logger.debug(f"call_ai_model: node_resource={node_resource}")
         ai_model_ep = self.resource_config.get_resource(node_resource)
         logger.debug(f"call_ai_model: ai_model_ep={ai_model_ep}")
 
+        # 4. Fix Prompt and system instruction
+        # -------------------
         # Parse inputs
-        current_prompt = await self.get_prompt(
-            node_id=execution_context.current_node_identifier,
-            node_definition=node_definition,
-            node_input=node_input,
-            model=ai_model_ep.ai_model,
+        prompt = settings.prompt
+        instructions = settings.system_instructions
+
+        # Prompt
+        if not isinstance(prompt, Prompt):
+            raise ValueError(f"Failed to get node prompt. Type is {type(prompt)}")
+
+        prompt.variables.update(node_input.prompt_variables)
+
+        if instructions is not None:
+            for instruction in instructions:
+                if isinstance(instruction, SystemInstruction):
+                    instruction.variables.update(node_input.instruction_variables)
+                elif isinstance(instruction, str):
+                    pass
+                else:
+                    raise ValueError(
+                        f"Failed to get node prompt. Illegal type of {type(instruction)} in Node instructions"
+                    )
+
+        # 5. Fix contex
+        # -------------------
+        # TODO
+        ## Process previous prompts
+        # previous_node_prompts: list = await self.get_previous_node_outputs_as_prompts(
+        #    node_definition,
+        #    execution_context,
+        #    ai_model_ep.ai_model,
+        # )
+        # logger.debug(f"call_ai_model: previous_prompts={previous_prompts}")
+        context = settings.context
+
+        # 6. Fix options
+        # -------------------
+        node_options = settings.model_call_config.options if settings.model_call_config else {}
+
+        logger.debug(
+            f"call_ai_model:  prompt={prompt}, context={context} instructions={instructions}, node_optons={node_options}"
         )
 
-        # TODO: Previous prompts
-        # if number_of_previous_prompts_to_send > 0:
-        #     previous_prompts = conversation_node.get_ancestor_prompts(
-        #         number=number_of_previous_prompts_to_send,
-        #         dest_model=model_endpoint.ai_model,
-        #     )
-
-        node_options = node_definition.node_settings.get_options() if node_definition.node_settings else {}
-        input_options = node_input.options if node_input and node_input.options else {}
-
-        node_options.update(input_options)
-
         # pop the non-standard options.  NOTE: pop
-        reasoning = node_options.pop("reasoning", True)
+        reasoning = node_options.pop("reasoning", False)
         test_mode = node_options.pop("test_mode", False)
 
         # Get actual model call options
         options = ai_model_ep.ai_model.get_options_with_defaults(node_options)
-
-        # TODO_FUTURE: For image models
-        # if functional_type == AIModelFunctionalTypeEnum.IMAGE_GENERATION:
-        #    if model_endpoint.ai_model.provider == AIModelProviderEnum.OPEN_AI:
-        #        options["response_format"] = "b64_json"
 
         # Max*tokens are set to None so that model's max value is choosen
         max_output_tokens = options.get("max_output_tokens", 16000)
@@ -170,49 +208,34 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             max_reasoning_tokens = None
         logger.debug(f"call_ai_model: options={options}")
 
-        # Process system instructos
-        instructions = []
-
-        # TODO_FUTRE: Add system instructions/appropriate settings to element base
-        # if node_definition.system_instructions:
-        #    instructions += node_definition.system_instructions
-
-        if node_definition.node_settings and node_definition.node_settings.system_instructions:
-            instructions += node_definition.node_settings.system_instructions
-
-        logger.debug(f"call_ai_model: instructions={instructions}")
-
-        # Process previous prompts
-        previous_node_outputs_as_prompts: list = await self.get_previous_node_outputs_as_prompts(
-            node_definition,
-            execution_context,
-            ai_model_ep.ai_model,
-        )
-        # logger.debug(f"call_ai_model:  previous_node_output_prompt={previous_node_outputs_as_prompts}")
-
-        previous_prompts_from_conversaion = []  # TODO:
-        previous_prompts = previous_prompts_from_conversaion + previous_node_outputs_as_prompts
-        logger.debug(f"call_ai_model: current_prompt = {current_prompt}, previous_prompts={previous_prompts}")
-
-        user_id = "usr_id_abcd"  # TODO
-
-        client = AIModelClient(
-            is_async=True,
-            model_endpoint=ai_model_ep,
-            config=AIModelCallConfig(
+        # 7. AIModelCallConfig
+        # -------------------
+        if settings.model_call_config:
+            model_call_config = settings.model_call_config
+            model_call_config.options = options  # Override the refined options
+        else:
+            user_id = "usr_id_abcd"  # TODO
+            model_call_config = AIModelCallConfig(
                 streaming=streaming,
                 max_output_tokens=max_output_tokens,
                 reasoning=reasoning,
                 max_reasoning_tokens=max_reasoning_tokens,
-                options={},  # TODO
+                options=options,
                 metadata={"user_id": user_id},
                 test_mode=test_mode,
-            ),
+            )
+
+        # 8. Call model
+        # -------------------
+        client = AIModelClient(
+            is_async=True,
+            model_endpoint=ai_model_ep,
+            config=model_call_config,
         )
 
         response = await client.generate_async(
-            prompt=current_prompt,
-            context=previous_prompts,
+            prompt=prompt,
+            context=context,
             instructions=instructions,
         )
         if not isinstance(response, AIModelCallResponse):
@@ -322,49 +345,6 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 details=None,
             )
         )
-
-    async def get_prompt(
-        self,
-        node_id: str,
-        node_definition: ExecutableNodeDefinition,
-        node_input: NodeInput,
-        model: AIModel,
-    ) -> list[dict]:
-        settings: AIModelNodeSettings = node_definition.select_settings(
-            node_id=node_id,
-            node_input=node_input,
-        )
-        if settings is None or not isinstance(settings, AIModelNodeSettings):
-            raise ValueError(f"Invalid setting for node. selected settings is: {settings}")
-
-        # prompts = PromptFormatter.format_conversion_node_as_prompts(
-        #    model=model,
-        #    user_query=final_content,
-        #    attached_files=[],
-        #    previous_response=None,
-        #    max_words_query=None,
-        #    max_words_file=None,
-        #    max_words_response=None,
-        # )
-
-        input_prompt = None
-        input_context = None
-        input_instructions = None
-        node_prompt = None
-        node_context = None
-        node_instructions = None
-
-        if node_input.settings_override:
-            input_prommpt = node_input.settings_override.prompt
-            input_context = node_input.settings_override.context
-            input_instructions = node_input.settings_override.instructions
-
-        if node_definition.node_settings:
-            node_prommpt = node_definition.node_settings.prompt
-            node_context = node_definition.node_settings.context
-            node_instructions = node_definition.node_settings.instructions
-
-        return settings
 
     async def get_previous_node_outputs_as_prompts(
         self,
