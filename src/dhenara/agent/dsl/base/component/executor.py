@@ -1,13 +1,11 @@
-# dhenara/agent/engine/executor.py
 from datetime import datetime
 from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext
+from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext, NodeInputs
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
-from dhenara.agent.types.flow._node_io import NodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
@@ -37,7 +35,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
         execution_context = self.context_class(
             # flow_definition=flow_definition,
-            initial_inputs=initial_inputs,
+            # initial_inputs=initial_inputs,
             resource_config=resource_config,
             created_at=datetime.now(),
             run_env_params=self.run_context.run_env_params,
@@ -49,5 +47,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
         # Execute the flow
         block = self.block_class(self.definition.elements)
-        await block.execute(execution_context)
+        await block.execute(
+            execution_context=execution_context,
+        )
         return execution_context.results

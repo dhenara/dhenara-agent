@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Iterator
 from typing import Any, TypeVar
 
-from dhenara.agent.types.flow import NodeID, NodeInput
+from dhenara.agent.dsl.base import NodeID, NodeInput
 from dhenara.agent.types.fns import pydantic_endpoint
 from dhenara.agent.types.functional_types import (
     DhenRunEndpointReq,

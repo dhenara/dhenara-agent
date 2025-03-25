@@ -5,9 +5,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from dhenara.agent.dsl.base import NodeInputs
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
-from dhenara.agent.types.flow import NodeInputs
 from dhenara.agent.utils.git import RunOutcomeRepository
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 

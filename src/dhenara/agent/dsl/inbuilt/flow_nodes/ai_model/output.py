@@ -10,7 +10,7 @@ T = TypeVar("T", bound=BaseModel)
 
 
 # -----------------------------------------------------------------------------
-class AIModelCallNodeOutputData(BaseModel):
+class AIModelNodeOutputData(BaseModel):
     """
     Base Output model for execution nodes.
 

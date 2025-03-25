@@ -1,8 +1,8 @@
 from pydantic import Field
 
+from dhenara.agent.dsl.base import NodeID
 from dhenara.agent.dsl.flow import Flow
 from dhenara.agent.types.base import BaseModel
-from dhenara.agent.types.flow import NodeID
 
 
 class AgentNode(BaseModel):  # TODO_FUTURE:  AgentNode & AgentNodeDefinition

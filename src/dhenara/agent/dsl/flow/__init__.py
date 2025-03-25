@@ -6,6 +6,7 @@ from .base.node import (
     FlowBlock,
     FlowReference,
     FlowNodeDefinition,
+    FlowNodeExecutor,
 )
 
 from .flow import Flow, FlowExecutor
@@ -18,5 +19,6 @@ __all__ = [
     "FlowExecutor",
     "FlowNode",
     "FlowNodeDefinition",
+    "FlowNodeExecutor",
     "FlowReference",
 ]

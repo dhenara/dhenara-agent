@@ -1,7 +1,7 @@
 import os
 
+from dhenara.agent.dsl.base import NodeInputs
 from dhenara.agent.run import RunContext
-from dhenara.agent.types.flow import NodeInputs
 
 
 class IsolatedExecution:

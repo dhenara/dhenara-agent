@@ -3,20 +3,26 @@ from collections.abc import AsyncGenerator
 from datetime import datetime
 from typing import Any
 
-from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext, StreamingStatusEnum
-from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.types import (
-    AIModelCallNodeOutputData,
-    FlowNodeExecutionStatusEnum,
-    FlowNodeOutput,
+from dhenara.agent.dsl.base import (
+    ExecutableNodeDefinition,
+    ExecutionContext,
+    ExecutionStatusEnum,
     NodeExecutionResult,
+    NodeID,
     NodeInput,
-    SpecialNodeIdEnum,
+    NodeOutput,
+    SpecialNodeIDEnum,
+    StreamingStatusEnum,
 )
+from dhenara.agent.dsl.flow import FlowNodeExecutor
 
 # from common.csource.apps.model_apps.app_ai_connect.libs.tsg.orchestrator import AIModelCallOrchestrator
+from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
+    AIModelNodeInput,
+    AIModelNodeOutputData,
+    AIModelNodeSettings,
+)
 from dhenara.ai import AIModelClient
-from dhenara.ai.providers.common import PromptFormatter
 from dhenara.ai.types import (
     AIModel,
     AIModelCallConfig,
@@ -34,7 +40,7 @@ from dhenara.ai.types.shared.platform import DhenaraAPIError
 logger = logging.getLogger(__name__)
 
 
-class AIModelCallHandler(NodeHandler):
+class AIModelNodeExecutor(FlowNodeExecutor):
     def __init__(
         self,
         identifier: str = "ai_model_call_handler",
@@ -42,11 +48,21 @@ class AIModelCallHandler(NodeHandler):
         super().__init__(identifier=identifier)
         self.resource_config: ResourceConfig | None = None
 
-    async def handle(
+    async def get_live_input(self):
+        # TODO:
+        return AIModelNodeInput(
+            prompt_variables={
+                "requested_plan": "A nextjs project that implements a developer dashboard",
+            },
+            instruction_variables={},
+        )
+
+    async def execute_node(
         self,
+        node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        node_input: NodeInput,
         execution_context: ExecutionContext,
+        node_input: NodeInput,
         resource_config: ResourceConfig,
     ) -> Any:
         self.resource_config = resource_config
@@ -68,9 +84,14 @@ class AIModelCallHandler(NodeHandler):
         node_input: NodeInput,
         execution_context: ExecutionContext,
         streaming: bool,
-    ) -> NodeExecutionResult[AIModelCallNodeOutputData] | AsyncGenerator:
+    ) -> NodeExecutionResult[AIModelNodeOutputData] | AsyncGenerator:
+        # initial_input = execution_context.get_initial_input()
+        initial_input = None  # TODO
+        node_input = node_input if node_input is not None else initial_input
+        if node_input is None:
+            raise ValueError("Failed to get inputs for node ")
+
         user_selected_resource = None
-        initial_input = execution_context.get_initial_input()
         selected_resources = initial_input.resources if initial_input and initial_input.resources else []
 
         if len(selected_resources) == 1:
@@ -110,7 +131,7 @@ class AIModelCallHandler(NodeHandler):
         logger.debug(f"call_ai_model: ai_model_ep={ai_model_ep}")
 
         # Parse inputs
-        current_prompt = await self.process_input_contents_and_node_prompt(
+        current_prompt = await self.get_prompt(
             node_id=execution_context.current_node_identifier,
             node_definition=node_definition,
             node_input=node_input,
@@ -124,7 +145,7 @@ class AIModelCallHandler(NodeHandler):
         #         dest_model=model_endpoint.ai_model,
         #     )
 
-        node_options = node_definition.ai_settings.get_options() if node_definition.ai_settings else {}
+        node_options = node_definition.node_settings.get_options() if node_definition.node_settings else {}
         input_options = node_input.options if node_input and node_input.options else {}
 
         node_options.update(input_options)
@@ -156,8 +177,8 @@ class AIModelCallHandler(NodeHandler):
         # if node_definition.system_instructions:
         #    instructions += node_definition.system_instructions
 
-        if node_definition.ai_settings and node_definition.ai_settings.system_instructions:
-            instructions += node_definition.ai_settings.system_instructions
+        if node_definition.node_settings and node_definition.node_settings.system_instructions:
+            instructions += node_definition.node_settings.system_instructions
 
         logger.debug(f"call_ai_model: instructions={instructions}")
 
@@ -215,16 +236,14 @@ class AIModelCallHandler(NodeHandler):
 
         # Non streaming
         logger.debug(f"call_ai_model: status={response.status}, response={response},")
-        node_output = FlowNodeOutput[AIModelCallNodeOutputData](
-            data=AIModelCallNodeOutputData(
+        node_output = NodeOutput[AIModelNodeOutputData](
+            data=AIModelNodeOutputData(
                 response=response,
             )
         )
 
-        status = (
-            FlowNodeExecutionStatusEnum.COMPLETED if response.status.successful else FlowNodeExecutionStatusEnum.FAILED
-        )
-        result = NodeExecutionResult[AIModelCallNodeOutputData](
+        status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
+        result = NodeExecutionResult[AIModelNodeOutputData](
             node_identifier=execution_context.current_node_identifier,
             status=status,
             node_input=node_input,
@@ -262,18 +281,18 @@ class AIModelCallHandler(NodeHandler):
                         logger.fatal(f"Final streaming response type {type(final_response)} is not AIModelCallResponse")
 
                     node_identifier = execution_context.current_node_identifier
-                    node_output = FlowNodeOutput[AIModelCallNodeOutputData](
-                        data=AIModelCallNodeOutputData(
+                    node_output = NodeOutput[AIModelNodeOutputData](
+                        data=AIModelNodeOutputData(
                             response=final_response,
                         )
                     )
 
                     status = (
-                        FlowNodeExecutionStatusEnum.COMPLETED
+                        ExecutionStatusEnum.COMPLETED
                         if final_response.status.successful
-                        else FlowNodeExecutionStatusEnum.FAILED
+                        else ExecutionStatusEnum.FAILED
                     )
-                    result = NodeExecutionResult[AIModelCallNodeOutputData](
+                    result = NodeExecutionResult[AIModelNodeOutputData](
                         node_identifier=node_identifier,
                         status=status,
                         node_input=node_input,
@@ -304,28 +323,48 @@ class AIModelCallHandler(NodeHandler):
             )
         )
 
-    async def process_input_contents_and_node_prompt(
+    async def get_prompt(
         self,
         node_id: str,
         node_definition: ExecutableNodeDefinition,
         node_input: NodeInput,
         model: AIModel,
     ) -> list[dict]:
-        final_content = await node_definition.get_full_input_content(
+        settings: AIModelNodeSettings = node_definition.select_settings(
             node_id=node_id,
             node_input=node_input,
         )
+        if settings is None or not isinstance(settings, AIModelNodeSettings):
+            raise ValueError(f"Invalid setting for node. selected settings is: {settings}")
 
-        prompts = PromptFormatter.format_conversion_node_as_prompts(
-            model=model,
-            user_query=final_content,
-            attached_files=[],
-            previous_response=None,
-            max_words_query=None,
-            max_words_files=None,
-            max_words_response=None,
-        )
-        return prompts[0]
+        # prompts = PromptFormatter.format_conversion_node_as_prompts(
+        #    model=model,
+        #    user_query=final_content,
+        #    attached_files=[],
+        #    previous_response=None,
+        #    max_words_query=None,
+        #    max_words_file=None,
+        #    max_words_response=None,
+        # )
+
+        input_prompt = None
+        input_context = None
+        input_instructions = None
+        node_prompt = None
+        node_context = None
+        node_instructions = None
+
+        if node_input.settings_override:
+            input_prommpt = node_input.settings_override.prompt
+            input_context = node_input.settings_override.context
+            input_instructions = node_input.settings_override.instructions
+
+        if node_definition.node_settings:
+            node_prommpt = node_definition.node_settings.prompt
+            node_context = node_definition.node_settings.context
+            node_instructions = node_definition.node_settings.instructions
+
+        return settings
 
     async def get_previous_node_outputs_as_prompts(
         self,
@@ -337,7 +376,7 @@ class AIModelCallHandler(NodeHandler):
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
-                if source_node_identifier == SpecialNodeIdEnum.PREVIOUS:
+                if source_node_identifier == SpecialNodeIDEnum.PREVIOUS:
                     previous_node_identifier = execution_context.flow_definition.get_previous_node_identifier(
                         execution_context.current_node_identifier,
                     )
@@ -350,17 +389,17 @@ class AIModelCallHandler(NodeHandler):
                 # TODO: Check if node is saved to DB as ConversationNode and , and get it from that
                 # For now processing execution results text contents
 
-                prompts = PromptFormatter.format_conversion_node_as_prompts(
-                    model=model,
-                    user_query=None,
-                    attached_files=[],  # TODO: Get from user inputs
-                    previous_response=previous_node_output.response.full_response,
-                    max_words_query=None,
-                    max_words_files=None,
-                    max_words_response=None,
-                )
+                # prompts = PromptFormatter.format_conversion_node_as_prompts(
+                #    model=model,
+                #    user_query=None,
+                #    attached_files=[],  # TODO: Get from user inputs
+                #    previous_response=previous_node_output.response.full_response,
+                #    max_words_query=None,
+                #    max_words_file=None,
+                #    max_words_response=None,
+                # )
 
-                outputs_as_prompts += prompts
+                # outputs_as_prompts += prompts
 
         except Exception as e:
             raise DhenaraAPIError(f"previous_node_output: Error: {e}")
@@ -368,7 +407,7 @@ class AIModelCallHandler(NodeHandler):
         return outputs_as_prompts
 
 
-class AIModelCallStreamHandler(AIModelCallHandler):
+class AIModelNodeStreamExecutor(AIModelNodeExecutor):
     def __init__(
         self,
     ):

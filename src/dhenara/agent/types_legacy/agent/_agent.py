@@ -8,6 +8,7 @@ from dhenara.ai.types.shared.base import BaseModel
 AgentIdentifier = NewType("AgentIdentifier", str)
 
 
+# TODO: Delete: Unused?
 class Agent(BaseModel):
     identifier: AgentIdentifier = Field(
         ...,

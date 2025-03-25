@@ -1,22 +1,24 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel as PydanticBaseModel
+from pydantic import Field
 
 from dhenara.agent.dsl import (
     AgentNode,
-    AIModelCall,
+    AIModelNode,
+    AIModelNodeSettings,
     Flow,
-)
-from dhenara.agent.dsl import (
-    ExecutableNodeOutcomeSettings as OutcomeSettings,
-)
-from dhenara.agent.types import (
-    AISettings,
-    PromptTemplate,
+    NodeOutcomeSettings,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
+    AIModelCallConfig,
+    Prompt,
+    PromptMessageRoleEnum,
+    PromptText,
     ResourceConfigItem,
     ResourceConfigItemTypeEnum,
     ResourceQueryFieldsEnum,
+    StructuredOutputConfig,
+    TextTemplate,
 )
 
 # NOTE: `agent_identifier` is used for naming run dirs.
@@ -25,13 +27,13 @@ agent_identifier = "abcd"
 
 
 # Define structured output models
-class CodeFile(BaseModel):
+class CodeFile(PydanticBaseModel):
     filename: str = Field(..., description="Name of the file")
     content: str = Field(..., description="Content of the file")
     language: str = Field(..., description="Programming language")
 
 
-class CodePlan(BaseModel):
+class CodePlan(PydanticBaseModel):
     description: str = Field(..., description="Description of the code plan")
     files: list[CodeFile] = Field(..., description="Files to generate")
     dependencies: list[str] = Field(default_factory=list, description="Dependencies")
@@ -43,7 +45,7 @@ flow = (
     # First node: Create a code plan
     .node(
         "create_plan",
-        AIModelCall(
+        AIModelNode(
             resources=[
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
@@ -53,17 +55,23 @@ flow = (
                     },
                 ),
             ],
-            ai_settings=AISettings(
-                system_instructions=[],
-                node_prompt=PromptTemplate(
-                    template="Create a code plan for: ${requested_plan}",
-                    # template="tell me a strory",
-                    default_values={},
+            node_settings=AIModelNodeSettings(
+                system_instructions=None,
+                prompt=Prompt(
+                    role=PromptMessageRoleEnum.USER,
+                    text=PromptText(
+                        content=None,
+                        template=TextTemplate(
+                            text="Create a code plan for: ${requested_plan}",
+                            variables={"requested_plan": {"default_value": "Flutter project"}},
+                        ),
+                    ),
                 ),
-                structured_output=CodePlan,
-                options_overrides=None,
+                model_call_config=AIModelCallConfig(
+                    structured_output=StructuredOutputConfig(output_schema=CodePlan),
+                ),
             ),
-            outcome_settings=OutcomeSettings(
+            outcome_settings=NodeOutcomeSettings(
                 path_template="code_generation/${run_id}",
                 filename_template="plan.json",
                 commit=True,
@@ -78,14 +86,14 @@ for_each_block(
     item_var="file_info",
     body=Flow().node(
         "generate_file",
-        AIModelCall(
+        AIModelNode(
             model_name="claude-3-sonnet",
             prompt_template=(
                 "Generate code for: ${file_info.filename}\n"
                 "Language: ${file_info.language}\n"
                 "Purpose: ${file_info.description}"
             ),
-            outcome_settings=OutcomeSettings(
+            outcome_settings=NodeOutcomeSettings(
                 path_template="code_generation/${run_id}/files",
                 filename_template="${file_info.filename}",
                 content_template="${generate_file.raw_text}",
@@ -96,7 +104,7 @@ for_each_block(
     ),
 ).node(
     "create_readme",
-    AIModelCall(
+    AIModelNode(
         model_name="claude-3-haiku",
         prompt_template=(
             "Create a README.md for the project.\n"
@@ -104,7 +112,7 @@ for_each_block(
             "Files: ${', '.join([f.filename for f in create_plan.structured.files])}\n"
             "Dependencies: ${', '.join(create_plan.structured.dependencies)}"
         ),
-        outcome_settings=OutcomeSettings(
+        outcome_settings=NodeOutcomeSettings(
             path_template="code_generation/${run_id}",
             filename_template="README.md",
             content_template="${create_readme.raw_text}",

@@ -2,9 +2,8 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ExecutableElement, ExecutableNodeDefinition, ExecutionContext
+from dhenara.agent.dsl.base import ExecutableElement, ExecutableNodeDefinition, ExecutionContext, NodeID
 from dhenara.agent.types.base import BaseModel
-from dhenara.agent.types.flow import NodeID
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
@@ -39,12 +38,11 @@ class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
             raise ValueError("FlowNode identifier cannot be empty or whitespace")
         return v
 
-    async def execute(self, context: ContextT) -> Any:
-        context.set_current_node(self.id)
-        node_input = context.get_initial_input()
-        result = await self.definition.execute(context, node_input)
-
-        context.set_result(self.id, result)
+    async def execute(self, execution_context: ContextT) -> Any:
+        result = await self.definition.execute(
+            node_id=self.id,
+            execution_context=execution_context,
+        )
 
         return result
 
@@ -58,21 +56,21 @@ class ExecutableBlock(Generic[ElementT, ContextT]):
     def __init__(self, elements: list[ElementT]):
         self.elements = elements
 
-    async def execute(self, context: ContextT) -> list[Any]:
+    async def execute(self, execution_context: ContextT) -> list[Any]:
         """Execute all elements in this block sequentially."""
         results = []
         for element in self.elements:
-            result = await element.execute(context)
+            result = await element.execute(execution_context)
             results.append(result)
         return results
 
 
 class ExecutableReference(Generic[ElementT, ContextT]):
-    """A reference to a value in the context."""
+    """A reference to a value in the execution_context."""
 
     def __init__(self, path: str):
         self.path = path
 
-    async def execute(self, context: ContextT) -> Any:
-        """Get the referenced value from the context."""
-        return context.get_value(self.path)
+    async def execute(self, execution_context: ContextT) -> Any:
+        """Get the referenced value from the execution_context."""
+        return execution_context.get_value(self.path)

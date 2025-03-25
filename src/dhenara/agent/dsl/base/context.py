@@ -8,17 +8,14 @@ from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
+from dhenara.agent.dsl.base.results import NodeExecutionResult
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.types.data import RunEnvParams
-from dhenara.agent.types.flow import (
-    ExecutionResults,
-    ExecutionStatusEnum,
-    NodeExecutionResult,
-    NodeID,
-    NodeInput,
-    NodeInputs,
-)
 from dhenara.ai.types.resource import ResourceConfig
+
+from .defs import NodeID
+from .enums import ExecutionStatusEnum
+from .node_io import NodeInput
 
 
 class StreamingStatusEnum(BaseEnum):
@@ -50,10 +47,14 @@ class ExecutionContext(BaseModelABC):
 
     # Flow-specific tracking
     current_node_identifier: NodeID | None = None
-    initial_inputs: NodeInputs = Field(default_factory=dict)
+
+    # TODO_FUTURE: An option to statically override node settings
+    # initial_inputs: NodeInputs = Field(default_factory=dict)
+
+    execution_inputs: NodeExecutionResult[Any] = Field(default_factory=dict)
 
     execution_status: ExecutionStatusEnum = ExecutionStatusEnum.PENDING
-    execution_results: ExecutionResults[Any] = Field(default_factory=dict)
+    execution_results: NodeExecutionResult[Any] = Field(default_factory=dict)
     execution_failed: bool = False
     execution_failed_message: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -62,7 +63,9 @@ class ExecutionContext(BaseModelABC):
     completed_at: datetime | None = None
 
     # Streaming support
-    streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
+    streaming_contexts: dict[NodeID, StreamingContext | None] = Field(
+        default_factory=dict
+    )
     stream_generator: AsyncGenerator | None = None
 
     # Services and utilities
@@ -186,13 +189,14 @@ class ExecutionContext(BaseModelABC):
         if not self.current_node_identifier:
             raise ValueError("get_initial_input: current_node_identifier is not set")
 
-        input_data = self.initial_inputs.get(self.current_node_identifier, None)
-        if isinstance(input_data, NodeInput):
-            return input_data
-        elif isinstance(input_data, dict):
-            return NodeInput(**input_data)
-        else:
-            return None
+        # TODO
+        # input_data = self.initial_inputs.get(self.current_node_identifier, None)
+        # if isinstance(input_data, NodeInput):
+        #     return input_data
+        # elif isinstance(input_data, dict):
+        #     return NodeInput(**input_data)
+        # else:
+        #     return None
 
     async def notify_streaming_complete(
         self,
@@ -202,7 +206,9 @@ class ExecutionContext(BaseModelABC):
     ) -> None:
         streaming_context = self.streaming_contexts[identifier]
         if not streaming_context:
-            raise ValueError(f"notify_streaming_complete: Failed to get streaming_context for id {identifier}")
+            raise ValueError(
+                f"notify_streaming_complete: Failed to get streaming_context for id {identifier}"
+            )
 
         streaming_context.status = streaming_status
         streaming_context.result = result
@@ -210,7 +216,9 @@ class ExecutionContext(BaseModelABC):
         streaming_context.completion_event.set()
 
     # ------------: TODO: Review
-    def create_iteration_context(self, iteration_data: dict[str, Any]) -> "ExecutionContext":
+    def create_iteration_context(
+        self, iteration_data: dict[str, Any]
+    ) -> "ExecutionContext":
         """Create a new context for a loop iteration."""
         return ExecutionContext(
             initial_data=iteration_data,
@@ -221,7 +229,9 @@ class ExecutionContext(BaseModelABC):
     def merge_iteration_context(self, iteration_context: "ExecutionContext") -> None:
         """Merge results from an iteration context back to this context."""
         for key, value in iteration_context.results.items():
-            iteration_key = f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
+            iteration_key = (
+                f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
+            )
             self.results[iteration_key] = value
 
     async def record_outcome(self, node_def, result: Any) -> None:
@@ -260,7 +270,9 @@ class ExecutionContext(BaseModelABC):
             commit_msg=commit_msg,
         )
 
-    async def record_iteration_outcome(self, loop_element, iteration: int, item: Any, result: Any) -> None:
+    async def record_iteration_outcome(
+        self, loop_element, iteration: int, item: Any, result: Any
+    ) -> None:
         """Record the outcome of a loop iteration."""
         # Implementation depends on whether the loop has outcome settings
         # Similar to record_outcome but with iteration-specific values

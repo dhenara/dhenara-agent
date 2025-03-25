@@ -3,11 +3,10 @@ import logging
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.dsl.agent import AgentNode
-from dhenara.agent.dsl.base import ComponentDefinition
+from dhenara.agent.dsl.base import ComponentDefinition, NodeInputs
 from dhenara.agent.dsl.flow import FlowExecutor
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
-from dhenara.agent.types import NodeInputs
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
@@ -23,9 +22,7 @@ class BaseAgent:
         # TODO: Configs?
 
         if not isinstance(self.agent_node, AgentNode):
-            logger.error(
-                f"Imported object is not an AgentNode: {type(self.agent_node)}"
-            )
+            logger.error(f"Imported object is not an AgentNode: {type(self.agent_node)}")
             return
 
     async def run(
@@ -33,6 +30,9 @@ class BaseAgent:
         run_context: RunContext,
         initial_inputs: NodeInputs | None = None,
     ):
+        # TODO: proper logger setup
+        # self.setup_logging()
+
         # TODO: Bring inputs
         input_data = {
             "initial_inputs": initial_inputs,

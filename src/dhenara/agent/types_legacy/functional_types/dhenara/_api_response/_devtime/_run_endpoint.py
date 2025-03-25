@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import Field, model_validator
 
-from dhenara.agent.types.agent import Agent
+from dhenara.agent.dsl.agent.agent_node import AgentNode
 from dhenara.ai.types.shared.base import BaseModel
 from dhenara.ai.types.shared.platform import PlatformEnvTypeEnum
 
@@ -67,7 +67,7 @@ class DhenRunEndpointReq(DhenRunEndpointBase):
         examples=["agent_12345"],
     )
 
-    agent: Agent | None = Field(
+    agent: AgentNode | None = Field(
         default=None,
         description="Complete Agent data when creating a new agent with the endpoint",
     )

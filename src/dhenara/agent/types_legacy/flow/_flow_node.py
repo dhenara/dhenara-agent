@@ -1,15 +1,23 @@
 from pydantic import Field, field_validator, model_validator
 
 from dhenara.agent.types.flow import (
-    AISettings,
     CommandSettings,
     FlowNodeTypeEnum,
     FolderAnalyzerSettings,
     GitRepoAnalyzerSettings,
-    NodeID,
-    NodeInput,
-    NodeInputSettings,
     NodeResponseSettings,
+)
+from dhenara.agent.types.flow import (
+    LegacyAISettings as AISettings,
+)
+from dhenara.agent.types.flow import (
+    LegacyNodeID as NodeID,
+)
+from dhenara.agent.types.flow import (
+    LegacyNodeInput as NodeInput,
+)
+from dhenara.agent.types.flow import (
+    NodeSettings as NodeInputSettings,
 )
 from dhenara.ai.types import ResourceConfigItem
 from dhenara.ai.types.shared.base import BaseModel
@@ -194,6 +202,7 @@ class LegacyFlowNode(BaseModel):  # TODO: Delete
 
             kwargs.update({"dh_input_content": input_content})
 
+            # TODO
             return node_prompt.format(**kwargs)
 
         else:

@@ -1,8 +1,13 @@
-
 from dhenara.agent.types.base import BaseModel
 
 
-class ExecutableNodeOutcomeSettings(BaseModel):
+class NodeSettings(BaseModel):
+    """Node Settings."""
+
+    pass
+
+
+class NodeOutcomeSettings(BaseModel):
     """Settings for recording node outcomes."""
 
     enabled: bool = True

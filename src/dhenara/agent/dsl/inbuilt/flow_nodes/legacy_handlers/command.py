@@ -4,9 +4,8 @@ import logging
 import os
 from typing import Any
 
-from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext
+from dhenara.agent.dsl.base import ExecutableNodeDefinition, ExecutionContext, NodeInput
 from dhenara.agent.engine.handler import NodeHandler
-from dhenara.agent.types import NodeInput
 from dhenara.agent.types.flow import CommandSettings
 from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError

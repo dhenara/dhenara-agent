@@ -63,6 +63,17 @@ def run_agent(
     )
 
 
+def setup_logging():
+    # Configure logging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    logger = logging.getLogger("dhenara")
+    print(f"AJ: logger={logger}")
+    logger.setLevel(logging.DEBUG)
+
+
 async def _run_agent(
     identifier,
     project_root,
@@ -71,6 +82,10 @@ async def _run_agent(
     input_source_path,
 ):
     """Async implementation of run_agent."""
+
+    # TODO:
+    setup_logging()
+
     # Find project root
     if not project_root:
         project_root = find_project_root()
@@ -129,6 +144,10 @@ def load_agent_module(project_root: Path, agent_path: str):
         return agent.agent
 
     except ImportError as e:
-        logger.error(f"Failed to import agent from project_root {project_root} path {agent_path}: {e}")
+        logger.error(
+            f"Failed to import agent from project_root {project_root} path {agent_path}: {e}"
+        )
     except AttributeError as e:
-        logger.error(f"Failed to find agent definition in module project_root {project_root} path {agent_path}: {e}")
+        logger.error(
+            f"Failed to find agent definition in module project_root {project_root} path {agent_path}: {e}"
+        )

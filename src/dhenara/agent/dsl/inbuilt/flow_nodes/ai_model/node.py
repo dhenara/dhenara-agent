@@ -5,30 +5,16 @@ from typing import Any
 
 from pydantic import Field, field_validator, model_validator
 
+from dhenara.agent.dsl.base import NodeOutput
 from dhenara.agent.dsl.flow import FlowExecutionContext, FlowNodeDefinition
-from dhenara.agent.engine.handler.handlers.ai_model_call import AIModelCallHandler
-from dhenara.agent.types.flow import (
-    AISettings,
-    NodeInputSettings,
-)
 from dhenara.ai.types import ResourceConfigItem
-from dhenara.ai.types.shared.base import BaseModel
+
+from .executor import AIModelNodeExecutor
+from .settings import AIModelNodeSettings
 
 
-# dhenara/agent/nodes/ai_model.py
-class AIModelOutput(BaseModel):
-    """Base model for AI model outputs."""
-
-    # TODO: This should match with dhenara.ai package output
-    raw_text: str
-
-
-class AIModelCall(FlowNodeDefinition):
-    resources: list[ResourceConfigItem] = Field(
-        default_factory=list,
-        description="List of resources to be used",
-    )
-    ai_settings: AISettings | None = Field(
+class AIModelNode(FlowNodeDefinition):
+    settings: AIModelNodeSettings | None = Field(
         default=None,
         description="Node specific AP API settings/options",
     )
@@ -36,13 +22,13 @@ class AIModelCall(FlowNodeDefinition):
         default_factory=list,
         description="Tools",
     )
-    input_settings: NodeInputSettings | None = Field(
-        default=None,
-        description="Input Settings",
-    )  # TODO: Consider removing this field and take care of previous context seperately
+    resources: list[ResourceConfigItem] = Field(
+        default_factory=list,
+        description="List of resources to be used",
+    )
 
-    def get_handler(self):
-        return AIModelCallHandler()
+    def get_node_executor(self):
+        return AIModelNodeExecutor()
 
     @field_validator("resources")
     @classmethod
@@ -70,8 +56,8 @@ class AIModelCall(FlowNodeDefinition):
 
     @model_validator(mode="after")
     def validate_node_type_settings(self):
-        if not (self.ai_settings or self.input_settings):
-            raise ValueError("ai_settings or input_settings is required for AIModelCall")
+        if not (self.node_settings or self.input_settings):
+            raise ValueError("node_settings or input_settings is required for AIModelCall")
 
         return self
 
@@ -87,12 +73,12 @@ class AIModelCall(FlowNodeDefinition):
     #    Raises:
     #        ValueError: If conflicting settings are detected
     #    """
-    #    has_prompt = self.ai_settings and self.ai_settings.node_prompt.format() and self.ai_settings.node_prompt.prompt
+    #    has_prompt = self.node_settings and self.node_settings.node_prompt.format() and self.node_settings.node_prompt.prompt
     #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources  # noqa: E501, W505
     #    if has_prompt and has_user_input:
     #        raise ValueError(
     #            "Illegal input settings configuration: "
-    #            "`input_source.user_input_sources` and `ai_settings.node_prompt.prompt` "
+    #            "`input_source.user_input_sources` and `node_settings.node_prompt.prompt` "
     #            "cannot be set simultaneously. To modify user inputs for this node, "
     #            "use the `pre` and `post` fields of `node_prompt`, not the `prompt` field.",
     #        )
@@ -118,7 +104,7 @@ class TODOAIModelCall(FlowNodeDefinition):
         self.options = options or {}
         # self.structured_output = structured_output
 
-    async def execute(self, context: "FlowExecutionContext") -> AIModelOutput:
+    async def execute(self, context: "FlowExecutionContext") -> NodeOutput:
         """Execute an AI model call."""
         # Resolve the prompt template
         prompt = context.evaluate_template(self.prompt_template)
@@ -140,7 +126,7 @@ class TODOAIModelCall(FlowNodeDefinition):
         )
 
         # Parse structured output if requested
-        result = AIModelOutput(raw_text=response.text)
+        result = ""  # AIModelOutput(raw_text=response.text)
         if self.structured_output:
             try:
                 # Extract and parse JSON
