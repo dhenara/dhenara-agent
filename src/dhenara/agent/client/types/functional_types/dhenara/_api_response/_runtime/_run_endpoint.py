@@ -2,8 +2,7 @@ from typing import Any
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ExecutionResults, ExecutionStatusEnum, NodeID, NodeInput
-from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import AIModelNodeOutputData
+from dhenara.agent.dsl.base import ExecutionResult, ExecutionStatusEnum, NodeID, NodeInput
 from dhenara.ai.types.shared.base import BaseModel
 
 
@@ -34,5 +33,5 @@ class ExecuteDhenRunEndpointRes(BaseModel):
     """
 
     execution_status: ExecutionStatusEnum
-    execution_results: ExecutionResults[AIModelNodeOutputData] = {}
+    execution_results: dict[NodeID, ExecutionResult] = {}
     metadata: dict[str, Any] = {}

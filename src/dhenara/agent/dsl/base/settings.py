@@ -36,31 +36,25 @@ class RecordSettingsItem(BaseModel):
         ...,
         description="File format. Use text to dump as string",
     )
-    git_commit: bool | None = Field(
-        default=None,
-        description="Commot or not, if applicable to record",
-    )
-    git_commit_message: str | TextTemplate | None = Field(
-        default=None,
-        description="Commot or not, if applicable to record",
-    )
 
 
 DEFAULT_INPUT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${run_id}/input/",
-    filename="${node_id}.json",
+    path="${run_id}/${node_id}/",
+    filename="input.json",  # "{node_id}.json",
     file_format=RecordFileFormatEnum.json,
-    git_commit=None,
-    git_commit_message=None,
 )
 DEFAULT_OUPUT_RECORD_SETTINGS = default = RecordSettingsItem(
     enabled=True,
-    path="${run_id}/output/",
-    filename="${node_id}.json",
+    path="${run_id}/${node_id}/",
+    filename="output.json",
     file_format=RecordFileFormatEnum.json,
-    git_commit=None,
-    git_commit_message=None,
+)
+DEFAULT_OUTCOME_RECORD_SETTINGS = default = RecordSettingsItem(
+    enabled=True,
+    path="${run_id}/${node_id}/",
+    filename="outcome.json",
+    file_format=RecordFileFormatEnum.json,
 )
 
 
@@ -74,8 +68,56 @@ class NodeRecordSettings(BaseModel):
         description="Output record settings",
     )
     outcome: RecordSettingsItem | None = Field(
-        default=None,
+        default_factory=lambda: DEFAULT_OUTCOME_RECORD_SETTINGS.model_copy(deep=True),
         description="Outcome record settings",
+    )
+
+    @classmethod
+    def with_outcome_format(
+        cls,
+        file_format: RecordFileFormatEnum,
+    ) -> "NodeRecordSettings":
+        """Factory method to easily create settings with custom outcome configuration."""
+        return cls(
+            outcome=RecordSettingsItem(
+                file_format=file_format,
+            )
+        )
+
+
+class GitSettingsItem(BaseModel):
+    """Node Output Settings."""
+
+    path: str | TextTemplate = Field(
+        ...,
+        description="Path within repo",
+    )
+    filename: str | TextTemplate = Field(
+        ...,
+        description="Filename ",
+    )
+    commit: bool | None = Field(
+        default=None,
+        description="Commot or not, if applicable to record",
+    )
+    commit_message: str | TextTemplate | None = Field(
+        default=None,
+        description="Commot or not, if applicable to record",
+    )
+
+
+class NodeGitSettings(BaseModel):
+    input: GitSettingsItem | None = Field(
+        default=None,
+        description="Input git settings",
+    )
+    output: GitSettingsItem | None = Field(
+        default=None,
+        description="Output git settings",
+    )
+    outcome: GitSettingsItem | None = Field(
+        default=None,
+        description="Outcome git settings",
     )
 
     @classmethod
@@ -83,31 +125,15 @@ class NodeRecordSettings(BaseModel):
         cls,
         path: str,
         filename: str,
-        file_format: str = "json",
-        git_commit: bool = True,
-        git_commit_message: str | None = None,
-    ) -> "NodeRecordSettings":
+        commit: bool,
+        commit_message: str | None = None,
+    ) -> "NodeGitSettings":
         """Factory method to easily create settings with an outcome configuration."""
         return cls(
-            outcome=RecordSettingsItem(
+            outcome=GitSettingsItem(
                 path=path,
                 filename=filename,
-                file_format=file_format,
-                git_commit=git_commit,
-                git_commit_message=git_commit_message,
-            )
-        )
-
-    @classmethod
-    def with_custom_output(
-        cls, path: str, filename: str, file_format: str = "json", git_commit: bool = False
-    ) -> "NodeRecordSettings":
-        """Factory method to easily create settings with custom output configuration."""
-        return cls(
-            output=RecordSettingsItem(
-                path=path,
-                filename=filename,
-                file_format=file_format,
-                git_commit=git_commit,
+                commit=commit,
+                commit_message=commit_message,
             )
         )

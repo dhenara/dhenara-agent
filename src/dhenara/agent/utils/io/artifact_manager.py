@@ -1,10 +1,10 @@
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from string import Template
+from typing import Any, Literal
 
-from dhenara.agent.dsl.base import RecordFileFormatEnum, RecordSettingsItem
+from dhenara.agent.dsl.base import GitSettingsItem, RecordFileFormatEnum, RecordSettingsItem
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 
@@ -37,139 +37,125 @@ class ArtifactManager:
         )
         return variables
 
-    def record_node_input(
+    def record_data(
         self,
         node_identifier: str,
-        input_data: dict,
+        data: Any,
+        record_type: Literal["input", "output", "outcome"],
         record_settings: RecordSettingsItem = None,
+        git_settings: GitSettingsItem = None,
     ) -> bool:
-        """Save input for a node execution."""
+        """Common implementation for recording node data."""
         if record_settings is None or not record_settings.enabled:
             return True
 
         variables = self._get_template_variables(node_identifier)
 
+        def _save_file(output_file):
+            # Save data in the specified format
+            if record_settings.file_format == RecordFileFormatEnum.json:
+                with open(output_file, "w") as f:
+                    json.dump(data, f, indent=2)
+            elif record_settings.file_format == RecordFileFormatEnum.yaml:
+                import yaml
+
+                with open(output_file, "w") as f:
+                    yaml.dump(data, f, default_flow_style=False)
+            elif record_settings.file_format == RecordFileFormatEnum.text:
+                with open(output_file, "w") as f:
+                    f.write(str(data))
+            elif record_settings.file_format == RecordFileFormatEnum.binary:
+                with open(output_file, "wb") as f:
+                    f.write(data)
+
         try:
             # Resolve path and filename from templates
             path_str = self._resolve_template(record_settings.path, variables)
             file_name = self._resolve_template(record_settings.filename, variables)
 
-            # Create full path
-            # full_path = Path(self.run_env_params.run_dir) / path_str
-            full_path = Path(path_str)
+            # Create full path - determine appropriate base directory based on record type
+            base_dir = Path(self.run_env_params.run_dir)
+
+            full_path = base_dir / path_str
             full_path.mkdir(parents=True, exist_ok=True)
 
             # Save data in the specified format
             output_file = full_path / file_name
-            if record_settings.file_format == RecordFileFormatEnum.json:
-                with open(output_file, "w") as f:
-                    json.dump(input_data, f, indent=2)
-            elif record_settings.file_format == RecordFileFormatEnum.yaml:
-                import yaml
+            _save_file(output_file)
 
-                with open(output_file, "w") as f:
-                    yaml.dump(input_data, f, default_flow_style=False)
-            elif record_settings.file_format == RecordFileFormatEnum.text:
-                with open(output_file, "w") as f:
-                    f.write(str(input_data))
+            # Handle git operations if git settings are provided
+            if git_settings and git_settings.commit:
+                # Resolve path and filename from templates
+                path_str = self._resolve_template(git_settings.path, variables)
+                file_name = self._resolve_template(git_settings.filename, variables)
 
-            # Handle git commit if enabled
-            if record_settings.git_commit:
-                commit_msg = "Input data recorded"
-                if record_settings.git_commit_message:
-                    commit_msg = self._resolve_template(record_settings.git_commit_message, variables)
+                # For outcomes with git settings, use the outcome repo directory
+                base_dir = Path(self.run_env_params.outcome_repo_dir)
+
+                full_path = base_dir / path_str
+                full_path.mkdir(parents=True, exist_ok=True)
+
+                # Save data in the specified format
+                output_file = full_path / file_name
+                _save_file(output_file)
+
+                commit_msg = f"{record_type.capitalize()} data recorded"
+                if git_settings.commit_message:
+                    commit_msg = self._resolve_template(git_settings.commit_message, variables)
                 self.outcome_repo.commit_run_outcomes(self.run_env_params.run_id, commit_msg)
 
             return True
         except Exception as e:
-            logger.exception(f"record_node_input: Error: {e}")
+            logger.exception(f"record_{record_type}: Error: {e}")
             return False
+
+    '''
+    def record_node_input(
+        self,
+        node_identifier: str,
+        input_data: Any,
+        record_settings: RecordSettingsItem = None,
+        git_settings: GitSettingsItem = None,
+    ) -> bool:
+        """Save input for a node execution."""
+        return self._record_data(
+            node_identifier=node_identifier,
+            data=input_data,
+            record_type="input",
+            record_settings=record_settings,
+            git_settings=git_settings,
+        )
 
     def record_node_output(
         self,
         node_identifier: str,
-        output_data: dict,
+        output_data: Any,
         record_settings: RecordSettingsItem = None,
+        git_settings: GitSettingsItem = None,
     ) -> bool:
         """Save output from a node execution."""
-        # if record_settings is None or not record_settings.enabled:
-        #    # Use legacy behavior if no settings provided
-        #    try:
-        #        node_dir_str = f"{self.run_env_params.output_dir}/{node_identifier}"
-        #        node_dir = Path(node_dir_str)
-        #        node_dir.mkdir(exist_ok=True)
-        #        output_file = node_dir / "node.json"
-        #        with open(output_file, "w") as f:
-        #            json.dump(output_data, f, indent=2)
-        #        return True
-        #    except Exception as e:
-        #        logger.exception(f"record_node_output (legacy): Error: {e}")
-        #        return False
-
-        variables = self._get_template_variables(node_identifier)
-
-        try:
-            # Resolve path and filename from templates
-            path_str = self._resolve_template(record_settings.path, variables)
-            file_name = self._resolve_template(record_settings.filename, variables)
-
-            # Create full path
-            full_path = Path(self.run_env_params.run_dir) / path_str
-            full_path.mkdir(parents=True, exist_ok=True)
-
-            # Save data in the specified format
-            output_file = full_path / file_name
-            if record_settings.file_format == RecordFileFormatEnum.json:
-                with open(output_file, "w") as f:
-                    json.dump(output_data, f, indent=2)
-            elif record_settings.file_format == RecordFileFormatEnum.yaml:
-                import yaml
-
-                with open(output_file, "w") as f:
-                    yaml.dump(output_data, f, default_flow_style=False)
-            elif record_settings.file_format == RecordFileFormatEnum.text:
-                with open(output_file, "w") as f:
-                    f.write(str(output_data))
-
-            # Handle git commit if enabled
-            if record_settings.git_commit:
-                commit_msg = "Output data recorded"
-                if record_settings.git_commit_message:
-                    commit_msg = self._resolve_template(record_settings.git_commit_message, variables)
-                self.outcome_repo.commit_run_outcomes(self.run_env_params.run_id, commit_msg)
-
-            return True
-        except Exception as e:
-            logger.exception(f"record_node_output: Error: {e}")
-            return False
+        return self._record_data(
+            node_identifier=node_identifier,
+            data=output_data,
+            record_type="output",
+            record_settings=record_settings,
+            git_settings=git_settings,
+        )
 
     def record_outcome(
         self,
-        file_name,
-        path_in_repo,
-        content,
-        commit=True,
-        commit_msg=None,
-    ):
+        node_identifier: str,
+        outcome_data: Any,
+        record_settings: RecordSettingsItem = None,
+        git_settings: GitSettingsItem = None,
+    ) -> bool:
         """Save an outcome file into the repo."""
-        try:
-            _file_path = Path(self.run_env_params.outcome_repo_dir) / path_in_repo
-            _file_path.mkdir(parents=True, exist_ok=True)
+        return self._record_data(
+            node_identifier=node_identifier,
+            data=outcome_data,
+            record_type="outcome",
+            record_settings=record_settings,
+            git_settings=git_settings,
+        )
 
-            # Save output data
-            output_file = _file_path / file_name
-            with open(output_file, "w") as f:
-                f.write(content)
-
-            if commit:
-                if not commit_msg:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    commit_msg = f"Outcome at {timestamp}"
-                self.outcome_repo.commit_run_outcomes(
-                    self.run_env_params.run_id,
-                    commit_msg,
-                )
-            return True
-        except Exception as e:
-            logger.exception(f"record_outcome: Error: {e}")
-            return False
+    '''

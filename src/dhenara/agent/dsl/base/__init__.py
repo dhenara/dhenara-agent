@@ -5,13 +5,15 @@ from .defs import NodeID
 from .data.expression_parser import ExpressionParser as ExpressionParser
 
 from .settings import (
+    GitSettingsItem,
     NodeSettings,
     RecordFileFormatEnum,
     RecordSettingsItem,
     NodeRecordSettings,
+    NodeGitSettings,
 )
-from .node_io import NodeInput, NodeInputs, NodeOutput
-from .results import NodeExecutionResult, ExecutionResults
+from .node_io import NodeInput, NodeInputs, NodeOutput, NodeOutCome
+from .results import NodeExecutionResult
 
 from .context import ExecutionContext, StreamingContext, StreamingStatusEnum
 from .element import ExecutableElement
@@ -39,17 +41,19 @@ __all__ = [
     "ExecutableNodeDefinition",
     "ExecutableReference",
     "ExecutionContext",
-    "ExecutionResults",
     "ExecutionStatusEnum",
     "ExecutionStrategyEnum",
     "ExpressionParser",
     "ForEach",
+    "GitSettingsItem",
     "NodeExecutionResult",
     "NodeExecutor",
+    "NodeGitSettings",
     "NodeID",
     "NodeID",
     "NodeInput",
     "NodeInputs",
+    "NodeOutCome",
     "NodeOutput",
     "NodeRecordSettings",
     "NodeSettings",

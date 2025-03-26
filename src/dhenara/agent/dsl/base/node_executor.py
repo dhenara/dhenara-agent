@@ -1,4 +1,3 @@
-import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -10,6 +9,7 @@ from dhenara.agent.dsl.base import (
     ExecutionContext,
     ExecutionStatusEnum,
     ExecutionStrategyEnum,
+    NodeExecutionResult,
     NodeID,
     NodeInput,
     NodeSettings,
@@ -31,7 +31,6 @@ class NodeExecutor(ABC):
 
     input_model: type[NodeInput]
     setting_model: type[NodeSettings]
-    output_data_model: type
 
     def __init__(
         self,
@@ -50,6 +49,9 @@ class NodeExecutor(ABC):
         node_input = node_input if node_input is not None else initial_input
         if node_input is None:
             raise ValueError("Failed to get inputs for node ")
+
+    async def get_live_input(self):
+        raise NotImplementedError("get_live_input is not implemented but called by executor")
 
     async def execute(
         self,
@@ -74,12 +76,15 @@ class NodeExecutor(ABC):
 
         # Record node input if configured
         input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
+        input_git_settings = node_definition.git_settings.input if node_definition.git_settings else None
         if input_record_settings and input_record_settings.enabled:
             input_data = node_input.model_dump() if hasattr(node_input, "model_dump") else node_input
-            execution_context.artifact_manager.record_node_input(
+            execution_context.artifact_manager.record_data(
+                record_type="input",
                 node_identifier=node_id,
-                input_data=input_data,
+                data=input_data,
                 record_settings=input_record_settings,
+                git_settings=input_git_settings,
             )
 
         # if self.is_streaming:
@@ -112,15 +117,22 @@ class NodeExecutor(ABC):
             resource_config=resource_config,
         )
         logger.debug(f"Node Execution completed: resuult= {result}")
-        return await self.process_node_completion(
+
+        # TODO_FUTURE
+        ## Determine if we should send SSE update
+        # should_send_update = flow_node.response_settings and flow_node.response_settings.send_updates
+
+        # if should_send_update:
+        #    if self.response_protocol == ResponseProtocolEnum.HTTP_SSE:
+        #        return self._create_node_execution_sse_generator(result)
+        #    else:
+        #        raise ValueError()
+
+        return await self.record_results(
             node_id=node_id,
             node_definition=node_definition,
             execution_context=execution_context,
-            result=result,
         )
-
-    async def get_live_input(self):
-        raise NotImplementedError("get_live_input is not implemented but called by executor")
 
     @abstractmethod
     async def execute_node(
@@ -145,80 +157,55 @@ class NodeExecutor(ABC):
         execution_context.execution_failed = True
         execution_context.execution_failed_message = message
 
-    async def process_node_completion(
+    async def record_results(
         self,
         node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
         execution_context: ContextT,
-        result,
     ) -> AsyncGenerator | None:
-        execution_context.execution_results[execution_context.current_node_identifier] = result
-        execution_context.updated_at = datetime.now()
-
-        _result_json = json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
-
         if execution_context.artifact_manager:
+            result: NodeExecutionResult | None = execution_context.execution_results.get(node_id, None)
+
+            if not result:
+                logger.info("No result found in execution context. Skipping records")
+                return False
+
+            execution_context.updated_at = datetime.now()
             # Get record settings from the node if available
             if node_definition.record_settings:
-                output_settings = node_definition.record_settings.output
-                outcome_settings = node_definition.record_settings.outcome
+                output_record_settings = node_definition.record_settings.output
+                outcome_record_settings = node_definition.record_settings.outcome
+                output_git_settings = node_definition.git_settings.output
+                outcome_git_settings = node_definition.git_settings.outcome
             else:
-                output_settings = None
-                outcome_settings = None
+                output_record_settings = None
+                output_record_settings = None
+                output_git_settings = None
+                outcome_git_settings = None
 
-            # Record the node output with settings
-            execution_context.artifact_manager.record_node_output(
+            output_data = result.node_output.data
+            outcome_data = result.node_outcome.data
+
+            output_data = output_data.model_dump() if hasattr(output_data, "model_dump") else output_data
+            outcome_data = outcome_data.model_dump() if hasattr(outcome_data, "model_dump") else outcome_data
+
+            # Record the node output
+            execution_context.artifact_manager.record_data(
+                record_type="output",
                 node_identifier=node_id,
-                output_data=json.loads(_result_json),
-                record_settings=output_settings,
+                data=output_data,
+                record_settings=output_record_settings,
+                git_settings=output_git_settings,
             )
 
-            # Handle outcome record if specified
-            if outcome_settings:
-                if outcome_settings.enabled:
-                    # Process outcome with appropriate settings
-                    variables = {
-                        "node_id": node_id,
-                        "run_id": execution_context.run_env_params.run_id,
-                        **execution_context.run_env_params.get_template_variables(),
-                    }
-
-                    # Resolve templates
-                    path_str = execution_context.artifact_manager._resolve_template(outcome_settings.path, variables)
-                    file_name = execution_context.artifact_manager._resolve_template(
-                        outcome_settings.filename, variables
-                    )
-
-                    # Format content based on file format
-                    if outcome_settings.file_format == "json":
-                        content = _result_json
-                    else:
-                        content = str(result)
-
-                    # Record the outcome
-                    git_commit_msg = None
-                    if outcome_settings.git_commit_message:
-                        git_commit_msg = execution_context.artifact_manager._resolve_template(
-                            outcome_settings.git_commit_message, variables
-                        )
-
-                    execution_context.artifact_manager.record_outcome(
-                        file_name=file_name,
-                        path_in_repo=path_str,
-                        content=content,
-                        commit=outcome_settings.git_commit,
-                        commit_msg=git_commit_msg,
-                    )
-
-        # TODO_FUTURE
-        ## Determine if we should send SSE update
-        # should_send_update = flow_node.response_settings and flow_node.response_settings.send_updates
-
-        # if should_send_update:
-        #    if self.response_protocol == ResponseProtocolEnum.HTTP_SSE:
-        #        return self._create_node_execution_sse_generator(result)
-        #    else:
-        #        raise ValueError()
+            # Record the node outcome
+            execution_context.artifact_manager.record_data(
+                record_type="outcome",
+                node_identifier=node_id,
+                data=outcome_data,
+                record_settings=outcome_record_settings,
+                git_settings=outcome_git_settings,
+            )
 
         return None
 

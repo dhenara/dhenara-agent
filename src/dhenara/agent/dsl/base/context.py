@@ -8,9 +8,10 @@ from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base.results import NodeExecutionResult
+from dhenara.agent.dsl.base.results import NodeExecutionResult, OutcomeT, OutputT
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.types.data import RunEnvParams
+from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
 
 from .defs import NodeID
@@ -40,36 +41,34 @@ class ExecutionContext(BaseModelABC):
     """A generic execution context for any DSL execution."""
 
     # Core data structures
-    resource_config: ResourceConfig = None
+    resource_config: ResourceConfig | None = Field(default=None)
     data: dict[str, Any] = Field(default_factory=dict)
     parent: Optional["ExecutionContext"] = Field(default=None)
     results: dict[str, Any] = Field(default_factory=dict)
 
     # Flow-specific tracking
-    current_node_identifier: NodeID | None = None
+    current_node_identifier: NodeID | None = Field(default=None)
 
     # TODO_FUTURE: An option to statically override node settings
     # initial_inputs: NodeInputs = Field(default_factory=dict)
 
-    execution_inputs: NodeExecutionResult[Any] = Field(default_factory=dict)
-
-    execution_status: ExecutionStatusEnum = ExecutionStatusEnum.PENDING
-    execution_results: NodeExecutionResult[Any] = Field(default_factory=dict)
-    execution_failed: bool = False
-    execution_failed_message: str | None = None
+    execution_status: ExecutionStatusEnum = Field(default=ExecutionStatusEnum.PENDING)
+    execution_results: dict[NodeID, NodeExecutionResult[OutputT, OutcomeT]] = Field(default_factory=dict)
+    execution_failed: bool = Field(default=False)
+    execution_failed_message: str | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime | None = None
-    completed_at: datetime | None = None
+    updated_at: datetime | None = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
 
     # Streaming support
     streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
-    stream_generator: AsyncGenerator | None = None
+    stream_generator: AsyncGenerator | None = Field(default=None)
 
     # Services and utilities
-    artifact_manager: Any = Field(default=None)
+    artifact_manager: ArtifactManager | None = Field(default=None)
     # Environment
-    run_env_params: RunEnvParams | None = None
+    run_env_params: RunEnvParams | None = Field(default=None)
     # Logging
     logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")
 

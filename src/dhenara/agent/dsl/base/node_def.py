@@ -1,8 +1,11 @@
 from abc import abstractmethod
 from typing import Any, Generic, TypeVar
 
+from pydantic import Field
+
 from dhenara.agent.dsl.base import (
     ExecutionContext,
+    NodeGitSettings,
     NodeID,
     NodeInput,
     NodeRecordSettings,
@@ -17,9 +20,21 @@ ContextT = TypeVar("ContextT", bound=ExecutionContext)
 class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Class
     """Base class for all node definitions."""
 
-    node_settings: NodeSettings = None
-    record_settings: NodeRecordSettings | None = None
-    streaming: bool = False  # TODO
+    node_settings: NodeSettings | None = Field(
+        default=None,
+        description="Node Settings.",
+    )
+    record_settings: NodeRecordSettings | None = Field(
+        default_factory=NodeRecordSettings,
+        description="Record settings. Do not override if not sure what you are doing.",
+    )
+
+    git_settings: NodeGitSettings | None = Field(
+        default=None,
+        description="Node Git Settings.",
+    )
+
+    streaming: bool = False  # TODO: Remove
 
     # class Config:
     #    arbitrary_types_allowed = True  # TODO: Review

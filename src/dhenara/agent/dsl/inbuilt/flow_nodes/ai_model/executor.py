@@ -10,15 +10,15 @@ from dhenara.agent.dsl.base import (
     NodeExecutionResult,
     NodeID,
     NodeInput,
+    NodeOutCome,
     NodeOutput,
     SpecialNodeIDEnum,
     StreamingStatusEnum,
 )
 from dhenara.agent.dsl.flow import FlowNodeExecutor
-
-# from common.csource.apps.model_apps.app_ai_connect.libs.tsg.orchestrator import AIModelCallOrchestrator
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
+    AIModelNodeOutcomeData,
     AIModelNodeOutputData,
     AIModelNodeSettings,
 )
@@ -44,7 +44,6 @@ logger = logging.getLogger(__name__)
 class AIModelNodeExecutor(FlowNodeExecutor):
     input_model = AIModelNodeInput
     setting_model = AIModelNodeSettings
-    output_data_model = AIModelNodeOutputData
 
     def __init__(
         self,
@@ -91,7 +90,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         node_input: NodeInput,
         execution_context: ExecutionContext,
         streaming: bool,
-    ) -> NodeExecutionResult[AIModelNodeOutputData] | AsyncGenerator:
+    ) -> bool | AsyncGenerator:
         # initial_input = execution_context.get_initial_input()
         initial_input = None  # TODO
         node_input = node_input if node_input is not None else initial_input
@@ -209,6 +208,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         logger.debug(f"call_ai_model: options={options}")
 
         # 7. AIModelCallConfig
+        model_call_config = None
         # -------------------
         if settings.model_call_config:
             model_call_config = settings.model_call_config
@@ -265,17 +265,38 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             )
         )
 
+        # Fill output and outcome in execution context
+        text_outcome = None
+        structured_outcome = None
+
+        if model_call_config.structured_output is not None:
+            structured_outcome = response.chat_response.structured()
+            if not structured_outcome:
+                logger.error("AIModelNode structured_outcome is None when node settings sets structured_output")
+        else:
+            text_outcome = response.chat_response.text()
+
+        node_outcome = NodeOutCome[AIModelNodeOutcomeData](
+            data=AIModelNodeOutcomeData(
+                text=text_outcome,
+                structured=structured_outcome,
+            )
+        )
+
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
-        result = NodeExecutionResult[AIModelNodeOutputData](
+        result = NodeExecutionResult[AIModelNodeOutputData, AIModelNodeOutcomeData](
             node_identifier=execution_context.current_node_identifier,
             status=status,
             node_input=node_input,
             node_output=node_output,
-            # storage_data={},
+            node_outcome=node_outcome,
             created_at=datetime.now(),
         )
 
-        return result
+        execution_context.execution_results[node_id] = result
+        execution_context.updated_at = datetime.now()
+
+        return True
 
     async def generate_stream_response(
         self,
@@ -315,11 +336,11 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                         if final_response.status.successful
                         else ExecutionStatusEnum.FAILED
                     )
-                    result = NodeExecutionResult[AIModelNodeOutputData](
+                    result = NodeExecutionResult[AIModelNodeOutputData, AIModelNodeOutcomeData](
                         node_identifier=node_identifier,
                         status=status,
                         node_input=node_input,
-                        node_output=node_output,
+                        node_output=node_output,  # TODO: outcome
                         # storage_data=storage_data,
                         created_at=datetime.now(),
                     )

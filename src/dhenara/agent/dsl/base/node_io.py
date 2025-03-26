@@ -49,3 +49,8 @@ class NodeOutput(BaseModel, Generic[T]):
 
     # Stream reference (if streaming)
     stream: AsyncGenerator | None = None
+
+
+class NodeOutCome(BaseModel, Generic[T]):
+    # Primary output content
+    data: T
