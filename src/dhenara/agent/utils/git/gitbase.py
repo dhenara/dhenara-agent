@@ -155,7 +155,7 @@ class GitBase:
         """
         return (self.repo_path / ".git").exists()
 
-    def add(self, paths: str | list[str]) -> bool:
+    def add(self, paths: Path | list[Path]) -> bool:
         """Add files to git staging.
 
         Args:
@@ -164,7 +164,7 @@ class GitBase:
         Returns:
             bool: True if successful
         """
-        if isinstance(paths, str):
+        if isinstance(paths, Path):
             paths = [paths]
 
         try:

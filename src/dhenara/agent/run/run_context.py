@@ -74,7 +74,9 @@ class RunContext:
         # Initialize git outcome repository
 
         self.outcome_repo = RunOutcomeRepository(self.outcome_repo_dir)
-        self.outcome_repo.create_run_branch(self.run_id)
+
+        self.git_branch_name = f"run/{self.run_id}"
+        self.outcome_repo.create_run_branch(self.git_branch_name)
 
         # Save initial metadata
         self._save_metadata()
@@ -158,4 +160,8 @@ class RunContext:
         self._save_metadata()
 
         # Complete run in git repository
-        self.outcome_repo.complete_run(self.run_id, status)
+        self.outcome_repo.complete_run(
+            run_id=self.run_id,
+            status=status,
+            commit_outcome=True,
+        )

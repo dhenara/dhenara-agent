@@ -8,6 +8,8 @@ import click
 from dhenara.agent.run import IsolatedExecution, RunContext
 from dhenara.agent.shared.utils import find_project_root
 
+from ._print_utils import print_error_summary, print_run_summary
+
 logger = logging.getLogger(__name__)
 
 # Set logger level for a specific package
@@ -118,14 +120,22 @@ async def _run_agent(
                 initial_inputs=None,
             )
 
-        click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
-        click.echo(f"   Workding directory: {run_ctx.run_dir}/{run_ctx.run_id}")
+        # click.echo(f"\n\n")
+        # click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
+        # click.echo(f"   Artifacts in workding directory: {run_ctx.run_dir}/{run_ctx.run_id}")
+        # click.echo(f"   Outcome repo: {run_ctx.outcome_repo_dir}")
+        # click.echo(f"   To see the outcome, you need to checkout to working branch in git repo as")
+        # click.echo(f"           git checkout {run_ctx.git_branch_name}")
+        # click.echo(f"\n\n")
+
+        print_run_summary(run_ctx)
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")
         run_ctx.metadata["error"] = str(e)
         run_ctx.complete_run(status="failed")
-        click.echo(f"❌ Run failed: {e}")
+        # click.echo(f"❌ Run failed: {e}")
+        print_error_summary(str(e))
 
 
 def load_agent_module(project_root: Path, agent_path: str):
@@ -144,10 +154,6 @@ def load_agent_module(project_root: Path, agent_path: str):
         return agent.agent
 
     except ImportError as e:
-        logger.error(
-            f"Failed to import agent from project_root {project_root} path {agent_path}: {e}"
-        )
+        logger.error(f"Failed to import agent from project_root {project_root} path {agent_path}: {e}")
     except AttributeError as e:
-        logger.error(
-            f"Failed to find agent definition in module project_root {project_root} path {agent_path}: {e}"
-        )
+        logger.error(f"Failed to find agent definition in module project_root {project_root} path {agent_path}: {e}")

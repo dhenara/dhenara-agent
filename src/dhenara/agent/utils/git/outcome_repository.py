@@ -24,7 +24,7 @@ class RunOutcomeRepository(GitBase):
             commit=True,
         )
 
-    def create_run_branch(self, run_id: str) -> str:
+    def create_run_branch(self, branch_name: str) -> str:
         """Create a new branch for a run.
 
         Args:
@@ -33,7 +33,6 @@ class RunOutcomeRepository(GitBase):
         Returns:
             Name of the created branch
         """
-        branch_name = f"run/{run_id}"
         logger.debug(f"Creating branch {branch_name}")
 
         # Check if the base branch exists
@@ -85,22 +84,31 @@ class RunOutcomeRepository(GitBase):
         # Commit with message
         return self.commit(f"[{run_id}] {message}")
 
-    def complete_run(self, run_id: str, status: str = "completed") -> None:
-        """Complete a run with a final commit and tag.
-
-        Args:
-            run_id: Identifier for the run
-            status: Status of the run (completed, failed, etc.)
-        """
+    def complete_run(
+        self,
+        run_id: str,
+        status: str = "completed",
+        commit_outcome: bool = True,
+        commit_message: str | None = None,
+        create_tag: bool = False,
+        tag_name: str | None = None,
+        tag_message: str | None = None,
+    ) -> None:
+        """Complete a run with a final commit and tag."""
         timestamp = datetime.now().isoformat(timespec="seconds")
 
-        # Final commit
-        self.commit_run_outcomes(run_id, f"Run {status} at {timestamp}")
+        if commit_outcome:
+            # Final commit
+            self.commit_run_outcomes(
+                run_id=run_id,
+                message=f"Run {status} at {timestamp}",
+            )
 
-        # Create a tag for this run
-        tag_name = f"run-{run_id}-{status}"
-        tag_message = f"Run {run_id} {status} at {timestamp}"
-        self.create_tag(tag_name, tag_message)
+        if create_tag:
+            # Create a tag for this run
+            tag_name = tag_name or f"run-{run_id}-{status}"
+            tag_message = tag_message or f"Run {run_id} {status} at {timestamp}"
+            self.create_tag(tag_name, tag_message)
 
         # Return to base branch
         self.checkout(self.base_branch)

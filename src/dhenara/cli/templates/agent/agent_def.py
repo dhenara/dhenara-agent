@@ -1,11 +1,12 @@
 from pydantic import BaseModel, Field
 
 from dhenara.agent.dsl import (
+    AgentNode,
     AIModelNode,
     AIModelNodeSettings,
     Flow,
+    NodeGitSettings,
     NodeRecordSettings,
-    RecordSettingsItem,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
@@ -66,18 +67,69 @@ flow = (
                     ),
                 ),
                 model_call_config=AIModelCallConfig(
-                    structured_output=CodePlan,
+                    # structured_output=CodePlan,
+                    test_mode=True,
                 ),
             ),
-            record_settings=NodeRecordSettings(
-                outcome=RecordSettingsItem(
-                    path="plans/",
-                    file_format="json",
-                    filename="initial_plan.json",
-                    git_commit=True,
-                    git_commit_message="Inital Plan on run ${run_id}",
-                )
+            record_settings=NodeRecordSettings.with_outcome_format("text"),
+            git_settings=NodeGitSettings.with_outcome(
+                path="plans/",
+                filename="initial_plan.json",
             ),
         ),
     )
+)
+"""
+# Loop through the files in the plan
+for_each_block(
+    items="${create_plan.structured.files}",
+    item_var="file_info",
+    body=Flow().node(
+        "generate_file",
+        AIModelNode(
+            model_name="claude-3-sonnet",
+            prompt_template=(
+                "Generate code for: ${file_info.filename}\n"
+                "Language: ${file_info.language}\n"
+                "Purpose: ${file_info.description}"
+            ),
+            outcome_settings=NodeOutcomeSettings(
+                path_template="code_generation/${run_id}/files",
+                filename_template="${file_info.filename}",
+                content_template="${generate_file.raw_text}",
+                commit=True,
+                commit_message_template="Generated ${file_info.filename}",
+            ),
+        ),
+    ),
+).node(
+    "create_readme",
+    AIModelNode(
+        model_name="claude-3-haiku",
+        prompt_template=(
+            "Create a README.md for the project.\n"
+            "Project description: ${create_plan.structured.description}\n"
+            "Files: ${', '.join([f.filename for f in create_plan.structured.files])}\n"
+            "Dependencies: ${', '.join(create_plan.structured.dependencies)}"
+        ),
+        outcome_settings=NodeOutcomeSettings(
+            path_template="code_generation/${run_id}",
+            filename_template="README.md",
+            content_template="${create_readme.raw_text}",
+            commit=True,
+            commit_message_template="Added README for ${run_id}",
+        ),
+    ),
+)
+"""
+
+# Agent definition,  modify as per your need
+# NOTE: The instance name should be `agent_definition`
+agent_node = AgentNode(
+    id=agent_identifier,
+    independent=True,
+    multi_phase=False,
+    description="",
+    # system_instructions=["Always respond in markdown format."],
+    flow=flow,
 )

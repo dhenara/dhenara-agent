@@ -54,8 +54,6 @@ def startproject(name, description, git):
         # "common/tools",
         # "data",
         # "experiments",
-        "runs/outcome",
-        f"runs/outcome/{project_identifier}",  # Git repo
         # "scripts",
         # "tests",
     ]
@@ -134,28 +132,41 @@ runs/
 .vscode/
 """)
 
-    # Initialize git repositories
-    if git:
-        try:
-            # Main project repo
-            subprocess.run(["git", "init"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
-
-            # Initialize output directory as a separate git repo
-            outcome_dir = project_dir / "runs" / "outcome" / project_identifier
-            subprocess.run(["git", "init"], cwd=outcome_dir, check=True, stdout=subprocess.PIPE)
-
-            # Create output .gitignore to allow tracking everything
-            with open(outcome_dir / ".gitignore", "w") as f:
-                f.write("# Track everything in this directory\n# This is an output repository\n")
-        except subprocess.SubprocessError as e:
-            click.echo(click.style(f"Warning: Failed to initialize git repositories: {e}", fg="yellow"))
-            click.echo("You can manually initialize Git later if needed.")
-
     # Change to the project directory to create an initial agent
     os.chdir(project_dir)
 
     # Create an initial agent with the same name as the project
     _create_agent(name, description)
+
+    # Initialize project git repository
+    if git:
+        try:
+            click.echo("Initializing Git.")
+            # Main project repo
+            subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+
+            # Add files and directories individually
+            subprocess.run(["git", "add", ".gitignore"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+            subprocess.run(["git", "add", ".dhenara"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+            subprocess.run(["git", "add", "README.md"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+            subprocess.run(["git", "add", "pyproject.toml"], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+
+            # Add all directories individually
+            for dir_path in dirs:
+                if dir_path in [".dhenara/credentials"]:
+                    continue
+                subprocess.run(["git", "add", dir_path], cwd=project_dir, check=True, stdout=subprocess.PIPE)
+
+            ## Commit the initial structure
+            # subprocess.run(
+            #    ["git", "commit", "-m", "Initial project structure"],
+            #    cwd=project_dir,
+            #    check=True,
+            #    stdout=subprocess.PIPE,
+            # )
+        except subprocess.SubprocessError as e:
+            click.echo(click.style(f"Warning: Failed to initialize git repositories: {e}", fg="yellow"))
+            click.echo("You can manually initialize Git later if needed.")
 
     # Print success message with more details
     click.echo(click.style(f"✅ Project '{name}' created successfully!", fg="green", bold=True))

@@ -84,7 +84,7 @@ class ArtifactManager:
             _save_file(output_file)
 
             # Handle git operations if git settings are provided
-            if git_settings and git_settings.commit:
+            if git_settings:
                 # Resolve path and filename from templates
                 path_str = self._resolve_template(git_settings.path, variables)
                 file_name = self._resolve_template(git_settings.filename, variables)
@@ -99,10 +99,17 @@ class ArtifactManager:
                 output_file = full_path / file_name
                 _save_file(output_file)
 
-                commit_msg = f"{record_type.capitalize()} data recorded"
-                if git_settings.commit_message:
-                    commit_msg = self._resolve_template(git_settings.commit_message, variables)
-                self.outcome_repo.commit_run_outcomes(self.run_env_params.run_id, commit_msg)
+                if git_settings.commit:
+                    commit_msg = f"{record_type.capitalize()} data recorded"
+                    if git_settings.commit_message:
+                        commit_msg = self._resolve_template(git_settings.commit_message, variables)
+                    self.outcome_repo.commit_run_outcomes(
+                        run_id=self.run_env_params.run_id,
+                        message=commit_msg,
+                        files=[output_file],
+                    )
+                elif git_settings.stage:
+                    self.outcome_repo.add(output_file)
 
             return True
         except Exception as e:

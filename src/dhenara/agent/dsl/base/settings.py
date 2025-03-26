@@ -25,11 +25,11 @@ class RecordSettingsItem(BaseModel):
         description="Save record or not",
     )
     path: str | TextTemplate = Field(
-        default="${node_id}",
+        ...,
         description="Path within record's parent. Default is node_id",
     )
     filename: str | TextTemplate = Field(
-        default="${node_id}.json",
+        ...,
         description="Filename of record. Default is node_id.json",
     )
     file_format: RecordFileFormatEnum = Field(
@@ -78,10 +78,9 @@ class NodeRecordSettings(BaseModel):
         file_format: RecordFileFormatEnum,
     ) -> "NodeRecordSettings":
         """Factory method to easily create settings with custom outcome configuration."""
-        return cls(
-            outcome=RecordSettingsItem(
-                file_format=file_format,
-            )
+        return DEFAULT_OUTCOME_RECORD_SETTINGS.model_copy(
+            deep=True,
+            update={file_format: file_format},
         )
 
 
@@ -96,8 +95,12 @@ class GitSettingsItem(BaseModel):
         ...,
         description="Filename ",
     )
-    commit: bool | None = Field(
-        default=None,
+    stage: bool = Field(
+        default=True,
+        description="Stage the record or not",
+    )
+    commit: bool = Field(
+        default=False,
         description="Commot or not, if applicable to record",
     )
     commit_message: str | TextTemplate | None = Field(
@@ -125,7 +128,8 @@ class NodeGitSettings(BaseModel):
         cls,
         path: str,
         filename: str,
-        commit: bool,
+        stage: bool = True,
+        commit: bool = False,
         commit_message: str | None = None,
     ) -> "NodeGitSettings":
         """Factory method to easily create settings with an outcome configuration."""
@@ -133,6 +137,7 @@ class NodeGitSettings(BaseModel):
             outcome=GitSettingsItem(
                 path=path,
                 filename=filename,
+                stage=stage,
                 commit=commit,
                 commit_message=commit_message,
             )
