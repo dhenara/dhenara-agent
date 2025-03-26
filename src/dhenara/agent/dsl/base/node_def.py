@@ -79,33 +79,10 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     # -------------------------------------------------------------------------
     def select_settings(
         self,
-        node_id: str,
         node_input: NodeInput,
     ) -> NodeSettings:
         _settings = node_input.settings_override if node_input and node_input.settings_override else self.node_settings
         return _settings
-        # TODO
-        if node_input is None:
-            raise ValueError(f"node_input is missing for node {node_id}")
-
-        prompt = node_input.settings_override.prompt
-        prompt_variables = node_input.variables or {}
-        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
-        input_content = node_input.content.get_content() if node_input and node_input.content else None
-
-        if node_prompt:
-            if input_content is None:
-                input_content = ""  # NOTE: An empty string is better that the word None
-
-            prompt_variables.update({"dh_input_content": input_content})
-
-            return node_prompt.format(**prompt_variables)
-
-        else:
-            if not input_content:
-                raise ValueError(f"Illegal Node setting for node {node_id}:  node_prompt and input_content are empty")
-
-            return input_content
 
     def is_streaming(self):
         return self.streaming

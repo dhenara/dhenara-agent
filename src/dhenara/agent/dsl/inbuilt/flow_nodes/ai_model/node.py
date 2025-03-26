@@ -73,8 +73,10 @@ class AIModelNode(FlowNodeDefinition):
     #    Raises:
     #        ValueError: If conflicting settings are detected
     #    """
-    #    has_prompt = self.node_settings and self.node_settings.node_prompt.format() and self.node_settings.node_prompt.prompt
-    #    has_user_input = self.input_settings and self.input_settings.input_source and self.input_settings.input_source.user_input_sources  # noqa: E501, W505
+    #    has_prompt = self.node_settings and self.node_settings.node_prompt.format()
+    #                   and self.node_settings.node_prompt.prompt
+    #    has_user_input = self.input_settings and self.input_settings.input_source
+    #                   and self.input_settings.input_source.user_input_sources
     #    if has_prompt and has_user_input:
     #        raise ValueError(
     #            "Illegal input settings configuration: "

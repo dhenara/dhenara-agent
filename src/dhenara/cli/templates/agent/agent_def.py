@@ -6,7 +6,6 @@ from dhenara.agent.dsl import (
     AIModelNodeSettings,
     Flow,
     NodeGitSettings,
-    NodeRecordSettings,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
@@ -22,7 +21,7 @@ from dhenara.ai.types import (
 
 # NOTE: `agent_identifier` is used for naming run dirs.
 # Its OK to change during bringup, but be aware of the run dir naminig dependency
-agent_identifier = "abcd"
+agent_id = "abcd"
 
 
 # Define structured output models
@@ -67,11 +66,11 @@ flow = (
                     ),
                 ),
                 model_call_config=AIModelCallConfig(
-                    # structured_output=CodePlan,
-                    test_mode=True,
+                    structured_output=CodePlan,
+                    test_mode=False,
                 ),
             ),
-            record_settings=NodeRecordSettings.with_outcome_format("text"),
+            # record_settings=NodeRecordSettings.with_outcome_format("text"),
             git_settings=NodeGitSettings.with_outcome(
                 path="plans/",
                 filename="initial_plan.json",
@@ -126,7 +125,7 @@ for_each_block(
 # Agent definition,  modify as per your need
 # NOTE: The instance name should be `agent_definition`
 agent_node = AgentNode(
-    id=agent_identifier,
+    id=agent_id,
     independent=True,
     multi_phase=False,
     description="",

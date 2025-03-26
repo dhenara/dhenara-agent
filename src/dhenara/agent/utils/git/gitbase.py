@@ -121,18 +121,23 @@ class GitBase:
     ) -> None:
         """Initialzie/Ensure the outcome directory is a git repository with a main branch."""
         if not self.repo_exists():
-            logger.info(f"Initializing git repository in {self.outcome_dir}")
-            self._git_init()
+            logger.info(f"Initializing git repository in {self.repo_path}")
+            status = self._git_init()
+
+            if not status:
+                logger.error(f"Failed to initializing git repository in {self.repo_path}")
+                return False
 
         # Configure git
         self._run_git_command(["config", "core.bigFileThreshold", "10m"])
 
         # Create initial commit in main branch
         if readme_content:
-            with open(self.outcome_dir / "README.md", "w") as f:
+            readme_file = self.repo_path / "README.md"
+            with open(readme_file, "w") as f:
                 f.write(readme_content)
 
-            self.add("README.md")
+            self.add(readme_file)
             self.commit("Initial commit")
 
     def ensure_repo(self) -> None:

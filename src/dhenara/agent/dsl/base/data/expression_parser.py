@@ -106,7 +106,7 @@ class ExpressionParser:
         current = context[parts[0]]
 
         # Navigate through the parts
-        for i, part in enumerate(parts[1:], 1):
+        for i, part in enumerate(parts[1:], 1):  # noqa: B007
             # Check for array indexing
             index_match = cls.INDEX_PATTERN.match(part)
             if index_match:

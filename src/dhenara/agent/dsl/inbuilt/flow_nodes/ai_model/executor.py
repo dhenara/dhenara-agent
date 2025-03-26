@@ -24,7 +24,6 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
 )
 from dhenara.ai import AIModelClient
 from dhenara.ai.types import (
-    AIModel,
     AIModelCallConfig,
     AIModelCallResponse,
 )
@@ -136,10 +135,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # 2. Fix Setting
         # -------------------
-        settings: AIModelNodeSettings = node_definition.select_settings(
-            node_id=node_id,
-            node_input=node_input,
-        )
+        settings: AIModelNodeSettings = node_definition.select_settings(node_input=node_input)
         if settings is None or not isinstance(settings, AIModelNodeSettings):
             raise ValueError(f"Invalid setting for node. selected settings is: {settings}")
 
@@ -174,23 +170,22 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # 5. Fix contex
         # -------------------
-        # TODO
-        ## Process previous prompts
-        # previous_node_prompts: list = await self.get_previous_node_outputs_as_prompts(
-        #    node_definition,
-        #    execution_context,
-        #    ai_model_ep.ai_model,
-        # )
-        # logger.debug(f"call_ai_model: previous_prompts={previous_prompts}")
-        context = settings.context
+        if settings.context:
+            context = settings.context
+        else:
+            previous_node_prompts: list = await self.get_previous_node_outputs_as_prompts(
+                node_definition,
+                execution_context,
+            )
+            # logger.debug(f"call_ai_model: previous_prompts={previous_prompts}")
+            context = previous_node_prompts
 
         # 6. Fix options
         # -------------------
         node_options = settings.model_call_config.options if settings.model_call_config else {}
 
-        logger.debug(
-            f"call_ai_model:  prompt={prompt}, context={context} instructions={instructions}, node_optons={node_options}"
-        )
+        logger.debug(f"call_ai_model:  prompt={prompt}, context={context} instructions={instructions}")
+        logger.debug(f"call_ai_model:  node_optons={node_options}")
 
         # pop the non-standard options.  NOTE: pop
         reasoning = node_options.pop("reasoning", False)
@@ -371,9 +366,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         self,
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
-        model: AIModel,
     ) -> list:
-        context_sources = node_definition.input_settings.context_sources if node_definition.input_settings else []
+        context_sources = node_definition.settings.context_sources if node_definition.settings else []
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
@@ -387,20 +381,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
                 previous_node_output = previous_node_execution_result.node_output.data
 
-                # TODO: Check if node is saved to DB as ConversationNode and , and get it from that
-                # For now processing execution results text contents
+                prompt = previous_node_output.response.to_prompt()
 
-                # prompts = PromptFormatter.format_conversion_node_as_prompts(
-                #    model=model,
-                #    user_query=None,
-                #    attached_files=[],  # TODO: Get from user inputs
-                #    previous_response=previous_node_output.response.full_response,
-                #    max_words_query=None,
-                #    max_words_file=None,
-                #    max_words_response=None,
-                # )
-
-                # outputs_as_prompts += prompts
+                outputs_as_prompts.append(prompt)
 
         except Exception as e:
             raise DhenaraAPIError(f"previous_node_output: Error: {e}")
