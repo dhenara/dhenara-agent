@@ -2,7 +2,14 @@
 from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, NodeTypeEnum
 from .defs import NodeID
 
-from .settings import NodeSettings, NodeOutcomeSettings
+from .data.expression_parser import ExpressionParser as ExpressionParser
+
+from .settings import (
+    NodeSettings,
+    RecordFileFormatEnum,
+    RecordSettingsItem,
+    NodeRecordSettings,
+)
 from .node_io import NodeInput, NodeInputs, NodeOutput
 from .results import NodeExecutionResult, ExecutionResults
 
@@ -35,6 +42,7 @@ __all__ = [
     "ExecutionResults",
     "ExecutionStatusEnum",
     "ExecutionStrategyEnum",
+    "ExpressionParser",
     "ForEach",
     "NodeExecutionResult",
     "NodeExecutor",
@@ -42,10 +50,12 @@ __all__ = [
     "NodeID",
     "NodeInput",
     "NodeInputs",
-    "NodeOutcomeSettings",
     "NodeOutput",
+    "NodeRecordSettings",
     "NodeSettings",
     "NodeTypeEnum",
+    "RecordFileFormatEnum",
+    "RecordSettingsItem",
     "SpecialNodeIDEnum",
     "StreamingContext",
     "StreamingStatusEnum",

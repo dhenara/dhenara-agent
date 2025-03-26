@@ -119,7 +119,7 @@ async def _run_agent(
             )
 
         click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
-        click.echo(f"   Output directory: {run_ctx.output_dir}")
+        click.echo(f"   Workding directory: {run_ctx.run_dir}/{run_ctx.run_id}")
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")

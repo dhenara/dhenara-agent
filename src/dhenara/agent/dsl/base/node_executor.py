@@ -72,6 +72,16 @@ class NodeExecutor(ABC):
                 f"Input validation failed. Expects a type of {self.input_model} but got a type of {type(node_input)}"
             )
 
+        # Record node input if configured
+        input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
+        if input_record_settings and input_record_settings.enabled:
+            input_data = node_input.model_dump() if hasattr(node_input, "model_dump") else node_input
+            execution_context.artifact_manager.record_node_input(
+                node_identifier=node_id,
+                input_data=input_data,
+                record_settings=input_record_settings,
+            )
+
         # if self.is_streaming:
         #    # Configure streaming execution_context
         #    execution_context.streaming_contexts[execution_context.current_node_identifier] = StreamingContext(
@@ -102,7 +112,12 @@ class NodeExecutor(ABC):
             resource_config=resource_config,
         )
         logger.debug(f"Node Execution completed: resuult= {result}")
-        return await self.process_node_completion(execution_context=execution_context, result=result)
+        return await self.process_node_completion(
+            node_id=node_id,
+            node_definition=node_definition,
+            execution_context=execution_context,
+            result=result,
+        )
 
     async def get_live_input(self):
         raise NotImplementedError("get_live_input is not implemented but called by executor")
@@ -132,6 +147,8 @@ class NodeExecutor(ABC):
 
     async def process_node_completion(
         self,
+        node_id: NodeID,
+        node_definition: ExecutableNodeDefinition,
         execution_context: ContextT,
         result,
     ) -> AsyncGenerator | None:
@@ -141,22 +158,67 @@ class NodeExecutor(ABC):
         _result_json = json.dumps(result) if isinstance(result, dict) else result.model_dump_json()
 
         if execution_context.artifact_manager:
+            # Get record settings from the node if available
+            if node_definition.record_settings:
+                output_settings = node_definition.record_settings.output
+                outcome_settings = node_definition.record_settings.outcome
+            else:
+                output_settings = None
+                outcome_settings = None
+
+            # Record the node output with settings
             execution_context.artifact_manager.record_node_output(
-                node_identifier=execution_context.current_node_identifier,
-                output_file_name="node.json",
+                node_identifier=node_id,
                 output_data=json.loads(_result_json),
+                record_settings=output_settings,
             )
 
-        """ TODO
-        # Determine if we should send SSE update
-        should_send_update = flow_node.response_settings and flow_node.response_settings.send_updates
+            # Handle outcome record if specified
+            if outcome_settings:
+                if outcome_settings.enabled:
+                    # Process outcome with appropriate settings
+                    variables = {
+                        "node_id": node_id,
+                        "run_id": execution_context.run_env_params.run_id,
+                        **execution_context.run_env_params.get_template_variables(),
+                    }
 
-        if should_send_update:
-            if self.response_protocol == ResponseProtocolEnum.HTTP_SSE:
-                return self._create_node_execution_sse_generator(result)
-            else:
-                raise ValueError()
-        """
+                    # Resolve templates
+                    path_str = execution_context.artifact_manager._resolve_template(outcome_settings.path, variables)
+                    file_name = execution_context.artifact_manager._resolve_template(
+                        outcome_settings.filename, variables
+                    )
+
+                    # Format content based on file format
+                    if outcome_settings.file_format == "json":
+                        content = _result_json
+                    else:
+                        content = str(result)
+
+                    # Record the outcome
+                    git_commit_msg = None
+                    if outcome_settings.git_commit_message:
+                        git_commit_msg = execution_context.artifact_manager._resolve_template(
+                            outcome_settings.git_commit_message, variables
+                        )
+
+                    execution_context.artifact_manager.record_outcome(
+                        file_name=file_name,
+                        path_in_repo=path_str,
+                        content=content,
+                        commit=outcome_settings.git_commit,
+                        commit_msg=git_commit_msg,
+                    )
+
+        # TODO_FUTURE
+        ## Determine if we should send SSE update
+        # should_send_update = flow_node.response_settings and flow_node.response_settings.send_updates
+
+        # if should_send_update:
+        #    if self.response_protocol == ResponseProtocolEnum.HTTP_SSE:
+        #        return self._create_node_execution_sse_generator(result)
+        #    else:
+        #        raise ValueError()
 
         return None
 

@@ -63,9 +63,7 @@ class ExecutionContext(BaseModelABC):
     completed_at: datetime | None = None
 
     # Streaming support
-    streaming_contexts: dict[NodeID, StreamingContext | None] = Field(
-        default_factory=dict
-    )
+    streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
     stream_generator: AsyncGenerator | None = None
 
     # Services and utilities
@@ -125,53 +123,6 @@ class ExecutionContext(BaseModelABC):
         """Set a result value in the context."""
         self.results[key] = value
 
-    def evaluate(self, expression: str) -> Any:
-        """Evaluate an expression in this context."""
-        # Simple variable reference
-        if expression.startswith("$"):
-            return self.get_value(expression[1:])
-
-        # Template string with variables
-        if "${" in expression:
-            return self.evaluate_template(expression)
-
-        # Python expression (with safety constraints)
-        allowed_globals = {
-            "len": len,
-            "str": str,
-            "int": int,
-            "float": float,
-            "bool": bool,
-            "list": list,
-            "dict": dict,
-            "sum": sum,
-            "min": min,
-            "max": max,
-            "all": all,
-            "any": any,
-        }
-
-        # Create a dictionary with context values
-        eval_locals = {**self.data, **self.results}
-
-        try:
-            return eval(expression, {"__builtins__": allowed_globals}, eval_locals)
-        except Exception as e:
-            self.logger.error(f"Error evaluating expression '{expression}': {e}")
-            return None
-
-    def evaluate_template(self, template: str) -> str:
-        """Evaluate a template string with variable substitutions."""
-        result = template
-        # Find all ${...} expressions
-        import re
-
-        for match in re.finditer(r"\${([^}]+)}", template):
-            expr = match.group(1)
-            value = self.evaluate(expr)
-            result = result.replace(f"${{{expr}}}", str(value))
-        return result
-
     def set_execution_failed(self, message: str) -> None:
         """Mark execution as failed with a message."""
         self.execution_failed = True
@@ -206,9 +157,7 @@ class ExecutionContext(BaseModelABC):
     ) -> None:
         streaming_context = self.streaming_contexts[identifier]
         if not streaming_context:
-            raise ValueError(
-                f"notify_streaming_complete: Failed to get streaming_context for id {identifier}"
-            )
+            raise ValueError(f"notify_streaming_complete: Failed to get streaming_context for id {identifier}")
 
         streaming_context.status = streaming_status
         streaming_context.result = result
@@ -216,9 +165,7 @@ class ExecutionContext(BaseModelABC):
         streaming_context.completion_event.set()
 
     # ------------: TODO: Review
-    def create_iteration_context(
-        self, iteration_data: dict[str, Any]
-    ) -> "ExecutionContext":
+    def create_iteration_context(self, iteration_data: dict[str, Any]) -> "ExecutionContext":
         """Create a new context for a loop iteration."""
         return ExecutionContext(
             initial_data=iteration_data,
@@ -229,9 +176,7 @@ class ExecutionContext(BaseModelABC):
     def merge_iteration_context(self, iteration_context: "ExecutionContext") -> None:
         """Merge results from an iteration context back to this context."""
         for key, value in iteration_context.results.items():
-            iteration_key = (
-                f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
-            )
+            iteration_key = f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
             self.results[iteration_key] = value
 
     async def record_outcome(self, node_def, result: Any) -> None:
@@ -270,9 +215,7 @@ class ExecutionContext(BaseModelABC):
             commit_msg=commit_msg,
         )
 
-    async def record_iteration_outcome(
-        self, loop_element, iteration: int, item: Any, result: Any
-    ) -> None:
+    async def record_iteration_outcome(self, loop_element, iteration: int, item: Any, result: Any) -> None:
         """Record the outcome of a loop iteration."""
         # Implementation depends on whether the loop has outcome settings
         # Similar to record_outcome but with iteration-specific values

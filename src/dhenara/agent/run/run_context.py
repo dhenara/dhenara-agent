@@ -38,17 +38,15 @@ class RunContext:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_id = f"{self.agent_identifier}_{_run_id}"
-        self.run_dir = self.run_root / self.run_id
+        self.run_dir = self.run_root  # / self.run_id
 
-        _input_dir = "input"
-        _output_dir = "output"
         _state_dir = ".state"
 
         self.input_source_path = input_source_path or self.project_root / "agents" / agent_identifier / "inputs"
         self.initial_inputs = initial_inputs
+        self.initial_inputs_dir = self.run_dir / "initial_inputs"
+        self.initial_inputs_dir.mkdir(parents=True, exist_ok=True)
 
-        self.input_dir = self.run_dir / _input_dir
-        self.output_dir = self.run_dir / _output_dir
         self.state_dir = self.run_dir / _state_dir
 
         # Outcome is not inside the run id, there is a global outcome with
@@ -68,8 +66,6 @@ class RunContext:
 
         # Create directories
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.input_dir.mkdir(parents=True, exist_ok=True)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
 
         self.outcome_dir.mkdir(parents=True, exist_ok=True)
@@ -89,8 +85,6 @@ class RunContext:
             project_identifier=str(self.project_identifier),
             agent_identifier=str(self.agent_identifier),
             run_dir=str(self.run_dir),
-            input_dir=str(self.input_dir),
-            output_dir=str(self.output_dir),
             state_dir=str(self.state_dir),
             outcome_dir=str(self.outcome_dir),
             outcome_repo_dir=str(self.outcome_repo_dir),
@@ -115,7 +109,7 @@ class RunContext:
 
     def read_initial_inputs(self):
         # Read initial inputs form the root input dir
-        with open(self.input_dir / "initial_inputs.json") as f:
+        with open(self.initial_inputs_dir / "initial_inputs.json") as f:
             _data = json.load(f)
             try:
                 return NodeInputs(_data)
@@ -139,7 +133,7 @@ class RunContext:
             for file_path in input_files:
                 src = Path(file_path)
                 if src.exists():
-                    dst = self.input_dir / src.name
+                    dst = self.initial_inputs_dir / src.name
                     shutil.copy2(src, dst)
 
     def init_inputs(self, input_data: dict):

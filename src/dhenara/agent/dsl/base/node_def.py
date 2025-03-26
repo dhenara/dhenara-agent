@@ -5,7 +5,7 @@ from dhenara.agent.dsl.base import (
     ExecutionContext,
     NodeID,
     NodeInput,
-    NodeOutcomeSettings,
+    NodeRecordSettings,
     NodeSettings,
 )
 from dhenara.agent.types.base import BaseModelABC
@@ -18,7 +18,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     """Base class for all node definitions."""
 
     node_settings: NodeSettings = None
-    outcome_settings: NodeOutcomeSettings | None = None
+    record_settings: NodeRecordSettings | None = None
     streaming: bool = False  # TODO
 
     # class Config:
@@ -67,11 +67,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         node_id: str,
         node_input: NodeInput,
     ) -> NodeSettings:
-        _settings = (
-            node_input.settings_override
-            if node_input and node_input.settings_override
-            else self.node_settings
-        )
+        _settings = node_input.settings_override if node_input and node_input.settings_override else self.node_settings
         return _settings
         # TODO
         if node_input is None:
@@ -79,16 +75,8 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
 
         prompt = node_input.settings_override.prompt
         prompt_variables = node_input.variables or {}
-        node_prompt = (
-            self.ai_settings.node_prompt
-            if self.ai_settings and self.ai_settings.node_prompt
-            else None
-        )
-        input_content = (
-            node_input.content.get_content()
-            if node_input and node_input.content
-            else None
-        )
+        node_prompt = self.ai_settings.node_prompt if self.ai_settings and self.ai_settings.node_prompt else None
+        input_content = node_input.content.get_content() if node_input and node_input.content else None
 
         if node_prompt:
             if input_content is None:
@@ -100,9 +88,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
 
         else:
             if not input_content:
-                raise ValueError(
-                    f"Illegal Node setting for node {node_id}:  node_prompt and input_content are empty"
-                )
+                raise ValueError(f"Illegal Node setting for node {node_id}:  node_prompt and input_content are empty")
 
             return input_content
 
@@ -122,7 +108,4 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         if not self.resources:
             return False
 
-        return any(
-            existing_resource.is_same_as(resource)
-            for existing_resource in self.resources
-        )
+        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)

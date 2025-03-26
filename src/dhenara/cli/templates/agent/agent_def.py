@@ -1,99 +1,83 @@
-from dhenara.agent.types import (
-    Agent,
-    AISettings,
-    ExecutionStrategyEnum,
-    FlowDefinition,
-    FlowNode,
-    FlowNodeTypeEnum,
-    NodeInputSettings,
-    NodeResponseSettings,
-    PromptTemplate,
-    ResponseProtocolEnum,
-    SpecialNodeIdEnum,
+from pydantic import BaseModel, Field
+
+from dhenara.agent.dsl import (
+    AIModelNode,
+    AIModelNodeSettings,
+    Flow,
+    NodeRecordSettings,
+    RecordSettingsItem,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
+    AIModelCallConfig,
+    Prompt,
+    PromptMessageRoleEnum,
+    PromptText,
     ResourceConfigItem,
     ResourceConfigItemTypeEnum,
     ResourceQueryFieldsEnum,
+    TextTemplate,
 )
 
 # NOTE: `agent_identifier` is used for naming run dirs.
 # Its OK to change during bringup, but be aware of the run dir naminig dependency
-agent_identifier = "{{agent_identifier}}"
+agent_identifier = "abcd"
 
 
-# Agent definition,  modify as per your need
-# NOTE: The instance name should be `agent_definition`
-agent_definition = Agent(
-    identifier=agent_identifier,
-    independent=True,
-    multi_phase=False,
-    description="{{agent_description}}",
-    flow_definition=FlowDefinition(
-        system_instructions=["Always respond in markdown format."],
-        execution_strategy=ExecutionStrategyEnum.sequential,
-        response_protocol=ResponseProtocolEnum.HTTP,
-        nodes=[
-            FlowNode(
-                order=0,
-                identifier="ai_model_call_1",
-                type=FlowNodeTypeEnum.ai_model_call,
-                resources=[
-                    ResourceConfigItem(
-                        item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                        query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
-                        is_default=True,
-                    ),
-                    ResourceConfigItem(
-                        item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                        query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash"},
-                    ),
-                    ResourceConfigItem(
-                        item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                        query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
-                    ),
-                ],
-                ai_settings=None,
-                input_settings=NodeInputSettings(
-                    context_sources=[],
+# Define structured output models
+class CodeFile(BaseModel):
+    filename: str = Field(..., description="Name of the file")
+    content: str = Field(..., description="Content of the file")
+    language: str = Field(..., description="Programming language")
+
+
+class CodePlan(BaseModel):
+    description: str = Field(..., description="Description of the code plan")
+    files: list[CodeFile] = Field(..., description="Files to generate")
+    dependencies: list[str] = Field(default_factory=list, description="Dependencies")
+
+
+# Define a flow
+flow = (
+    Flow()
+    # First node: Create a code plan
+    .node(
+        "create_plan",
+        AIModelNode(
+            resources=[
+                ResourceConfigItem(
+                    item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
+                    query={
+                        ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
+                        ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
+                    },
                 ),
-                response_settings=NodeResponseSettings(
-                    enabled=True,
-                ),
-            ),
-            FlowNode(
-                order=1,
-                identifier="generate_conversation_title",
-                type=FlowNodeTypeEnum.ai_model_call,
-                resources=[
-                    ResourceConfigItem(
-                        item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                        query={
-                            ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
-                            ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
-                        },
+            ],
+            node_settings=AIModelNodeSettings(
+                system_instructions=None,
+                prompt=Prompt(
+                    role=PromptMessageRoleEnum.USER,
+                    text=PromptText(
+                        content=None,
+                        template=TextTemplate(
+                            text="Create a code plan for: {requested_plan}",
+                            variables={"requested_plan": {"default_value": "Flutter project"}},
+                        ),
                     ),
-                ],
-                ai_settings=AISettings(
-                    system_instructions=[
-                        "You are a summarizer which generate a title text under 60 characters from the prompts.",
-                    ],
-                    node_prompt=PromptTemplate(
-                        template="Summarize in plane text under {number_of_chars} characters.",
-                        default_values={
-                            "number_of_chars": 60,
-                        },
-                    ),
-                    options_overrides=None,
                 ),
-                input_settings=NodeInputSettings(
-                    context_sources=[SpecialNodeIdEnum.PREVIOUS],
-                ),
-                response_settings=NodeResponseSettings(
-                    enabled=True,
+                model_call_config=AIModelCallConfig(
+                    structured_output=CodePlan,
                 ),
             ),
-        ],
-    ),
+            record_settings=NodeRecordSettings(
+                outcome=RecordSettingsItem(
+                    path="plans/",
+                    file_format="json",
+                    filename="initial_plan.json",
+                    git_commit=True,
+                    git_commit_message="Inital Plan on run ${run_id}",
+                )
+            ),
+        ),
+    )
 )
