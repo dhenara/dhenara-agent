@@ -3,7 +3,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext, NodeInputs
+from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.resource import ResourceConfig
@@ -27,7 +27,6 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
     async def execute(
         self,
-        initial_inputs: NodeInputs,  # TODO_FUTURE: Make generic
         resource_config: ResourceConfig = None,
     ) -> dict[str, Any]:
         """Execute a flow with the given initial data."""
@@ -35,15 +34,12 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
         execution_context = self.context_class(
             # flow_definition=flow_definition,
-            # initial_inputs=initial_inputs,
             resource_config=resource_config,
             created_at=datetime.now(),
-            run_env_params=self.run_context.run_env_params,
+            run_context=self.run_context,
+            run_env_params=self.run_context.run_env_params,  # TODO: Remove
             artifact_manager=self.run_context.artifact_manager,
         )
-
-        # Initialize execution_context  in run_context
-        self.run_context.execution_context = execution_context
 
         # Execute the flow
         block = self.block_class(self.definition.elements)

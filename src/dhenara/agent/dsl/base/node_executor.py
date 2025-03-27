@@ -14,6 +14,7 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeSettings,
 )
+from dhenara.agent.dsl.events import NodeInputRequiredEvent
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class NodeExecutor(ABC):
     the handle method to process their specific node type.
     """
 
-    input_model: type[NodeInput]
+    input_model: type[NodeInput] | None
     setting_model: type[NodeSettings]
 
     def __init__(
@@ -38,20 +39,50 @@ class NodeExecutor(ABC):
     ):
         self.identifier = identifier
 
-    def set_inputs_and_settings(
+    async def get_input_for_node(
         self,
+        node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        node_input: NodeInput,
         execution_context: ExecutionContext,
-        resource_config: ResourceConfig,
-    ) -> Any:
-        initial_input = execution_context.get_initial_input()
-        node_input = node_input if node_input is not None else initial_input
-        if node_input is None:
-            raise ValueError("Failed to get inputs for node ")
+    ) -> NodeInput:
+        """Get input for a node, trying static inputs first then event handlers."""
+        # Check static inputs first
+        if node_id in execution_context.run_context.static_inputs:
+            return execution_context.run_context.static_inputs[node_id]
 
-    async def get_live_input(self):
-        raise NotImplementedError("get_live_input is not implemented but called by executor")
+        if NodeInputRequiredEvent.type in node_definition.pre_events:
+            node_input = await self.tirgger_event_node_input_required(
+                node_id=node_id,
+                node_definition=node_definition,
+                execution_context=execution_context,
+            )
+
+            return node_input
+
+        logger.debug(f"Failed to fetch inputs for node {node_id}")
+        return None
+
+    # Inbuild  events
+    async def tirgger_event_node_input_required(
+        self,
+        node_id: NodeID,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
+    ) -> NodeInput:
+        # Request input via event
+        event = NodeInputRequiredEvent(node_id, node_definition.node_type)
+        await execution_context.run_context.event_bus.publish(event)
+
+        # Check if any handler provided input
+        if event.handled and event.input:
+            node_input = event.input
+            logger.debug(f"{node_id}: Node input via event {event.type} is {node_input}")
+        else:
+            # No input provided by any handler
+            logger.error(f"{node_id}: No input provided for node via event {event.type}")
+            node_input = None
+
+        return node_input
 
     async def execute(
         self,
@@ -59,20 +90,25 @@ class NodeExecutor(ABC):
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
     ) -> Any:
-        # initial_inputs=initial_inputs,
         resource_config: ResourceConfig = execution_context.resource_config
 
-        logger.info("Waiting for node input")
-        # TODO:
-        # if node.input_setting.type = "static"
-        # elif node.input_setting.type = "daynamic"
-        node_input = await self.get_live_input()
-        logger.debug(f"Node Input: {node_input}")
+        logger.debug("Waiting for node input")
 
-        if not isinstance(node_input, self.input_model):
-            raise ValueError(
-                f"Input validation failed. Expects a type of {self.input_model} but got a type of {type(node_input)}"
+        node_input = None
+        if self.input_model is not None:
+            node_input = await self.get_input_for_node(
+                node_id=node_id,
+                node_definition=node_definition,
+                execution_context=execution_context,
             )
+            logger.debug(f"Node Input: {node_input}")
+
+            if not isinstance(node_input, self.input_model):
+                raise ValueError(
+                    f"Input validation failed. Expects type of {self.input_model} but got a type of {type(node_input)}"
+                )
+
+        logger.debug("Node input received")
 
         # Record node input if configured
         input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
@@ -172,16 +208,17 @@ class NodeExecutor(ABC):
 
             execution_context.updated_at = datetime.now()
             # Get record settings from the node if available
+            output_record_settings = None
+            output_record_settings = None
+            output_git_settings = None
+            outcome_git_settings = None
+
             if node_definition.record_settings:
                 output_record_settings = node_definition.record_settings.output
                 outcome_record_settings = node_definition.record_settings.outcome
+            if node_definition.git_settings:
                 output_git_settings = node_definition.git_settings.output
                 outcome_git_settings = node_definition.git_settings.outcome
-            else:
-                output_record_settings = None
-                output_record_settings = None
-                output_git_settings = None
-                outcome_git_settings = None
 
             output_data = result.node_output.data
             outcome_data = result.node_outcome.data

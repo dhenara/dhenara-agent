@@ -1,6 +1,5 @@
 import os
 
-from dhenara.agent.dsl.base import NodeInputs
 from dhenara.agent.run import RunContext
 
 
@@ -35,7 +34,7 @@ class IsolatedExecution:
         # Return to original directory
         os.chdir(self.run_context.project_root)
 
-    async def run(self, agent_module, run_context: RunContext, initial_inputs: NodeInputs):
+    async def run(self, agent_module, run_context: RunContext):
         """Run the agent in the isolated environment."""
         # TODO
         # Set up logging for this run
@@ -46,7 +45,6 @@ class IsolatedExecution:
         try:
             result = await agent_module.run(
                 run_context=run_context,
-                initial_inputs=initial_inputs,
             )
             return result
         except Exception as e:

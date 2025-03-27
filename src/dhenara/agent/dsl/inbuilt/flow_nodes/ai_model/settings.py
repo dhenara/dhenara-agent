@@ -29,7 +29,7 @@ class AIModelNodeSettings(NodeSettings):
         ),
         example=["previous", "node_1", "node_2"],
     )
-    system_instructions: list[SystemInstruction] | None = Field(
+    system_instructions: list[str | SystemInstruction] | None = Field(
         default=None,
         description="Node specific system instructions",
     )

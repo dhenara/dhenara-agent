@@ -11,6 +11,7 @@ from dhenara.agent.dsl.base import (
     NodeRecordSettings,
     NodeSettings,
 )
+from dhenara.agent.dsl.events import EventType
 from dhenara.agent.types.base import BaseModelABC
 from dhenara.ai.types.resource import ResourceConfigItem
 
@@ -19,6 +20,17 @@ ContextT = TypeVar("ContextT", bound=ExecutionContext)
 
 class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Class
     """Base class for all node definitions."""
+
+    node_type: str
+
+    pre_events: list[EventType | str] = Field(
+        default_factory=list,
+        description="Event need to be triggered before node execution.",
+    )
+    post_events: list[EventType | str] = Field(
+        default_factory=list,
+        description="Event need to be triggered after node execution.",
+    )
 
     node_settings: NodeSettings | None = Field(
         default=None,
@@ -35,9 +47,6 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     )
 
     streaming: bool = False  # TODO: Remove
-
-    # class Config:
-    #    arbitrary_types_allowed = True  # TODO: Review
 
     # @abstractmethod
     async def execute(

@@ -1,35 +1,49 @@
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime
-from typing import Any
+
+from .event import BaseEvent, EventNature, EventType
 
 
 class EventBus:
     """Simple event bus for node communication"""
 
     def __init__(self):
-        self._subscribers = defaultdict(list)
-        self._events = []
+        self._handlers = defaultdict(list)  # subscribers
 
-    async def publish(self, event_type: str, data: Any, source_id: str):
-        """Publish an event to all subscribers"""
-        event = {"type": event_type, "data": data, "source_id": source_id, "timestamp": datetime.now()}
-        self._events.append(event)
+    def register(self, event_type: EventType, handler: Callable):
+        """Register a handler for an event type."""
+        self._handlers[event_type].append(handler)
 
-        # Notify subscribers
-        for callback in self._subscribers.get(event_type, []):
-            await callback(event)
+    def register_wildcard(self, handler: Callable):
+        """Register a handler for all event types."""
+        self._handlers["*"].append(handler)
 
-        # Notify wildcard subscribers
-        for callback in self._subscribers.get("*", []):
-            await callback(event)
+    async def publish(self, event: BaseEvent):
+        """Publish an event to all registered handlers."""
+        event_type = event.type
+        handlers = self._handlers.get(event_type, [])
+        # Get wildcard subscribers
+        handlers += self._handlers.get("*", [])
 
-    def subscribe(self, event_type: str, callback: Callable):
-        """Subscribe to events of a specific type"""
-        self._subscribers[event_type].append(callback)
+        try:
+            for handler in handlers:
+                if event.nature == EventNature.notify:
+                    handler(event)
+                elif event.nature == EventNature.with_wait:
+                    await handler(event)
+                elif event.nature == EventNature.with_future:
+                    handler(event)
+                else:
+                    raise ValueError(f"Unknown event nature {event.nature}")
+        except Exception as e:
+            # Log the error but don't stop event propagation
+            print(f"Error handling event {event.type}: {e}")
 
-    def get_events(self, event_type: str | None = None):
-        """Get all events, optionally filtered by type"""
-        if event_type:
-            return [e for e in self._events if e["type"] == event_type]
-        return self._events
+        return event
+
+    # TODO_FUTURE
+    # def get_events(self, event_type: str | None = None):
+    #    """Get all events, optionally filtered by type"""
+    #    if event_type:
+    #        return [e for e in self._events if e["type"] == event_type]
+    #    return self._events

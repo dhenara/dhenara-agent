@@ -1,9 +1,10 @@
 import logging
+from typing import ClassVar
 
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.dsl.agent import AgentNode
-from dhenara.agent.dsl.base import ComponentDefinition, NodeInputs
+from dhenara.agent.dsl.base import ComponentDefinition, NodeID
 from dhenara.agent.dsl.flow import FlowExecutor
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
@@ -13,38 +14,46 @@ from dhenara.ai.types.shared.platform import DhenaraAPIError
 logger = logging.getLogger(__name__)
 
 
-class BaseAgent:
+class AgentMeta(type):
+    """Metaclass to enforce required class attributes in Agent subclasses."""
+
+    def __new__(mcs, name, bases, namespace):  # noqa: N804
+        cls = super().__new__(mcs, name, bases, namespace)
+
+        # Skip validation for the BaseAgent class itself
+        if name == "BaseAgent":
+            return cls
+
+        # Check for required class attributes
+        if not hasattr(cls, "agent_id"):  # or not isinstance(cls.agent_id, NodeID):
+            raise TypeError(f"Class {name} must define a class attribute 'agent_id' of type NodeID")
+
+        if not hasattr(cls, "agent_node") or not isinstance(cls.agent_node, AgentNode):
+            raise TypeError(f"Class {name} must define a class attribute 'agent_node' of type AgentNode")
+
+        return cls
+
+
+class BaseAgent(metaclass=AgentMeta):
     """{{agent_name}} agent implementation."""
 
-    def __init__(self, agent_node: AgentNode):
-        """Initialize the agent with optional configuration."""
-        self.agent_node = agent_node
-        # TODO: Configs?
+    # Define these as class variables with type annotations
+    agent_id: ClassVar[NodeID]
+    agent_node: ClassVar[AgentNode]
 
-        if not isinstance(self.agent_node, AgentNode):
-            logger.error(f"Imported object is not an AgentNode: {type(self.agent_node)}")
-            return
+    def __init__(self):
+        """Initialize the agent with the class-defined configuration."""
+        logger.info(f"Initialized {self.__class__.__name__} with ID: {self.agent_id}")
 
     async def run(
         self,
         run_context: RunContext,
-        initial_inputs: NodeInputs | None = None,
     ):
-        # TODO: proper logger setup
-        # self.setup_logging()
-
-        # TODO: Bring inputs
-        input_data = {
-            "initial_inputs": initial_inputs,
-        }
-        input_files = []
-
-        run_context.prepare_input(input_files)
-        run_context.init_inputs(input_data)
+        run_context.copy_input_files()
+        run_context.read_static_inputs()
 
         await self._run_flow(
             run_context=run_context,
-            initial_inputs=run_context.initial_inputs,  # Pass the processed initial_inputs
         )
 
         logger.debug("process_post: run completed")
@@ -56,7 +65,6 @@ class BaseAgent:
     async def _run_flow(
         self,
         run_context: RunContext,
-        initial_inputs: NodeInputs,
         resource_profile="default",
     ):
         flow_definition: ComponentDefinition = self.agent_node.flow
@@ -87,7 +95,6 @@ class BaseAgent:
             # Execute the flow
             _results = await executor.execute(
                 # initial_data={"input_text": "Create a command-line tool that converts CSV to JSON"},
-                initial_inputs=initial_inputs,
                 resource_config=resource_config,
             )
 

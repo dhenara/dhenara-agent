@@ -7,6 +7,7 @@ from pydantic import Field, field_validator, model_validator
 
 from dhenara.agent.dsl.base import NodeOutput
 from dhenara.agent.dsl.flow import FlowExecutionContext, FlowNodeDefinition
+from dhenara.agent.dsl.inbuilt.enums.flow_nodes import FlowNodeTypeEnum
 from dhenara.ai.types import ResourceConfigItem
 
 from .executor import AIModelNodeExecutor
@@ -14,6 +15,8 @@ from .settings import AIModelNodeSettings
 
 
 class AIModelNode(FlowNodeDefinition):
+    node_type: str = FlowNodeTypeEnum.ai_model_call
+
     settings: AIModelNodeSettings | None = Field(
         default=None,
         description="Node specific AP API settings/options",

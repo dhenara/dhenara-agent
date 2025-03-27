@@ -175,5 +175,6 @@ runs/
     click.echo(f"  - Initial agent created: {name}")
     click.echo("\nNext steps:")
     click.echo("  1. cd " + project_identifier)
-    click.echo("  2. Initialize your environment (poetry install, etc.)")
-    click.echo("  3. Run 'dhenara create agent' to create additional agents")
+    # click.echo("  2. Initialize your environment (poetry install, etc.)")
+    click.echo("  2. dhenara run agent " + name)
+    click.echo("  3. dhenara create agent <agent_name> (To create additional agents)")

@@ -2,10 +2,12 @@ import json
 import logging
 import shutil
 import uuid
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from dhenara.agent.dsl.base import NodeInputs
+from dhenara.agent.dsl.base import NodeInput
+from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
@@ -21,8 +23,6 @@ class RunContext:
         self,
         project_root: Path,
         agent_identifier: str,
-        input_source_path: Path | None = None,
-        initial_inputs: NodeInputs | None = None,
         run_root: Path | None = None,
         run_id: str | None = None,
         # run_dir: str | None = None,
@@ -42,10 +42,8 @@ class RunContext:
 
         _state_dir = ".state"
 
-        self.input_source_path = input_source_path or self.project_root / "agents" / agent_identifier / "inputs"
-        self.initial_inputs = initial_inputs
-        self.initial_inputs_dir = self.run_dir / "initial_inputs"
-        self.initial_inputs_dir.mkdir(parents=True, exist_ok=True)
+        self.static_inputs_dir = self.run_dir / "static_inputs"
+        self.static_inputs_dir.mkdir(parents=True, exist_ok=True)
 
         self.state_dir = self.run_dir / _state_dir
 
@@ -61,9 +59,6 @@ class RunContext:
         self.end_time = None
         self.metadata = {}
 
-        if not self.input_source_path.exists():
-            raise ValueError(f"input_source_path {self.input_source_path} does not exists")
-
         # Create directories
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -77,9 +72,6 @@ class RunContext:
 
         self.git_branch_name = f"run/{self.run_id}"
         self.outcome_repo.create_run_branch(self.git_branch_name)
-
-        # Save initial metadata
-        self._save_metadata()
 
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
@@ -96,7 +88,20 @@ class RunContext:
             outcome_repo=self.outcome_repo,
         )
 
-        # self.execution_context = None
+        self.event_bus = EventBus()
+        self.static_inputs = {}  # For predefined inputs
+
+        # Save initial metadata
+        self._save_metadata()
+
+    def register_node_static_input(self, node_id: str, input_data: NodeInput):
+        """Register static input for a node."""
+
+        self.static_inputs[node_id] = input_data
+
+    def register_node_input_handler(self, handler: Callable):
+        """Register a handler for input collection events."""
+        self.event_bus.register(EventType.node_input_required, handler)
 
     def _save_metadata(self):
         """Save metadata about this run."""
@@ -109,24 +114,23 @@ class RunContext:
         with open(self.state_dir / "metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
-    def read_initial_inputs(self):
-        # Read initial inputs form the root input dir
-        with open(self.initial_inputs_dir / "initial_inputs.json") as f:
-            _data = json.load(f)
-            try:
-                return NodeInputs(_data)
-            except Exception as e:
-                logger.exception(f"read_initial_inputs: Error: {e}")
-                return None
-
-    def prepare_input(self, input_files: list | None = None):
+    def copy_input_files(
+        self,
+        source: Path | None = None,
+        files: list | None = None,
+    ):
         """Prepare input data and files for the run."""
-        # Save input data
-        if input_files is None:
-            input_files = []
+        input_source_path = source or self.project_root / "agents" / self.agent_identifier / "inputs"
 
-        if self.input_source_path:
-            input_dir_path = self.input_source_path
+        if not input_source_path.exists():
+            logger.warning(f"input_source_path {input_source_path} does not exists. No static input files copied")
+            return
+
+        # Save input data
+        input_files = files or []
+
+        if input_source_path:
+            input_dir_path = input_source_path
             if input_dir_path.exists() and input_dir_path.is_dir():
                 input_files += list(input_dir_path.glob("*"))
 
@@ -135,21 +139,25 @@ class RunContext:
             for file_path in input_files:
                 src = Path(file_path)
                 if src.exists():
-                    dst = self.initial_inputs_dir / src.name
+                    dst = self.static_inputs_dir / src.name
                     shutil.copy2(src, dst)
 
-    def init_inputs(self, input_data: dict):
-        _initial_inputs = input_data.get("initial_inputs", None)
-        if _initial_inputs:
-            # Override
-            self.initial_inputs = _initial_inputs
+    def read_static_inputs(self):
+        # Read initial inputs form the root input dir
+        _input_file = self.static_inputs_dir / "static_inputs.json"
 
-        # Read the initial inputs
-        if self.initial_inputs is None:
-            self.initial_inputs = self.read_initial_inputs()
+        if _input_file.exists():
+            with open(self.static_inputs_dir / "static_inputs.json") as f:
+                try:
+                    _data = json.load(f)
+                    for node_id, static_input in _data:
+                        self.register_node_static_input(node_id, static_input)
 
-        if not isinstance(self.initial_inputs, NodeInputs):
-            logger.error(f"Imported input is not a NodeInput: {type(self.initial_inputs)}")
+                    logger.info(f"Successfully loaded Staic inputs from {_input_file}")
+                except Exception as e:
+                    logger.exception(f"read_static_inputs: Error: {e}")
+        else:
+            logger.info(f"Staic inputs are not initalized as no file exists in {_input_file}")
 
     def complete_run(self, status="completed"):
         """Mark the run as complete and save final metadata."""
