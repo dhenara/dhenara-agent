@@ -1,14 +1,7 @@
 {
   "create_plan": {
-    "content": {
-      "content": ""
-    },
-    "variables": {
-      "requested_plan": "A new standlone nextjs projct structre for reusability and scalability"
-    },
-    "resources": [],
-    "options": {
-      "test_mode": false
+    "prompt_variables": {
+      "requested_plan": "A new standlone nextjs projct structure for reusability and scalability"
     }
   }
 }

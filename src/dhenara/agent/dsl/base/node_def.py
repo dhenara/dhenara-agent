@@ -48,6 +48,10 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
 
     streaming: bool = False  # TODO: Remove
 
+    @property
+    def pre_execute_input_required(self):
+        return EventType.node_input_required in self.pre_events
+
     # @abstractmethod
     async def execute(
         self,

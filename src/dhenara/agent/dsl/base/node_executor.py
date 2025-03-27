@@ -95,7 +95,7 @@ class NodeExecutor(ABC):
         logger.debug("Waiting for node input")
 
         node_input = None
-        if self.input_model is not None:
+        if node_definition.pre_execute_input_required:
             node_input = await self.get_input_for_node(
                 node_id=node_id,
                 node_definition=node_definition,

@@ -33,7 +33,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
         # Create the execution context
 
         execution_context = self.context_class(
-            # flow_definition=flow_definition,
+            component_definition=self.definition,
             resource_config=resource_config,
             created_at=datetime.now(),
             run_context=self.run_context,

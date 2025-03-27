@@ -150,7 +150,8 @@ class RunContext:
             with open(self.static_inputs_dir / "static_inputs.json") as f:
                 try:
                     _data = json.load(f)
-                    for node_id, static_input in _data:
+
+                    for node_id, static_input in _data.items():
                         self.register_node_static_input(node_id, static_input)
 
                     logger.info(f"Successfully loaded Staic inputs from {_input_file}")

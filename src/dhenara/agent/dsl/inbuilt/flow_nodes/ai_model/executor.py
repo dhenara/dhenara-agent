@@ -90,16 +90,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         streaming: bool,
     ) -> bool | AsyncGenerator:
-        # initial_input = execution_context.get_initial_input()
-        initial_input = None  # TODO
-        node_input = node_input if node_input is not None else initial_input
-        if node_input is None:
-            raise ValueError("Failed to get inputs for node ")
-
         # 1. Fix node resource
         # -------------------
         user_selected_resource = None
-        selected_resources = initial_input.resources if initial_input and initial_input.resources else []
+        selected_resources = node_input.resources if node_input and node_input.resources else []
 
         if len(selected_resources) == 1:
             user_selected_resource = selected_resources[0]
@@ -155,7 +149,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if not isinstance(prompt, Prompt):
             raise ValueError(f"Failed to get node prompt. Type is {type(prompt)}")
 
-        prompt.variables.update(node_input.prompt_variables)
+        if node_input:
+            prompt.variables.update(node_input.prompt_variables)
 
         if instructions is not None:
             for instruction in instructions:
@@ -174,8 +169,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             context = settings.context
         else:
             previous_node_prompts: list = await self.get_previous_node_outputs_as_prompts(
-                node_definition,
-                execution_context,
+                node_id=node_id,
+                node_definition=node_definition,
+                execution_context=execution_context,
             )
             # logger.debug(f"call_ai_model: previous_prompts={previous_prompts}")
             context = previous_node_prompts
@@ -364,15 +360,17 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
     async def get_previous_node_outputs_as_prompts(
         self,
+        node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
     ) -> list:
-        context_sources = node_definition.settings.context_sources if node_definition.settings else []
+        node_settings = node_definition.node_settings
+        context_sources = node_settings.context_sources if node_settings and node_settings.context_sources else []
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
                 if source_node_identifier == SpecialNodeIDEnum.PREVIOUS:
-                    previous_node_identifier = execution_context.flow_definition.get_previous_node_identifier(
+                    previous_node_identifier = execution_context.component_definition.get_previous_element_id(
                         execution_context.current_node_identifier,
                     )
                     previous_node_execution_result = execution_context.execution_results.get(previous_node_identifier)
@@ -381,7 +379,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
                 previous_node_output = previous_node_execution_result.node_output.data
 
-                prompt = previous_node_output.response.to_prompt()
+                prompt = previous_node_output.response.full_response.to_prompt()
 
                 outputs_as_prompts.append(prompt)
 

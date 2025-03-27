@@ -12,23 +12,88 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.types.base import BaseModelABC
 
+from ..id_mixin import IdentifierValidationMixin, NavigationMixin
+
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 NodeT = TypeVar("NodeT", bound=ExecutableNode)  # Fixed name
 NodeDefT = TypeVar("NodeDefT", bound=ExecutableNodeDefinition)  # Fixed name
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
 
 
-class ComponentDefinition(BaseModelABC, Generic[ElementT, NodeT, NodeDefT, ContextT]):
-    """Base class for an Executable definitions. ( ie a gorup of nodes)"""
+class ComponentDefinition(
+    BaseModelABC,
+    Generic[ElementT, NodeT, NodeDefT, ContextT],
+    IdentifierValidationMixin[ElementT],
+    NavigationMixin[ElementT],
+):
+    """Base class for Executable definitions."""
 
     elements: list[ElementT] = Field(default_factory=list)
     node_class: ClassVar[type[NodeT]]
 
-    def element(self, element: ElementT) -> ElementT:
-        """Add an element to the flow."""
-        self.elements.append(element)
-        return self
+    # -------------------------------------------------------------------------
+    # Common implementation of abstract methods used by mixins
+    def _get_element_identifier(self, element: ElementT) -> str:
+        """Extract identifier from element."""
+        if hasattr(element, "id"):
+            return element.id
+        return getattr(element, "identifier", str(id(element)))
 
+    def _get_element_children(self, element: ElementT) -> list[ElementT]:
+        """Get children from element."""
+        # For nodes with subflows or nested elements
+        if hasattr(element, "subflow") and element.subflow:
+            return element.subflow.elements
+        # For conditional branches
+        elif hasattr(element, "then_branch") and element.then_branch:
+            children = list(getattr(element.then_branch, "elements", []))
+            if hasattr(element, "else_branch") and element.else_branch:
+                children.extend(getattr(element.else_branch, "elements", []))
+            return children
+        # For other element types
+        return getattr(element, "elements", [])
+
+    def _get_top_level_elements(self) -> list[ElementT]:
+        """Get all top-level elements."""
+        return self.elements
+
+    # @field_validator("elements")
+    # @classmethod
+    # def validate_element_order(cls, elements):
+    #    """Validate element ordering if applicable."""
+    #    if elements and hasattr(elements[0], "order"):
+    #        orders = [element.order for element in elements]
+    #        expected_orders = list(range(len(elements)))
+    #        if orders != expected_orders:
+    #            raise ValueError("Element orders must be sequential starting from 0 within each component")
+    #    return elements
+
+    # Implement abstract methods from the mixin
+    def _get_element_identifier(self, element: ElementT) -> str:
+        """Extract identifier from element."""
+        if hasattr(element, "id"):
+            return element.id
+        return getattr(element, "identifier", str(id(element)))
+
+    def _get_element_children(self, element: ElementT) -> list[ElementT]:
+        """Get children from element."""
+        # For nodes with subflows or nested elements
+        if hasattr(element, "subflow") and element.subflow:
+            return element.subflow.elements
+        # For conditional branches
+        elif hasattr(element, "then_branch") and element.then_branch:
+            children = list(getattr(element.then_branch, "elements", []))
+            if hasattr(element, "else_branch") and element.else_branch:
+                children.extend(getattr(element.else_branch, "elements", []))
+            return children
+        # For other element types
+        return getattr(element, "elements", [])
+
+    def _get_top_level_elements(self) -> list[ElementT]:
+        """Get all top-level elements."""
+        return self.elements
+
+    # -------------------------------------------------------------------------
     def node(
         self,
         id: str,  # noqa: A002

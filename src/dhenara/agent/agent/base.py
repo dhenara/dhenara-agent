@@ -94,7 +94,6 @@ class BaseAgent(metaclass=AgentMeta):
 
             # Execute the flow
             _results = await executor.execute(
-                # initial_data={"input_text": "Create a command-line tool that converts CSV to JSON"},
                 resource_config=resource_config,
             )
 

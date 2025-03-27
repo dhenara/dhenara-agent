@@ -41,6 +41,10 @@ class StreamingContext(BaseModel):
 class ExecutionContext(BaseModelABC):
     """A generic execution context for any DSL execution."""
 
+    # INFO: Cannot add typehint as its hard to resolve import erros
+    # Its OK, as the execution context is used at runtime
+    component_definition: Any  # Type of ComponentDefinition
+
     # Core data structures
     resource_config: ResourceConfig | None = Field(default=None)
     data: dict[str, Any] = Field(default_factory=dict)
