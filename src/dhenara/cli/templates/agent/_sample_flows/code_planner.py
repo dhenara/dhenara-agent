@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field
 
 from dhenara.agent.dsl import (
-    AgentNode,
     AIModelNode,
     AIModelNodeSettings,
     Flow,
@@ -18,10 +17,6 @@ from dhenara.ai.types import (
     ResourceQueryFieldsEnum,
     TextTemplate,
 )
-
-# NOTE: `agent_identifier` is used for naming run dirs.
-# Its OK to change during bringup, but be aware of the run dir naminig dependency
-agent_id = "abcd"
 
 
 # Define structured output models
@@ -61,7 +56,9 @@ flow = (
                         content=None,
                         template=TextTemplate(
                             text="Create a code plan for: {requested_plan}",
-                            variables={"requested_plan": {"default_value": "Flutter project"}},
+                            variables={
+                                "requested_plan": {"default_value": "Flutter project"}
+                            },
                         ),
                     ),
                 ),
@@ -78,6 +75,8 @@ flow = (
         ),
     )
 )
+
+
 """
 # Loop through the files in the plan
 for_each_block(
@@ -121,14 +120,3 @@ for_each_block(
     ),
 )
 """
-
-# Agent definition,  modify as per your need
-# NOTE: The instance name should be `agent_definition`
-agent_node = AgentNode(
-    id=agent_id,
-    independent=True,
-    multi_phase=False,
-    description="",
-    # system_instructions=["Always respond in markdown format."],
-    flow=flow,
-)

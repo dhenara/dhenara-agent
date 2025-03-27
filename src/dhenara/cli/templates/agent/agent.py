@@ -1,24 +1,25 @@
 from dhenara.agent.agent import BaseAgent
+from dhenara.agent.dsl import AgentNode
 
-# NOTE: Do not remove below  lines
-from .agent_def import agent_id, agent_node
+# from ._sample_flows.code_planner import flow
+from ._sample_flows.chatbot_with_summarizer import flow
+
+# Agent definition,  modify as per your need
+# NOTE: The instance name should be `agent_definition`
+agent_node = AgentNode(
+    id="{{agent_identifier}}_node",
+    independent=True,
+    multi_phase=False,
+    description="",
+    flow=flow,
+)
 
 
 class MyAgent(BaseAgent):
     """
-    abcd
-
-
+    {{agent_name}}
+    {{agent_description}}
     """
 
-    pass
-
-
-# NOTE:  Do not modifiy below line
-agent_identifier = agent_id
-
-# Create agent instance
-# NOTE: The object name should be `agent`
-agent = MyAgent(
-    agent_node=agent_node,  # pass agent_definition
-)
+    agent_id = "{{agent_identifier}}"
+    agent_node = agent_node

@@ -110,6 +110,7 @@ def _create_agent(name, description):
                             # Replace placeholders
                             content = content.replace("{{agent_identifier}}", agent_identifier)
                             content = content.replace("{{agent_name}}", name)
+                            content = content.replace("{{agent_name}}", name)
                             content = content.replace("{{agent_description}}", description)
                             dst.write(content)
     except Exception as e:

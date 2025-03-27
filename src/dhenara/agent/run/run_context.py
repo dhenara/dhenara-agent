@@ -120,7 +120,7 @@ class RunContext:
         files: list | None = None,
     ):
         """Prepare input data and files for the run."""
-        input_source_path = source or self.project_root / "agents" / self.agent_identifier / "inputs"
+        input_source_path = source or self.project_root / "agents" / self.agent_identifier / "inputs" / "data"
 
         if not input_source_path.exists():
             logger.warning(f"input_source_path {input_source_path} does not exists. No static input files copied")
