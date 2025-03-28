@@ -25,9 +25,6 @@ class RunContext:
         agent_identifier: str,
         run_root: Path | None = None,
         run_id: str | None = None,
-        # run_dir: str | None = None,
-        # output_dir: str | None = None,
-        # state_dir: str | None = None,
     ):
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)
@@ -75,13 +72,8 @@ class RunContext:
 
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
-            project_root=str(self.project_root),
-            project_identifier=str(self.project_identifier),
-            agent_identifier=str(self.agent_identifier),
             run_dir=str(self.run_dir),
             state_dir=str(self.state_dir),
-            outcome_dir=str(self.outcome_dir),
-            outcome_repo_dir=str(self.outcome_repo_dir),
         )
         self.artifact_manager = ArtifactManager(
             run_env_params=self.run_env_params,

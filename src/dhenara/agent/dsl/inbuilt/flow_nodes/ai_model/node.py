@@ -54,7 +54,7 @@ class AIModelNode(FlowNodeDefinition):
 
     @model_validator(mode="after")
     def validate_node_type_settings(self):
-        if not (self.node_settings or self.input_settings):
-            raise ValueError("node_settings or input_settings is required for AIModelCall")
+        if not (self.settings or self.input_settings):
+            raise ValueError("settings or input_settings is required for AIModelCall")
 
         return self

@@ -32,7 +32,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         description="Event need to be triggered after node execution.",
     )
 
-    node_settings: NodeSettings | None = Field(
+    settings: NodeSettings | None = Field(
         default=None,
         description="Node Settings.",
     )
@@ -94,7 +94,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         self,
         node_input: NodeInput,
     ) -> NodeSettings:
-        _settings = node_input.settings_override if node_input and node_input.settings_override else self.node_settings
+        _settings = node_input.settings_override if node_input and node_input.settings_override else self.settings
         return _settings
 
     def is_streaming(self):

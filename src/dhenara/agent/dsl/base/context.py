@@ -11,7 +11,6 @@ from pydantic import Field
 from dhenara.agent.dsl.base.results import NodeExecutionResult, OutputT
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
-from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
 
@@ -73,7 +72,6 @@ class ExecutionContext(BaseModelABC):
     # Services and utilities
     artifact_manager: ArtifactManager | None = Field(default=None)
     # Environment
-    run_env_params: RunEnvParams | None = Field(default=None)  # TODO: Delete as its duplicate of run_context
     run_context: RunContext
     # Logging
     logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")

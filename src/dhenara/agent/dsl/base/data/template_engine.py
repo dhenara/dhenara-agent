@@ -1,23 +1,42 @@
 import operator
 import re
 from collections.abc import Callable
-from typing import Any
+from re import Pattern
+from string import Template as StringTemplate
+from typing import Any, Literal, TypeVar
 
-from dhenara.ai.types.genai.dhenara.request.data import Prompt, PromptText
+T = TypeVar("T")
 
 
-# TODO: Delete
-class LegacyExpressionParser:
+class TemplateEngine:
     """
-    Parser for expressions in ${...} syntax with support for dot notation, operators, and indexing.
+    Unified template engine supporting both standard variable substitution and complex expressions.
 
-    This parser provides template substitution capabilities far beyond Python's standard
-    string.Template, allowing for complex expressions, property access, and conditional logic.
+    Features:
+    1. standard mode: Basic $variable and ${variable} substitution like Python's string.Template
+    2. Expression mode: Advanced ${...} syntax with:
+       - Dot notation for nested properties (obj.property)
+       - Array/list indexing (items[0])
+       - Operators (>, <, ==, ||, &&, etc.)
+       - Python expression evaluation (py:...)
+
+    Examples:
+        # Standard substitution (like string.Template)
+        TemplateEngine.render_template("Hello $name", {"name": "World"}, mode="standard")
+        # Output: "Hello World"
+
+        # Expression mode with property access
+        TemplateEngine.render_template("Count: ${data.count}", {"data": {"count": 42}})
+        # Output: "Count: 42"
+
+        # Expression mode with operators
+        TemplateEngine.render_template("Result: ${value > 10}", {"value": 15})
+        # Output: "Result: True"
     """
 
     # Regex patterns
-    EXPR_PATTERN = re.compile(r"\${([^}]+)}")
-    INDEX_PATTERN = re.compile(r"(.*)\[(\d+)\]")
+    EXPR_PATTERN: Pattern = re.compile(r"\${([^}]+)}")
+    INDEX_PATTERN: Pattern = re.compile(r"(.*)\[(\d+)\]")
 
     # Supported operators and their functions
     OPERATORS: dict[str, Callable[[Any, Any], Any]] = {
@@ -45,107 +64,104 @@ class LegacyExpressionParser:
         "max": max,
         "all": all,
         "any": any,
+        "sorted": sorted,
+        "enumerate": enumerate,
+        "zip": zip,
+        "range": range,
     }
 
     @classmethod
-    def prompt_to_text(
+    def render_template(
         cls,
-        prompt: str | Prompt,
-        parser_context: dict[str, Any] | None = None,
-        max_words: int | None = None,
-        max_words_file: int | None = None,
-        **kwargs: Any,
+        template: str,
+        variables: dict[str, Any],
+        mode: Literal["standard", "expression"] = "expression",
     ) -> str:
         """
-        Convert a prompt to text by evaluating expressions against the given context.
+        Render a template using either standard substitution or expression evaluation.
 
         Args:
-            prompt: String or Prompt object containing template expressions
-            parser_context: Context dictionary for expression evaluation
-            max_words: Maximum number of words to include in the result
-            max_words_file: Unused (kept for API compatibility)
-            **kwargs: Additional variables for template formatting
+            template: Template string
+            variables: Variables for substitution/evaluation
+            mode: "standard" for basic substitution, "expression" for advanced evaluation
 
         Returns:
-            Formatted text with expressions evaluated
+            Rendered template string
 
-        Raises:
-            ValueError: If the prompt type is not supported
+        Examples:
+            >>> TemplateEngine.render_template("Hello ${name}", {"name": "World"})
+            'Hello World'
+            >>> TemplateEngine.render_template("Status: ${online || 'offline'}", {"online": None})
+            'Status: offline'
         """
-        parser_context = parser_context or {}
+        if not template:
+            return template
 
-        # Handle string prompts
-        if isinstance(prompt, str):
-            return cls._process_string_prompt(prompt, parser_context, max_words)
-
-        # Handle Prompt objects
-        elif isinstance(prompt, Prompt):
-            return cls._process_prompt_object(prompt, parser_context, max_words, **kwargs)
-
-        # Handle unsupported types
+        if mode == "standard":
+            return cls.standard_substitute(template, variables)
         else:
-            raise ValueError(f"prompt_to_text: unsupported prompt type {type(prompt)}")
+            return cls.parse_and_evaluate(template, variables)
 
     @classmethod
-    def _process_string_prompt(cls, prompt: str, parser_context: dict[str, Any], max_words: int | None) -> str:
-        """Process a string prompt."""
-        formatted_text = cls.parse_and_evaluate(prompt, parser_context)
-        return cls._apply_word_limit(formatted_text, max_words)
+    def standard_substitute(cls, template_str: str, variables: dict[str, Any]) -> str:
+        """
+        Perform standard variable substitution similar to string.Template.
 
-    @classmethod
-    def _process_prompt_object(
-        cls, prompt: Prompt, parser_context: dict[str, Any], max_words: int | None, **kwargs: Any
-    ) -> str:
-        """Process a Prompt object."""
-        if isinstance(prompt.text, PromptText):
-            return cls._process_prompt_text(prompt.text, parser_context, max_words, **kwargs)
-        elif isinstance(prompt.text, str):
-            return cls._process_string_prompt(prompt.text, parser_context, max_words)
-        else:
-            raise ValueError(f"prompt_to_text: unsupported prompt.text type {type(prompt.text)}")
+        Args:
+            template_str: Template string with $var or ${var} placeholders
+            variables: Dictionary of variable values
 
-    @classmethod
-    def _process_prompt_text(
-        cls, prompt_text: PromptText, parser_context: dict[str, Any], max_words: int | None, **kwargs: Any
-    ) -> str:
-        """Process a PromptText object."""
-        if prompt_text.content:
-            template_text = prompt_text.content.get_content()
-            parsed_text = cls.parse_and_evaluate(template_text, parser_context)
-            return cls._apply_word_limit(parsed_text, max_words)
-        else:
-            var_dict = prompt_text.template.variables.copy()
-            var_dict.update(**kwargs)
+        Returns:
+            String with variables substituted
 
-            template_text = prompt_text.template.text
-            parsed_text = cls.parse_and_evaluate(template_text, parser_context)
+        Examples:
+            >>> TemplateEngine.standard_substitute("Hello $name", {"name": "World"})
+            'Hello World'
+            >>> TemplateEngine.standard_substitute("${greeting} $name", {"greeting": "Hi", "name": "Alice"})
+            'Hi Alice'
+        """
+        if not template_str:
+            return template_str
 
-            _temp = prompt_text.template.model_copy()
-            _temp.text = parsed_text
-            _temp.disable_checks = False
-            formatted_text = _temp.format(**kwargs)
-
-            return cls._apply_word_limit(formatted_text, max_words)
+        try:
+            return StringTemplate(template_str).safe_substitute(variables)
+        except Exception as e:
+            return f"Error in template substitution: {e!s}"
 
     @staticmethod
     def _apply_word_limit(text: str, max_words: int | None) -> str:
-        """Apply word limit to text if specified."""
+        """
+        Apply word limit to text if specified.
+
+        Args:
+            text: The text to limit
+            max_words: Maximum number of words to include
+
+        Returns:
+            Text limited to the specified number of words
+        """
         if max_words and text:
             words = text.split()
             return " ".join(words[:max_words])
         return text
 
     @classmethod
-    def parse_and_evaluate(cls, template: str, context: dict[str, Any]) -> str:
+    def parse_and_evaluate(cls, template: str, variables: dict[str, Any]) -> str:
         """
-        Parse expressions in the template and evaluate them against the context.
+        Parse expressions in the template and evaluate them against the variables.
 
         Args:
             template: Template string with ${...} expressions
-            context: Dictionary of variables accessible to the expressions
+            variables: Dictionary of variables accessible to the expressions
 
         Returns:
             Evaluated template with expressions replaced by their values
+
+        Examples:
+            >>> TemplateEngine.parse_and_evaluate("Items: ${items[0]}", {"items": ["apple", "banana"]})
+            'Items: apple'
+            >>> TemplateEngine.parse_and_evaluate("Result: ${a > b}", {"a": 5, "b": 3})
+            'Result: True'
         """
         if not template:
             return template
@@ -153,21 +169,21 @@ class LegacyExpressionParser:
         def replace_expr(match: re.Match) -> str:
             expr = match.group(1).strip()
             try:
-                result = cls._evaluate_expression(expr, context)
+                result = cls._evaluate_expression(expr, variables)
                 return str(result) if result is not None else ""
             except Exception as e:
-                return f"Error: {e}"
+                return f"Error: {e!s}"
 
         return cls.EXPR_PATTERN.sub(replace_expr, template)
 
     @classmethod
-    def _evaluate_expression(cls, expr: str, context: dict[str, Any]) -> Any:
+    def _evaluate_expression(cls, expr: str, variables: dict[str, Any]) -> Any:
         """
-        Evaluate a single expression against the context.
+        Evaluate a single expression against the variables.
 
         Args:
             expr: Expression string to evaluate
-            context: Dictionary of variables for evaluation
+            variables: Dictionary of variables for evaluation
 
         Returns:
             Evaluated result of the expression
@@ -177,22 +193,22 @@ class LegacyExpressionParser:
         """
         # Python expression evaluation (advanced feature)
         if expr.startswith("py:"):
-            return cls._evaluate_python_expression(expr[3:], context)
+            return cls._evaluate_python_expression(expr[3:], variables)
 
         # Handle binary operators
         for op_text, op_func in cls.OPERATORS.items():
             if op_text in expr:
                 # Split on operator, accounting for whitespace
                 parts = expr.split(op_text, 1)
-                left = cls._evaluate_expression(parts[0].strip(), context)
-                right = cls._evaluate_expression(parts[1].strip(), context)
+                left = cls._evaluate_expression(parts[0].strip(), variables)
+                right = cls._evaluate_expression(parts[1].strip(), variables)
                 return op_func(left, right)
 
         # Handle property access with dot notation and indexing
-        return cls._get_value_from_path(expr, context)
+        return cls._get_value_from_path(expr, variables)
 
     @classmethod
-    def _get_value_from_path(cls, path: str, context: dict[str, Any]) -> Any:
+    def _get_value_from_path(cls, path: str, variables: dict[str, Any]) -> Any:
         """
         Get a value from a dot-notation path with support for indexing.
 
@@ -202,7 +218,7 @@ class LegacyExpressionParser:
 
         Args:
             path: Dot-notation path string
-            context: Context dictionary
+            variables: variables dictionary
 
         Returns:
             Value at the specified path or None if not found
@@ -214,10 +230,10 @@ class LegacyExpressionParser:
         parts = path.split(".")
 
         # Start with the first part
-        if parts[0] not in context:
+        if parts[0] not in variables:
             return None
 
-        current = context[parts[0]]
+        current = variables[parts[0]]
 
         # Navigate through the parts
         for part in parts[1:]:
@@ -274,7 +290,7 @@ class LegacyExpressionParser:
         return None
 
     @classmethod
-    def _evaluate_python_expression(cls, expr: str, context: dict[str, Any]) -> Any:
+    def _evaluate_python_expression(cls, expr: str, variables: dict[str, Any]) -> Any:
         """
         Evaluate a Python expression with safety constraints.
 
@@ -282,7 +298,7 @@ class LegacyExpressionParser:
 
         Args:
             expr: Python expression string
-            context: Variables for evaluation
+            variables: Variables for evaluation
 
         Returns:
             Result of evaluating the expression
@@ -292,11 +308,12 @@ class LegacyExpressionParser:
         """
         try:
             # Create a safe execution environment
-            return eval(expr, {"__builtins__": cls.SAFE_GLOBALS}, context)
+            return eval(expr, {"__builtins__": cls.SAFE_GLOBALS}, variables)
         except Exception as e:
-            raise ValueError(f"Error evaluating Python expression: {e}")
+            raise ValueError(f"Error evaluating Python expression: {e!s}")
 
 
+# TODO: Test  document and delete below
 """
 Usage Examples:
 # Context with nested data

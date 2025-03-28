@@ -1,10 +1,9 @@
 import json
 import logging
 from pathlib import Path
-from string import Template
 from typing import Any, Literal
 
-from dhenara.agent.dsl.base import GitSettingsItem, RecordFileFormatEnum, RecordSettingsItem
+from dhenara.agent.dsl.base import DADTemplateEngine, GitSettingsItem, RecordFileFormatEnum, RecordSettingsItem
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 
@@ -20,22 +19,23 @@ class ArtifactManager:
         self.run_env_params = run_env_params
         self.outcome_repo = outcome_repo
 
-    def _resolve_template(self, template_str: str, variables: dict) -> str:
+    def _resolve_template(
+        self,
+        template_str: str,
+        variables: dict | None = None,
+        dad_dynamic_variables: dict | None = None,
+    ) -> str:
         """Resolve a template string with the given variables."""
         # Handle both direct strings and TextTemplate objects
         template_text = template_str.text if hasattr(template_str, "text") else template_str
-        return Template(template_text).safe_substitute(variables)
-
-    def _get_template_variables(self, node_identifier: str) -> dict:
-        """Get standard template variables for substitution."""
-        variables = self.run_env_params.get_template_variables()
-        variables.update(
-            {
-                "node_id": node_identifier,
-                "run_id": self.run_env_params.run_id,
-            }
+        return DADTemplateEngine.render_dad_template(
+            template=template_text,
+            variables=variables or {},
+            dad_dynamic_variables=dad_dynamic_variables or {},
+            run_env_params=self.run_env_params,
+            node_execution_results=None,
+            mode="standard",
         )
-        return variables
 
     def record_data(
         self,
@@ -49,7 +49,10 @@ class ArtifactManager:
         if record_settings is None or not record_settings.enabled:
             return True
 
-        variables = self._get_template_variables(node_identifier)
+        variables = None
+        dad_dynamic_variables = {
+            "node_id": node_identifier,
+        }
 
         def _save_file(output_file):
             # Save data in the specified format
@@ -70,8 +73,8 @@ class ArtifactManager:
 
         try:
             # Resolve path and filename from templates
-            path_str = self._resolve_template(record_settings.path, variables)
-            file_name = self._resolve_template(record_settings.filename, variables)
+            path_str = self._resolve_template(record_settings.path, variables, dad_dynamic_variables)
+            file_name = self._resolve_template(record_settings.filename, variables, dad_dynamic_variables)
 
             # Create full path - determine appropriate base directory based on record type
             base_dir = Path(self.run_env_params.run_dir)
@@ -86,8 +89,8 @@ class ArtifactManager:
             # Handle git operations if git settings are provided
             if git_settings:
                 # Resolve path and filename from templates
-                path_str = self._resolve_template(git_settings.path, variables)
-                file_name = self._resolve_template(git_settings.filename, variables)
+                path_str = self._resolve_template(git_settings.path, variables, dad_dynamic_variables)
+                file_name = self._resolve_template(git_settings.filename, variables, dad_dynamic_variables)
 
                 # For outcomes with git settings, use the outcome repo directory
                 base_dir = Path(self.run_env_params.outcome_repo_dir)
@@ -102,7 +105,11 @@ class ArtifactManager:
                 if git_settings.commit:
                     commit_msg = f"{record_type.capitalize()} data recorded"
                     if git_settings.commit_message:
-                        commit_msg = self._resolve_template(git_settings.commit_message, variables)
+                        commit_msg = self._resolve_template(
+                            git_settings.commit_message,
+                            variables,
+                            dad_dynamic_variables,
+                        )
                     self.outcome_repo.commit_run_outcomes(
                         run_id=self.run_env_params.run_id,
                         message=commit_msg,
@@ -115,54 +122,3 @@ class ArtifactManager:
         except Exception as e:
             logger.exception(f"record_{record_type}: Error: {e}")
             return False
-
-    '''
-    def record_node_input(
-        self,
-        node_identifier: str,
-        input_data: Any,
-        record_settings: RecordSettingsItem = None,
-        git_settings: GitSettingsItem = None,
-    ) -> bool:
-        """Save input for a node execution."""
-        return self._record_data(
-            node_identifier=node_identifier,
-            data=input_data,
-            record_type="input",
-            record_settings=record_settings,
-            git_settings=git_settings,
-        )
-
-    def record_node_output(
-        self,
-        node_identifier: str,
-        output_data: Any,
-        record_settings: RecordSettingsItem = None,
-        git_settings: GitSettingsItem = None,
-    ) -> bool:
-        """Save output from a node execution."""
-        return self._record_data(
-            node_identifier=node_identifier,
-            data=output_data,
-            record_type="output",
-            record_settings=record_settings,
-            git_settings=git_settings,
-        )
-
-    def record_outcome(
-        self,
-        node_identifier: str,
-        outcome_data: Any,
-        record_settings: RecordSettingsItem = None,
-        git_settings: GitSettingsItem = None,
-    ) -> bool:
-        """Save an outcome file into the repo."""
-        return self._record_data(
-            node_identifier=node_identifier,
-            data=outcome_data,
-            record_type="outcome",
-            record_settings=record_settings,
-            git_settings=git_settings,
-        )
-
-    '''

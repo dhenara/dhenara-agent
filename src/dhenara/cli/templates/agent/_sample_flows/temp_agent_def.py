@@ -55,7 +55,7 @@ flow = (
                     },
                 ),
             ],
-            node_settings=AIModelNodeSettings(
+            settings=AIModelNodeSettings(
                 system_instructions=None,
                 prompt=Prompt(
                     role=PromptMessageRoleEnum.USER,

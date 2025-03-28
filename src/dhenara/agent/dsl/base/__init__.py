@@ -2,7 +2,8 @@
 from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, NodeTypeEnum
 from .defs import NodeID
 
-from .data.expression_parser import ExpressionParser as ExpressionParser
+from .data.template_engine import TemplateEngine
+from .data.dad_template_engine import DADTemplateEngine
 
 from .settings import (
     GitSettingsItem,
@@ -35,6 +36,7 @@ __all__ = [
     "ComponentDefinition",
     "ComponentExecutor",
     "Conditional",
+    "DADTemplateEngine",
     "ExecutableBlock",
     "ExecutableElement",
     "ExecutableNode",
@@ -43,7 +45,6 @@ __all__ = [
     "ExecutionContext",
     "ExecutionStatusEnum",
     "ExecutionStrategyEnum",
-    "ExpressionParser",
     "ForEach",
     "GitSettingsItem",
     "NodeExecutionResult",
@@ -63,4 +64,5 @@ __all__ = [
     "SpecialNodeIDEnum",
     "StreamingContext",
     "StreamingStatusEnum",
+    "TemplateEngine",
 ]

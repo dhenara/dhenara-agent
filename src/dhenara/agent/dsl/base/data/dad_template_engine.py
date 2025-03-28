@@ -1,0 +1,171 @@
+import logging
+from typing import Any, Literal, TypeVar
+
+from dhenara.agent.types.data import RunEnvParams
+from dhenara.ai.types.genai.dhenara.request.data import Prompt, PromptText
+
+from .template_engine import TemplateEngine
+
+T = TypeVar("T")
+logger = logging.getLogger(__name__)
+
+
+class DADTemplateEngine(TemplateEngine):
+    """
+    Template engine specialized for Dhenara Agent DSL (DAD), extending the base TemplateEngine.
+
+    This engine provides additional context from RunEnvParams and node execution results
+    to be used in template substitution.
+    """
+
+    @classmethod
+    def get_dad_template_keywords_static_vars(cls, run_env_params: RunEnvParams) -> dict:
+        # Guaranteed vars
+        variables = {
+            # --- Externally exposed vars
+            #    1.environment variables
+            "run_id": run_env_params.run_id,
+            "run_dir": str(run_env_params.run_dir),
+            # --- Internal vars
+            #    1. state variables
+            "_dad_state_dir": str(run_env_params.state_dir),
+        }
+
+        # Optional vars
+        if run_env_params.outcome_repo_dir:
+            variables["outcome_repo_dir"] = str(run_env_params.outcome_repo_dir)
+
+        return variables
+
+    @classmethod
+    def get_dad_template_keywords_dynamic_vars(
+        cls,
+        dad_dynamic_variables: dict,
+        # Keep adding this list
+    ) -> dict:
+        """
+        Function to cross check only allowed variables are processed as dad_dynamic_variables
+        """
+        variables = {}
+
+        # Check and add
+        if "node_id" in dad_dynamic_variables.keys() and dad_dynamic_variables["node_id"]:
+            variables["node_id"] = str(dad_dynamic_variables["node_id"])
+
+        return variables
+
+    @classmethod
+    def render_dad_template(
+        cls,
+        template: str | Prompt,
+        variables: dict[str, Any],
+        dad_dynamic_variables: dict[str, Any],
+        run_env_params: RunEnvParams,
+        node_execution_results: dict[str, Any],
+        mode: Literal["standard", "expression"] = "expression",
+        max_words: int | None = None,
+        max_words_file: int | None = None,
+        **kwargs: Any,
+    ) -> str:
+        """
+        Render a template with DAD-specific context including run environment and node results.
+
+        Args:
+            template: String or Prompt object containing template expressions
+            variables: User-provided variables for template rendering
+            run_env_params: Run environment parameters
+            node_execution_results: Results from previous node executions
+            mode: "standard" for basic substitution, "expression" for advanced evaluation
+            max_words: Maximum number of words to include in the result
+            max_words_file: Unused (kept for API compatibility)
+            **kwargs: Additional variables for template formatting
+
+        Returns:
+            Rendered template as string
+
+        Raises:
+            ValueError: If the template type is not supported
+        """
+        if not template:
+            return ""
+
+        # Combine all variables with precedence: kwargs > variables > node_results > run_env
+        combined_variables = {}
+
+        # Add node execution results
+        if node_execution_results:
+            combined_variables.update(node_execution_results)
+
+        # Add user-provided variables (overriding previous)
+        if variables:
+            combined_variables.update(variables)
+
+        # Add kwargs (highest precedence)
+        if kwargs:
+            combined_variables.update(kwargs)
+
+        # Add DAD variables
+        combined_variables.update(cls.get_dad_template_keywords_static_vars(run_env_params))
+        combined_variables.update(cls.get_dad_template_keywords_dynamic_vars(dad_dynamic_variables))
+
+        try:
+            # Handle string templates
+            if isinstance(template, str):
+                rendered_text = cls.render_template(template, combined_variables, mode)
+                return cls._apply_word_limit(rendered_text, max_words)
+
+            # Handle Prompt objects
+            elif isinstance(template, Prompt):
+                combined_variables.update(template.variables)
+
+                if isinstance(template.text, PromptText):
+                    return cls._process_prompt_text(
+                        prompt_text=template.text,
+                        variables=combined_variables,
+                        mode=mode,
+                        max_words=max_words,
+                    )
+                elif isinstance(template.text, str):
+                    rendered_text = cls.render_template(template.text, combined_variables, mode)
+                    return cls._apply_word_limit(rendered_text, max_words)
+                else:
+                    raise ValueError(f"Unsupported prompt.text type: {type(template.text)}")
+            else:
+                raise ValueError(f"Unsupported template type: {type(template)}")
+
+        except Exception as e:
+            logger.error(f"Error rendering DAD template: {e}", exc_info=True)
+            return f"Error rendering template: {e!s}"
+
+    @classmethod
+    def _process_prompt_text(
+        cls,
+        prompt_text: PromptText,
+        variables: dict[str, Any],
+        mode: Literal["standard", "expression"],
+        max_words: int | None,
+    ) -> str:
+        """Process a PromptText object."""
+        if prompt_text.content:
+            template_text = prompt_text.content.get_content()
+            parsed_text = cls.render_template(template_text, variables, mode)
+            return cls._apply_word_limit(parsed_text, max_words)
+        else:
+            template_text = prompt_text.template.text
+            parsed_text = cls.render_template(template_text, variables, mode)
+
+            # Now format the parsed text ( ie to replace python {} variables in string)
+            _temp = prompt_text.template.model_copy()
+            _temp.text = parsed_text
+            _temp.disable_checks = False
+            formatted_text = _temp.format(**variables)
+
+            return cls._apply_word_limit(formatted_text, max_words)
+
+    @staticmethod
+    def _apply_word_limit(text: str, max_words: int | None) -> str:
+        """Apply word limit to text if specified."""
+        if max_words and text:
+            words = text.split()
+            return " ".join(words[:max_words])
+        return text

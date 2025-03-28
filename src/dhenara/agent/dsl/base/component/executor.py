@@ -37,7 +37,6 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             resource_config=resource_config,
             created_at=datetime.now(),
             run_context=self.run_context,
-            run_env_params=self.run_context.run_env_params,  # TODO: Remove
             artifact_manager=self.run_context.artifact_manager,
         )
 

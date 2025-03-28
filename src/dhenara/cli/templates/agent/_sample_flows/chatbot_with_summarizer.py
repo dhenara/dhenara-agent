@@ -46,15 +46,12 @@ flow = (
             resources=[
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                    query={
-                        ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
-                        ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
-                    },
+                    query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
+                    is_default=True,
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
                     query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
-                    is_default=True,
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
@@ -66,7 +63,7 @@ flow = (
                 ),
             ],
             pre_events=[EventType.node_input_required],
-            node_settings=AIModelNodeSettings(
+            settings=AIModelNodeSettings(
                 system_instructions=[
                     "You are an AI assistant in a general purpose chatbot",
                     "Always respond in markdown format.",
@@ -102,7 +99,7 @@ flow = (
                     },
                 ),
             ],
-            node_settings=AIModelNodeSettings(
+            settings=AIModelNodeSettings(
                 system_instructions=[
                     "You are a summarizer which generate a title text under 60 characters from the prompts.",
                 ],

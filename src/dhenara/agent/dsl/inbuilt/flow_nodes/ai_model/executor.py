@@ -4,10 +4,10 @@ from datetime import datetime
 from typing import Any
 
 from dhenara.agent.dsl.base import (
+    DADTemplateEngine,
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
-    ExpressionParser,
     NodeExecutionResult,
     NodeID,
     NodeInput,
@@ -44,11 +44,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
     input_model = AIModelNodeInput
     setting_model = AIModelNodeSettings
 
-    def __init__(
-        self,
-        identifier: str = "ai_model_node_executor",
-    ):
-        super().__init__(identifier=identifier)
+    def __init__(self):
+        super().__init__(identifier="ai_model_node_executor")
         self.resource_config: ResourceConfig | None = None
 
     async def execute_node(
@@ -143,10 +140,13 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if node_input:
             prompt.variables.update(node_input.prompt_variables)
 
-        prompt = ExpressionParser.prompt_to_text(
-            prompt=prompt,
-            parser_context=execution_context.execution_results,
-            **prompt.variables,  # NOTE: Should pass the unpacked prompt variables
+        prompt = DADTemplateEngine.render_dad_template(
+            template=prompt,
+            variables=prompt.variables,
+            dad_dynamic_variables={},
+            run_env_params=execution_context.run_context.run_env_params,
+            node_execution_results=execution_context.execution_results,
+            mode="expression",
         )
 
         # TODO: template support for instructions and context?
@@ -365,8 +365,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
     ) -> list:
-        node_settings = node_definition.node_settings
-        context_sources = node_settings.context_sources if node_settings and node_settings.context_sources else []
+        settings = node_definition.settings
+        context_sources = settings.context_sources if settings and settings.context_sources else []
         outputs_as_prompts = []
         try:
             for source_node_identifier in context_sources:
