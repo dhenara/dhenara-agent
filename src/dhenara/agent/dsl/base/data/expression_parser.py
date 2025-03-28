@@ -2,6 +2,8 @@ import operator
 import re
 from typing import Any
 
+from dhenara.ai.types.genai.dhenara.request.data import Prompt, PromptText
+
 
 class ExpressionParser:
     """Parser for expressions in ${...} syntax with support for dot notation, operators, and indexing."""
@@ -41,6 +43,57 @@ class ExpressionParser:
     }
 
     @classmethod
+    def prompt_to_text(
+        cls,
+        prompt: str | Prompt,
+        parser_context: dict | None = None,
+        max_words: int | None = None,
+        max_words_file: int | None = None,
+        **kwargs,
+    ) -> str:
+        if parser_context is None:
+            parser_context = {}
+
+        if isinstance(prompt, str):
+            template_text = prompt.text
+            parsed_text = cls.parse_and_evaluate(template_text, parser_context)
+            formatted_text = parsed_text
+
+        elif isinstance(prompt, Prompt):
+            if isinstance(prompt.text, PromptText):
+                if prompt.text.content:
+                    template_text = prompt.text.content.get_content()
+                    parsed_text = cls.parse_and_evaluate(template_text, parser_context)
+                    formatted_text = parsed_text
+                else:
+                    var_dict = prompt.text.template.variables.copy()
+                    var_dict.update(**kwargs)
+
+                    template_text = prompt.text.template.text
+                    parsed_text = cls.parse_and_evaluate(template_text, parser_context)
+
+                    _temp = prompt.text.template.model_copy()
+                    _temp.text = parsed_text
+                    _temp.disable_checks = False
+                    formatted_text = _temp.format(**kwargs)
+
+            elif isinstance(prompt.text, str):
+                template_text = prompt.text
+                parsed_text = cls.parse_and_evaluate(template_text, parser_context)
+                formatted_text = parsed_text
+            else:
+                raise ValueError(f"prompt_to_text: unknown prompt.text type {type(prompt.text)}")
+
+        else:
+            raise ValueError(f"prompt_to_text: unknown prompt type {type(prompt)}")
+
+        if max_words:
+            words = formatted_text.split()
+            formatted_text = " ".join(words[:max_words])
+
+        return formatted_text
+
+    @classmethod
     def parse_and_evaluate(cls, template: str, context: dict[str, Any]) -> str:
         """
         Parse expressions in the template and evaluate them against the context.
@@ -63,7 +116,8 @@ class ExpressionParser:
             except Exception as e:
                 return f"Error: {e!s}"
 
-        return cls.EXPR_PATTERN.sub(replace_expr, template)
+        parsed = cls.EXPR_PATTERN.sub(replace_expr, template)
+        return parsed
 
     @classmethod
     def _evaluate_expression(cls, expr: str, context: dict[str, Any]) -> Any:

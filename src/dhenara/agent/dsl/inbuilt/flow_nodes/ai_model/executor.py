@@ -7,6 +7,7 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
+    ExpressionParser,
     NodeExecutionResult,
     NodeID,
     NodeInput,
@@ -152,6 +153,13 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if node_input:
             prompt.variables.update(node_input.prompt_variables)
 
+        prompt = ExpressionParser.prompt_to_text(
+            prompt=prompt,
+            parser_context=execution_context.execution_results,
+            **prompt.variables,  # NOTE: Should pass the unpacked prompt variables
+        )
+
+        # TODO: template support for instructions and context?
         if instructions is not None:
             for instruction in instructions:
                 if isinstance(instruction, SystemInstruction):

@@ -1,4 +1,4 @@
-from shared_print_utils import ResponseDisplayMixin
+from packages.dhenagent.examples.legacy_client.shared_print_utils import ResponseDisplayMixin
 
 from dhenara.agent.client import Client
 from dhenara.agent.types import Content, NodeInput

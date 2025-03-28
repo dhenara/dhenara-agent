@@ -1,6 +1,6 @@
 import asyncio
 
-from samples import chatbot_with_summarizer
+from legacy_flow import chatbot_with_summarizer
 
 from dhenara.agent.client import Client
 
