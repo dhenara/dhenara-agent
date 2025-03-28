@@ -1,4 +1,4 @@
-from dhenara.agent.dsl.inbuilt.enums.flow_nodes import FlowNodeTypeEnum
+from dhenara.agent.dsl.flow import FlowNodeTypeEnum
 from dhenara.agent.engine.handler import NodeHandler
 
 

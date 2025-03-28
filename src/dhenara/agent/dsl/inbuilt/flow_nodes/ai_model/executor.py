@@ -46,19 +46,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
     def __init__(
         self,
-        identifier: str = "ai_model_call_handler",
+        identifier: str = "ai_model_node_executor",
     ):
         super().__init__(identifier=identifier)
         self.resource_config: ResourceConfig | None = None
-
-    async def get_live_input(self) -> AIModelNodeInput:
-        # TODO:
-        return AIModelNodeInput(
-            prompt_variables={
-                "requested_plan": "A nextjs project that implements a developer dashboard",
-            },
-            instruction_variables={},
-        )
 
     async def execute_node(
         self,
@@ -93,13 +84,13 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # 1. Fix node resource
         # -------------------
         user_selected_resource = None
-        selected_resources = node_input.resources if node_input and node_input.resources else []
+        resources_override = node_input.resources if node_input and node_input.resources_override else []
 
-        if len(selected_resources) == 1:
-            user_selected_resource = selected_resources[0]
+        if len(resources_override) == 1:
+            user_selected_resource = resources_override[0]
         else:
             user_selected_resource = next(
-                (resource for resource in selected_resources if resource.is_default),
+                (resource for resource in resources_override if resource.is_default),
                 None,
             )
 
@@ -247,14 +238,37 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
             # stream_generator = response.stream_generator
             stream_generator = self.generate_stream_response(
-                node_definition=node_definition,
+                node_id=node_input,
                 node_input=node_input,
+                model_call_config=model_call_config,
                 execution_context=execution_context,
                 stream_generator=response.stream_generator,
             )
             execution_context.stream_generator = stream_generator
             return "abc"  # Should retrun a non None value: TODO: Fix this
 
+        # Non streaming:
+        # Get result
+        result = self._derive_result(
+            node_id=node_id,
+            node_input=node_input,
+            model_call_config=model_call_config,
+            response=response,
+        )
+
+        self.update_execution_context(
+            node_id=node_id,
+            execution_context=execution_context,
+            result=result,
+        )
+
+    def _derive_result(
+        self,
+        node_id: NodeID,
+        node_input: NodeInput,
+        model_call_config: AIModelCallConfig,
+        response,
+    ) -> NodeExecutionResult:
         # Non streaming
         logger.debug(f"call_ai_model: status={response.status}, response={response},")
         node_output = NodeOutput[AIModelNodeOutputData](
@@ -280,8 +294,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         )
 
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
-        result = NodeExecutionResult[AIModelNodeOutputData](
-            node_identifier=execution_context.current_node_identifier,
+        return NodeExecutionResult[AIModelNodeOutputData](
+            node_identifier=node_id,
             status=status,
             input=node_input,
             output=node_output,
@@ -289,15 +303,11 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             created_at=datetime.now(),
         )
 
-        execution_context.execution_results[node_id] = result
-        execution_context.updated_at = datetime.now()
-
-        return True
-
     async def generate_stream_response(
         self,
-        node_definition: ExecutableNodeDefinition,
+        node_id: NodeID,
         node_input: NodeInput,
+        model_call_config: AIModelCallConfig,
         execution_context: ExecutionContext,
         stream_generator: AsyncGenerator,
     ):
@@ -320,34 +330,16 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                     if not isinstance(final_response, AIModelCallResponse):
                         logger.fatal(f"Final streaming response type {type(final_response)} is not AIModelCallResponse")
 
-                    node_identifier = execution_context.current_node_identifier
-                    node_output = NodeOutput[AIModelNodeOutputData](
-                        data=AIModelNodeOutputData(
+                        result = self._derive_result(
+                            node_id=node_id,
+                            node_input=node_input,
+                            model_call_config=model_call_config,
                             response=final_response,
                         )
-                    )
-                    node_outcome = AIModelNodeOutcome(
-                        # TODO
-                    )
-
-                    status = (
-                        ExecutionStatusEnum.COMPLETED
-                        if final_response.status.successful
-                        else ExecutionStatusEnum.FAILED
-                    )
-                    result = NodeExecutionResult[AIModelNodeOutputData](
-                        node_identifier=node_identifier,
-                        status=status,
-                        input=node_input,
-                        output=node_output,
-                        outcome=node_outcome,
-                        # storage_data=storage_data,
-                        created_at=datetime.now(),
-                    )
 
                     # NOTE: `await`
                     await execution_context.notify_streaming_complete(
-                        identifier=node_identifier,
+                        identifier=node_id,
                         streaming_status=StreamingStatusEnum.COMPLETED,
                         result=result,
                     )

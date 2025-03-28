@@ -184,14 +184,15 @@ class NodeExecutor(ABC):
         """
         pass
 
-    def set_node_execution_failed(
+    def update_execution_context(
         self,
-        node_definition: ExecutableNodeDefinition,
+        node_id: NodeID,
         execution_context: ExecutionContext,
-        message: str,
+        result: NodeExecutionResult,
     ):
-        execution_context.execution_failed = True
-        execution_context.execution_failed_message = message
+        """update_execution_context: Should be called from derived classes after results available"""
+        execution_context.execution_results[node_id] = result
+        execution_context.updated_at = datetime.now()
 
     async def record_results(
         self,
@@ -280,3 +281,12 @@ class NodeExecutor(ABC):
             execution_context.logger.exception("Post-streaming execution failed")
             await self.execution_recorder.update_execution_in_db(execution_context)
             raise
+
+    def set_node_execution_failed(
+        self,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
+        message: str,
+    ):
+        execution_context.execution_failed = True
+        execution_context.execution_failed_message = message

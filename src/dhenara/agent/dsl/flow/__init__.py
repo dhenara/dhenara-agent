@@ -10,6 +10,7 @@ from .base.node import (
 )
 
 from .flow import Flow, FlowExecutor
+from .enums.flow_nodes import FlowNodeTypeEnum
 
 __all__ = [
     "Flow",
@@ -20,5 +21,6 @@ __all__ = [
     "FlowNode",
     "FlowNodeDefinition",
     "FlowNodeExecutor",
+    "FlowNodeTypeEnum",
     "FlowReference",
 ]
