@@ -8,7 +8,7 @@ from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base.results import NodeExecutionResult, OutcomeT, OutputT
+from dhenara.agent.dsl.base.results import NodeExecutionResult, OutputT
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.types.data import RunEnvParams
@@ -58,7 +58,7 @@ class ExecutionContext(BaseModelABC):
     # initial_inputs: NodeInputs = Field(default_factory=dict)
 
     execution_status: ExecutionStatusEnum = Field(default=ExecutionStatusEnum.PENDING)
-    execution_results: dict[NodeID, NodeExecutionResult[OutputT, OutcomeT]] = Field(default_factory=dict)
+    execution_results: dict[NodeID, NodeExecutionResult[OutputT]] = Field(default_factory=dict)
     execution_failed: bool = Field(default=False)
     execution_failed_message: str | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)

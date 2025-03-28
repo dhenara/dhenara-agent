@@ -12,7 +12,7 @@ from .settings import (
     NodeRecordSettings,
     NodeGitSettings,
 )
-from .node_io import NodeInput, NodeInputs, NodeOutput, NodeOutCome
+from .node_io import NodeInput, NodeInputs, NodeOutput, NodeOutcome
 from .results import NodeExecutionResult
 
 from .context import ExecutionContext, StreamingContext, StreamingStatusEnum
@@ -53,7 +53,7 @@ __all__ = [
     "NodeID",
     "NodeInput",
     "NodeInputs",
-    "NodeOutCome",
+    "NodeOutcome",
     "NodeOutput",
     "NodeRecordSettings",
     "NodeSettings",

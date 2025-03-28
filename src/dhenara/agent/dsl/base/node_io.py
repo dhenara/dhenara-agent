@@ -51,6 +51,5 @@ class NodeOutput(BaseModel, Generic[T]):
     stream: AsyncGenerator | None = None
 
 
-class NodeOutCome(BaseModel, Generic[T]):
-    # Primary output content
-    data: T
+class NodeOutcome(BaseModel):
+    pass

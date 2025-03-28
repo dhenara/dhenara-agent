@@ -11,7 +11,6 @@ from dhenara.agent.dsl.base import (
     NodeExecutionResult,
     NodeID,
     NodeInput,
-    NodeOutCome,
     NodeOutput,
     SpecialNodeIDEnum,
     StreamingStatusEnum,
@@ -19,7 +18,7 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
-    AIModelNodeOutcomeData,
+    AIModelNodeOutcome,
     AIModelNodeOutputData,
     AIModelNodeSettings,
 )
@@ -275,20 +274,18 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         else:
             text_outcome = response.chat_response.text()
 
-        node_outcome = NodeOutCome[AIModelNodeOutcomeData](
-            data=AIModelNodeOutcomeData(
-                text=text_outcome,
-                structured=structured_outcome,
-            )
+        node_outcome = AIModelNodeOutcome(
+            text=text_outcome,
+            structured=structured_outcome,
         )
 
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
-        result = NodeExecutionResult[AIModelNodeOutputData, AIModelNodeOutcomeData](
+        result = NodeExecutionResult[AIModelNodeOutputData](
             node_identifier=execution_context.current_node_identifier,
             status=status,
-            node_input=node_input,
-            node_output=node_output,
-            node_outcome=node_outcome,
+            input=node_input,
+            output=node_output,
+            outcome=node_outcome,
             created_at=datetime.now(),
         )
 
@@ -329,17 +326,21 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                             response=final_response,
                         )
                     )
+                    node_outcome = AIModelNodeOutcome(
+                        # TODO
+                    )
 
                     status = (
                         ExecutionStatusEnum.COMPLETED
                         if final_response.status.successful
                         else ExecutionStatusEnum.FAILED
                     )
-                    result = NodeExecutionResult[AIModelNodeOutputData, AIModelNodeOutcomeData](
+                    result = NodeExecutionResult[AIModelNodeOutputData](
                         node_identifier=node_identifier,
                         status=status,
-                        node_input=node_input,
-                        node_output=node_output,  # TODO: outcome
+                        input=node_input,
+                        output=node_output,
+                        outcome=node_outcome,
                         # storage_data=storage_data,
                         created_at=datetime.now(),
                     )

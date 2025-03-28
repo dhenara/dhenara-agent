@@ -220,8 +220,8 @@ class NodeExecutor(ABC):
                 output_git_settings = node_definition.git_settings.output
                 outcome_git_settings = node_definition.git_settings.outcome
 
-            output_data = result.node_output.data
-            outcome_data = result.node_outcome.data
+            output_data = result.output.data
+            outcome_data = result.outcome
 
             output_data = output_data.model_dump() if hasattr(output_data, "model_dump") else output_data
             outcome_data = outcome_data.model_dump() if hasattr(outcome_data, "model_dump") else outcome_data

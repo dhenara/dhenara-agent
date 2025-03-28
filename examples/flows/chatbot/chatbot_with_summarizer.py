@@ -1,12 +1,9 @@
-from pydantic import BaseModel, Field
-
 from dhenara.agent.dsl import (
     AIModelNode,
     AIModelNodeSettings,
     EventType,
     Flow,
     NodeRecordSettings,
-    SpecialNodeIDEnum,
 )
 from dhenara.ai.types import (
     AIModelAPIProviderEnum,
@@ -20,26 +17,10 @@ from dhenara.ai.types import (
     TextTemplate,
 )
 
-
-# Define structured output models
-class CodeFile(BaseModel):
-    filename: str = Field(..., description="Name of the file")
-    content: str = Field(..., description="Content of the file")
-    language: str = Field(..., description="Programming language")
-
-
-class CodePlan(BaseModel):
-    description: str = Field(..., description="Description of the code plan")
-    files: list[CodeFile] = Field(..., description="Files to generate")
-    dependencies: list[str] = Field(default_factory=list, description="Dependencies")
-
-
 test_mode = False
 
-# Define a flow
 flow = (
     Flow()
-    # First node: Create a code plan
     .node(
         "ai_model_call_1",
         AIModelNode(
@@ -58,7 +39,7 @@ flow = (
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                    query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flashl-lite"},
+                    query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
@@ -106,24 +87,17 @@ flow = (
                 system_instructions=[
                     "You are a summarizer which generate a title text under 60 characters from the prompts.",
                 ],
-                prompt=Prompt(
-                    role=PromptMessageRoleEnum.USER,
-                    text=PromptText(
-                        content=None,
-                        template=TextTemplate(
-                            text="Summarize in plane text under {number_of_chars} characters. ${ai_model_call_1.outcome.text}",  # noqa: E501
-                            variables={
-                                "number_of_chars": {
-                                    "default": 60,
-                                    "allowed": range(50, 100),
-                                }
-                            },
-                        ),
-                    ),
+                prompt=Prompt.with_dad_text(
+                    text="Summarize in plane text under {number_of_chars} characters. ${ai_model_call_1.outcome.text}",
+                    variables={
+                        "number_of_chars": {
+                            "default": 60,
+                            "allowed": range(50, 100),
+                        },
+                    },
                 ),
-                context_sources=[SpecialNodeIDEnum.PREVIOUS],
+                # context_sources=[SpecialNodeIDEnum.PREVIOUS],
                 model_call_config=AIModelCallConfig(
-                    # structured_output=CodePlan,
                     test_mode=test_mode,
                 ),
             ),
