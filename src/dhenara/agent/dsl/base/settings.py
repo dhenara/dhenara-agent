@@ -26,33 +26,33 @@ class RecordSettingsItem(BaseModel):
     )
     path: str | TextTemplate = Field(
         ...,
-        description="Path within record's parent. Default is node_id",
+        description="Path within run directory. Default is ${node_id}",
     )
     filename: str | TextTemplate = Field(
         ...,
-        description="Filename of record. Default is node_id.json",
+        description="Filename of record",
     )
     file_format: RecordFileFormatEnum = Field(
         ...,
-        description="File format. Use text to dump as string",
+        description="File format. Use `text` to dump as string. Default is `json`",
     )
 
 
 DEFAULT_INPUT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${run_id}/${node_id}/",
+    path="${node_id}/",  # "${run_id}/${node_id}/",
     filename="input.json",  # "{node_id}.json",
     file_format=RecordFileFormatEnum.json,
 )
 DEFAULT_OUPUT_RECORD_SETTINGS = default = RecordSettingsItem(
     enabled=True,
-    path="${run_id}/${node_id}/",
+    path="${node_id}/",
     filename="output.json",
     file_format=RecordFileFormatEnum.json,
 )
 DEFAULT_OUTCOME_RECORD_SETTINGS = default = RecordSettingsItem(
     enabled=True,
-    path="${run_id}/${node_id}/",
+    path="${node_id}/",
     filename="outcome.json",
     file_format=RecordFileFormatEnum.json,
 )

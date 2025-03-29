@@ -2,9 +2,11 @@ import asyncio
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from dhenara.agent.dsl.base import (
+    DADTemplateEngine,
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
@@ -59,8 +61,10 @@ class CommandNodeExecutor(FlowNodeExecutor):
                 env.update(node_input.env_vars)
 
             # Get formatted commands and working directory
-            formatted_commands, working_dir = settings.get_formatted_commands_and_dir(
-                run_env_params=execution_context.run_env_params
+            formatted_commands, working_dir = self.get_formatted_commands_and_dir(
+                node_id=node_id,
+                execution_context=execution_context,
+                settings=settings,
             )
 
             # Execute commands sequentially
@@ -171,3 +175,43 @@ class CommandNodeExecutor(FlowNodeExecutor):
                 message=f"Command execution failed: {e}",
             )
             return None
+
+    def get_formatted_commands_and_dir(
+        self,
+        node_id: NodeID,
+        execution_context: ExecutionContext,
+        settings: CommandNodeSettings,
+    ) -> tuple[list[str], Path]:
+        """Format commands with variables and resolve working directory."""
+        variables = {}
+        dad_dynamic_variables = {
+            "node_id": node_id,
+        }
+
+        # Format the commands with variables
+        formatted_commands = []
+        run_env_params = execution_context.run_context.run_env_params
+
+        for cmd in settings.commands:
+            cmd = DADTemplateEngine.render_dad_template(
+                template=cmd,
+                variables=variables,
+                dad_dynamic_variables=dad_dynamic_variables,
+                run_env_params=run_env_params,
+                node_execution_results=None,
+                mode="standard",
+            )
+            formatted_commands.append(cmd)
+
+        # Resolve working directory
+        working_dir = settings.working_dir or str(run_env_params.run_dir)
+        working_dir = DADTemplateEngine.render_dad_template(
+            template=working_dir,
+            variables=variables,
+            dad_dynamic_variables=dad_dynamic_variables,
+            run_env_params=run_env_params,
+            node_execution_results=None,
+            mode="standard",
+        )
+
+        return formatted_commands, Path(working_dir).expanduser().resolve()

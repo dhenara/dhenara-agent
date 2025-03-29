@@ -1,7 +1,6 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
-from dhenara.agent.types.data import RunEnvParams
 
 
 class FolderAnalyzerSettings(NodeSettings):
@@ -33,11 +32,3 @@ class FolderAnalyzerSettings(NodeSettings):
         default=1024 * 1024,  # 1MB default max for content preview
         description="Maximum file size to analyze content",
     )
-
-    def get_formatted_path(self, run_env_params: RunEnvParams) -> str:
-        """Format path with variables."""
-        variables = run_env_params.get_template_variables()
-        path = self.path
-        for var_name, var_value in variables.items():
-            path = path.replace(f"{{{var_name}}}", str(var_value))
-        return path

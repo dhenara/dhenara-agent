@@ -35,7 +35,7 @@ class RunContext:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_id = f"{self.agent_identifier}_{_run_id}"
-        self.run_dir = self.run_root  # / self.run_id
+        self.run_dir = self.run_root / self.run_id
 
         _state_dir = ".state"
 

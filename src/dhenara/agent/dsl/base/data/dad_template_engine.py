@@ -16,6 +16,35 @@ class DADTemplateEngine(TemplateEngine):
 
     This engine provides additional context from RunEnvParams and node execution results
     to be used in template substitution.
+
+    Use `.` notation to access data of input,output& outcome
+
+    Examples:
+
+        CommandNodeSettings:
+            commands=[
+                "ls -la ${run_dir}",
+                "mkdir ${run_dir}/${node_id}/temp_dir",
+                "ls -la ${run_dir}",
+                "mv ${run_dir}/list_files/temp_dir ${run_dir}/${node_id}/.",
+            ]
+            working_dir="${run_dir}"
+
+
+        FolderAnalyzerSettings:
+            path="${run_dir}"
+
+
+        AIModelNodeSettings:
+            prompt=Prompt.with_dad_text(
+                text="Summarize in plane text under {number_of_chars} characters. ${ai_model_call_1.outcome.text}",
+                variables={
+                    "number_of_chars": {
+                        "default": 60,
+                        "allowed": range(50, 100),
+                    },
+                },
+            ),
     """
 
     @classmethod

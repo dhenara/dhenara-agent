@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from dhenara.agent.dsl.base import (
+    DADTemplateEngine,
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
@@ -48,10 +49,11 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 raise ValueError(f"Invalid settings type: {type(settings)}")
 
             # Override path if provided in input
-            path = (
-                node_input.path
-                if hasattr(node_input, "path") and node_input.path
-                else settings.get_formatted_path(run_env_params=execution_context.run_env_params)
+            path = self.get_formatted_path(
+                node_id=node_id,
+                node_input=node_input,
+                execution_context=execution_context,
+                settings=settings,
             )
 
             # Convert path to Path object and resolve
@@ -292,3 +294,29 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     result.error = f"Error analyzing content: {e}"
 
         return result
+
+    def get_formatted_path(
+        self,
+        node_id: NodeID,
+        node_input: FolderAnalyzerNodeInput,
+        execution_context: ExecutionContext,
+        settings: FolderAnalyzerSettings,
+    ) -> tuple[list[str], Path]:
+        """Format path with variables."""
+        variables = {}
+        dad_dynamic_variables = {
+            "node_id": node_id,
+        }
+
+        _path = node_input.path if hasattr(node_input, "path") and node_input.path else settings.path
+
+        # Resolve working directory
+        path = DADTemplateEngine.render_dad_template(
+            template=_path,
+            variables=variables,
+            dad_dynamic_variables=dad_dynamic_variables,
+            run_env_params=execution_context.run_context.run_env_params,
+            node_execution_results=None,
+            mode="standard",
+        )
+        return Path(path).expanduser().resolve()
