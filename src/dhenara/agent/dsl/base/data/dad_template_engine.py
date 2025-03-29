@@ -81,6 +81,9 @@ class DADTemplateEngine(TemplateEngine):
         if "node_id" in dad_dynamic_variables.keys() and dad_dynamic_variables["node_id"]:
             variables["node_id"] = str(dad_dynamic_variables["node_id"])
 
+        if "node_hier" in dad_dynamic_variables.keys() and dad_dynamic_variables["node_hier"]:
+            variables["node_hier"] = str(dad_dynamic_variables["node_hier"])
+
         return variables
 
     @classmethod

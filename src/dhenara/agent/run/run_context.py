@@ -25,6 +25,7 @@ class RunContext:
         agent_identifier: str,
         run_root: Path | None = None,
         run_id: str | None = None,
+        debug_level: int = logging.INFO,
     ):
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)
@@ -85,6 +86,11 @@ class RunContext:
 
         # Save initial metadata
         self._save_metadata()
+
+        # logger = logging.getLogger(__name__)
+
+        # Set logger level for a specific package
+        self.setup_logging(debug_level)
 
     def register_node_static_input(self, node_id: str, input_data: NodeInput):
         """Register static input for a node."""
@@ -166,3 +172,13 @@ class RunContext:
             status=status,
             commit_outcome=True,
         )
+
+    def setup_logging(self, debug_level: int):
+        # Configure logging
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        logger = logging.getLogger("dhenara")
+        logger.setLevel(debug_level)
+        logging.getLogger("dhenara.agent").setLevel(debug_level)

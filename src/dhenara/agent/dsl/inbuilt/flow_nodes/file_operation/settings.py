@@ -1,15 +1,7 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
-from dhenara.agent.types.base import BaseModel
-
-
-class FileOperation(BaseModel):
-    """Represents a single file operation"""
-
-    type: str = Field(..., description="Operation type: create_directory, create_file, modify_file, delete")
-    path: str = Field(..., description="Path to the file or directory")
-    content: str | None = Field(None, description="Content for file operations")
+from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types import FileOperation
 
 
 class FileOperationNodeSettings(NodeSettings):

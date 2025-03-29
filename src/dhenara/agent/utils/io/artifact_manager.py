@@ -39,7 +39,7 @@ class ArtifactManager:
 
     def record_data(
         self,
-        node_identifier: str,
+        dad_dynamic_variables: dict,
         data: Any,
         record_type: Literal["input", "output", "outcome"],
         record_settings: RecordSettingsItem = None,
@@ -50,9 +50,6 @@ class ArtifactManager:
             return True
 
         variables = None
-        dad_dynamic_variables = {
-            "node_id": node_identifier,
-        }
 
         def _save_file(output_file):
             # Save data in the specified format

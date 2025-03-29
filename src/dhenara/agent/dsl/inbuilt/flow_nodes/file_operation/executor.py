@@ -1,9 +1,9 @@
+# ruff: noqa: ASYNC230 : TODO_FUTURE
 import json
 import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
@@ -14,18 +14,24 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeOutput,
 )
+from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.flow import FlowNodeExecutor
+from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types import (
+    FileModificationContent,
+    FileOperation,
+    FileOperationType,
+)
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import FileOperationNodeInput
 from .output import FileOperationNodeOutcome, FileOperationNodeOutputData, OperationResult
-from .settings import FileOperation, FileOperationNodeSettings
+from .settings import FileOperationNodeSettings
 
 logger = logging.getLogger(__name__)
 
 
 class FileOperationNodeExecutor(FlowNodeExecutor):
-    """Executor for File Operation Node."""
+    """Executor for file system operations including creation, modification, and deletion of files and directories."""
 
     input_model = FileOperationNodeInput
     setting_model = FileOperationNodeSettings
@@ -40,25 +46,32 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> Any:
+    ) -> FileOperationNodeOutputData | None:
+        """
+        Execute file operations as specified in the node input or settings.
+
+        Args:
+            node_id: Unique identifier for the node
+            node_definition: Definition of the node to execute
+            execution_context: Context for the execution
+            node_input: Input parameters for the node
+            resource_config: Configuration for resources
+
+        Returns:
+            FileOperationNodeOutputData object or None if execution fails
+        """
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
 
-            # Extract file operations from input or settings
-            base_directory = "."
-            operations = []
+            # Override path if provided in input
+            base_directory = self.get_formatted_base_directory(
+                node_input=node_input,
+                execution_context=execution_context,
+                settings=settings,
+            )
 
-            if hasattr(node_input, "base_directory") and node_input.base_directory:
-                base_directory = node_input.base_directory
-            elif hasattr(settings, "base_directory") and settings.base_directory:
-                base_directory = settings.base_directory
-
-            # Resolve base directory with variables
-            variables = execution_context.run_env_params.get_template_variables()
-            for var_name, var_value in variables.items():
-                base_directory = base_directory.replace(f"{{{var_name}}}", str(var_value))
-
+            operations: list[FileOperation] = []
             # Get operations from different possible sources
             if hasattr(node_input, "json_operations") and node_input.json_operations:
                 # Parse JSON operations
@@ -79,29 +92,49 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 raise ValueError("No file operations specified")
 
             # Execute operations
-            results = []
+            results: list[OperationResult] = []
             successful_operations = 0
             failed_operations = 0
-            errors = []
+            errors: list[str] = []
 
             for operation in operations:
                 try:
+                    # Validate the operation
+                    if not operation.validate_content_type():
+                        error_msg = f"Invalid content type for operation {operation.type} on {operation.path}"
+                        results.append(
+                            OperationResult(type=operation.type, path=operation.path, success=False, error=error_msg)
+                        )
+                        errors.append(error_msg)
+                        failed_operations += 1
+                        continue
+
                     full_path = Path(base_directory) / operation.path
 
-                    if operation.type == "create_directory":
+                    if operation.type == FileOperationType.create_directory:
                         full_path.mkdir(parents=True, exist_ok=True)
                         results.append(OperationResult(type="create_directory", path=operation.path, success=True))
                         successful_operations += 1
 
                     elif operation.type == "create_file":
+                        # Content should be a string for create_file
                         content = operation.content or ""
+                        if not isinstance(content, str):
+                            error_msg = f"Expected string content for create_file operation on {operation.path}"
+                            results.append(
+                                OperationResult(type="create_file", path=operation.path, success=False, error=error_msg)
+                            )
+                            errors.append(error_msg)
+                            failed_operations += 1
+                            continue
+
                         full_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(full_path, "w") as f:  # noqa: ASYNC230
+                        with open(full_path, "w") as f:
                             f.write(content)
                         results.append(OperationResult(type="create_file", path=operation.path, success=True))
                         successful_operations += 1
 
-                    elif operation.type == "modify_file":
+                    elif operation.type == FileOperationType.modify_file:
                         if not full_path.exists():
                             error_msg = f"File does not exist: {operation.path}"
                             results.append(
@@ -111,20 +144,71 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                             failed_operations += 1
                             continue
 
-                        content = operation.content or ""
-                        with open(full_path, "w") as f:  # noqa: ASYNC230
-                            f.write(content)
+                        # Content should be FileModificationContent for modify_file
+                        mod_content = operation.content
+                        if not isinstance(mod_content, FileModificationContent):
+                            error_msg = (
+                                f"Expected FileModificationContent for modify_file operation on {operation.path}"
+                            )
+                            results.append(
+                                OperationResult(type="modify_file", path=operation.path, success=False, error=error_msg)
+                            )
+                            errors.append(error_msg)
+                            failed_operations += 1
+                            continue
+
+                        # Read the file content
+                        with open(full_path) as f:
+                            file_content = f.read()
+
+                        # Find the start and end points
+                        start_idx = file_content.find(mod_content.start_point_match)
+                        end_idx = file_content.find(
+                            mod_content.end_point_match, start_idx + len(mod_content.start_point_match)
+                        )
+
+                        if start_idx == -1 or end_idx == -1:
+                            error_msg = f"Could not find modification points in {operation.path}"
+                            results.append(
+                                OperationResult(type="modify_file", path=operation.path, success=False, error=error_msg)
+                            )
+                            errors.append(error_msg)
+                            failed_operations += 1
+                            continue
+
+                        # Perform the modification
+                        new_content = (
+                            file_content[: start_idx + len(mod_content.start_point_match)]
+                            + mod_content.new_content
+                            + file_content[end_idx:]
+                        )
+
+                        # Write the modified content
+                        with open(full_path, "w") as f:
+                            f.write(new_content)
+
                         results.append(OperationResult(type="modify_file", path=operation.path, success=True))
                         successful_operations += 1
 
-                    elif operation.type == "delete":
+                    elif operation.type in [FileOperationType.delete_directory, FileOperationType.delete_file]:
+                        if not full_path.exists():
+                            error_msg = f"Path does not exist: {operation.path}"
+                            results.append(
+                                OperationResult(
+                                    type=operation.type, path=operation.path, success=False, error=error_msg
+                                )
+                            )
+                            errors.append(error_msg)
+                            failed_operations += 1
+                            continue
+
                         if full_path.is_file():
                             os.remove(full_path)
                         elif full_path.is_dir():
                             import shutil
 
                             shutil.rmtree(full_path)
-                        results.append(OperationResult(type="delete", path=operation.path, success=True))
+                        results.append(OperationResult(type=operation.type, path=operation.path, success=True))
                         successful_operations += 1
 
                     else:
@@ -136,12 +220,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                         failed_operations += 1
 
                 except Exception as e:
-                    error_msg = f"Error performing operation {operation.type} on {operation.path}: {e}"
+                    error_msg = f"Error performing operation {operation.type} on {operation.path}: {e!s}"
                     results.append(
                         OperationResult(type=operation.type, path=operation.path, success=False, error=error_msg)
                     )
                     errors.append(error_msg)
                     failed_operations += 1
+                    logger.error(error_msg, exc_info=True)
 
             # Create output data
             all_succeeded = failed_operations == 0
@@ -181,10 +266,38 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             return output_data
 
         except Exception as e:
-            logger.exception(f"File operation execution error: {e}")
+            logger.exception(f"File operation execution error: {e!s}")
             self.set_node_execution_failed(
                 node_definition=node_definition,
                 execution_context=execution_context,
-                message=f"File operation failed: {e}",
+                message=f"File operation failed: {e!s}",
             )
             return None
+
+    def get_formatted_base_directory(
+        self,
+        node_input: FileOperationNodeInput,
+        execution_context: ExecutionContext,
+        settings: FileOperationNodeSettings,
+    ) -> tuple[list[str], Path]:
+        """Format path with variables."""
+        variables = {}
+        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
+        # Extract file operations from input or settings
+        base_directory = "."
+
+        # Determine base directory from input or settings
+        if hasattr(node_input, "base_directory") and node_input.base_directory:
+            base_directory = node_input.base_directory
+        elif hasattr(settings, "base_directory") and settings.base_directory:
+            base_directory = settings.base_directory
+
+        # Resolve base directory with variables
+        return DADTemplateEngine.render_dad_template(
+            template=base_directory,
+            variables=variables,
+            dad_dynamic_variables=dad_dynamic_variables,
+            run_env_params=execution_context.run_context.run_env_params,
+            node_execution_results=None,
+            mode="standard",
+        )

@@ -304,9 +304,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
     ) -> tuple[list[str], Path]:
         """Format path with variables."""
         variables = {}
-        dad_dynamic_variables = {
-            "node_id": node_id,
-        }
+        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
 
         _path = node_input.path if hasattr(node_input, "path") and node_input.path else settings.path
 

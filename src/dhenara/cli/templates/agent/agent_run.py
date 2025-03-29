@@ -1,3 +1,5 @@
+import logging
+
 from dhenara.agent.run import RunContext
 from dhenara.agent.shared.utils import find_project_root
 
@@ -15,7 +17,9 @@ if not project_root:
 run_context = RunContext(
     project_root=project_root,
     agent_identifier=agent.agent_id,
+    debug_level=logging.INFO,
 )
+
 # Register the handler
 run_context.register_node_input_handler(ai_model_input_handler)
 

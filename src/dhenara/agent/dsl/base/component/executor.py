@@ -3,7 +3,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext
+from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext, NodeID
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.resource import ResourceConfig
@@ -17,6 +17,7 @@ ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)
 class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, ComponentDefT]):
     """Executor for Flow definitions."""
 
+    id: NodeID = Field(...)
     definition: ComponentDefT = Field(...)
 
     # Concrete classes to use
@@ -33,6 +34,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
         # Create the execution context
 
         execution_context = self.context_class(
+            component_id=self.id,
             component_definition=self.definition,
             resource_config=resource_config,
             created_at=datetime.now(),

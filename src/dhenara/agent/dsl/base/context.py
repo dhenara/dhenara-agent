@@ -9,6 +9,7 @@ from typing import Any, ClassVar, Optional
 from pydantic import Field
 
 from dhenara.agent.dsl.base.results import NodeExecutionResult, OutputT
+from dhenara.agent.dsl.base.utils import NodeHierarchyHelper
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
@@ -42,6 +43,7 @@ class ExecutionContext(BaseModelABC):
 
     # INFO: Cannot add typehint as its hard to resolve import erros
     # Its OK, as the execution context is used at runtime
+    component_id: NodeID  # Type of ComponentDefinition
     component_definition: Any  # Type of ComponentDefinition
 
     # Core data structures
@@ -223,3 +225,21 @@ class ExecutionContext(BaseModelABC):
         # Implementation depends on whether the loop has outcome settings
         # Similar to record_outcome but with iteration-specific values
         pass
+
+    def get_node_hierarchy_path(self) -> str:
+        """
+        Get the hierarchical path of the current node within the flow.
+
+        Returns:
+            A path string representing the node's hierarchy (e.g., "main_flow/subflow1/node_id")
+        """
+        if not self.current_node_identifier:
+            return ""
+
+        return NodeHierarchyHelper.get_node_hierarchy_path(execution_context=self, node_id=self.current_node_identifier)
+
+    def get_dad_dynamic_variables(self) -> dict:
+        return {
+            "node_id": self.current_node_identifier,
+            "node_hier": self.get_node_hierarchy_path(),
+        }

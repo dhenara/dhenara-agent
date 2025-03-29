@@ -48,11 +48,6 @@ class CommandNodeExecutor(FlowNodeExecutor):
             if not isinstance(settings, CommandNodeSettings):
                 raise ValueError(f"Invalid settings type: {type(settings)}")
 
-            # Override commands if provided in input
-            commands = (
-                node_input.commands if hasattr(node_input, "commands") and node_input.commands else settings.commands
-            )
-
             # Set up execution environment
             env = os.environ.copy()
             if settings.env_vars:
@@ -184,13 +179,11 @@ class CommandNodeExecutor(FlowNodeExecutor):
     ) -> tuple[list[str], Path]:
         """Format commands with variables and resolve working directory."""
         variables = {}
-        dad_dynamic_variables = {
-            "node_id": node_id,
-        }
 
         # Format the commands with variables
         formatted_commands = []
         run_env_params = execution_context.run_context.run_env_params
+        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
 
         for cmd in settings.commands:
             cmd = DADTemplateEngine.render_dad_template(

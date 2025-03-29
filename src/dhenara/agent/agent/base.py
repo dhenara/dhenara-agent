@@ -79,6 +79,7 @@ class BaseAgent(metaclass=AgentMeta):
 
             # Create orchestrator with resolved resources
             executor = FlowExecutor(
+                id=self.agent_id,  # TODO_FUTURE: Might need cleanup on multi agent flows
                 definition=flow_definition,
                 run_context=run_context,
             )

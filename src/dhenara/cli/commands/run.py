@@ -12,9 +12,6 @@ from ._print_utils import print_error_summary, print_run_summary
 
 logger = logging.getLogger(__name__)
 
-# Set logger level for a specific package
-logging.getLogger("dhenara.agent").setLevel(logging.DEBUG)
-
 
 def register(cli):
     cli.add_command(run)
@@ -55,17 +52,6 @@ def run_agent(
     )
 
 
-def setup_logging():
-    # Configure logging
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
-    logger = logging.getLogger("dhenara")
-    print(f"AJ: logger={logger}")
-    logger.setLevel(logging.DEBUG)
-
-
 async def _run_agent(
     identifier,
     project_root,
@@ -73,9 +59,6 @@ async def _run_agent(
     run_id,
 ):
     """Async implementation of run_agent."""
-
-    # TODO:
-    setup_logging()
 
     # Find project root
     if not project_root:

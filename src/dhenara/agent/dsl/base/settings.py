@@ -40,19 +40,21 @@ class RecordSettingsItem(BaseModel):
 
 DEFAULT_INPUT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${node_id}/",  # "${run_id}/${node_id}/",
-    filename="input.json",  # "{node_id}.json",
+    path="${node_hier}/",  # node_hier instead of node_id # "${run_id}/${node_id}/"
+    filename="input.json",
     file_format=RecordFileFormatEnum.json,
 )
-DEFAULT_OUPUT_RECORD_SETTINGS = default = RecordSettingsItem(
+
+DEFAULT_OUPUT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${node_id}/",
+    path="${node_hier}/",  # Use node_hier instead of node_id
     filename="output.json",
     file_format=RecordFileFormatEnum.json,
 )
-DEFAULT_OUTCOME_RECORD_SETTINGS = default = RecordSettingsItem(
+
+DEFAULT_OUTCOME_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${node_id}/",
+    path="${node_hier}/",  # Use node_hier instead of node_id
     filename="outcome.json",
     file_format=RecordFileFormatEnum.json,
 )
