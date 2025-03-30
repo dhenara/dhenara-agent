@@ -14,39 +14,39 @@ from opentelemetry.sdk._logs.export import (
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import get_current_span
 
+from dhenara.agent.observability.exporters import JsonFileSpanExporter
+from dhenara.agent.observability.types import ObservabilitySettings
+
 # Default service name
 DEFAULT_SERVICE_NAME = "dhenara-agent"
 
 # Global logger provider
 _logger_provider = None
+# Track if logging has been initialized
+_logging_initialized = False
 
 
-def setup_logging(
-    service_name: str = DEFAULT_SERVICE_NAME,
-    exporter_type: str = "console",
-    otlp_endpoint: str | None = None,
-    root_log_level: int = logging.INFO,
-) -> None:
-    """Configure OpenTelemetry-integrated logging for the application.
+def setup_logging(settings: ObservabilitySettings) -> None:
+    """Configure OpenTelemetry-integrated logging for the application."""
+    global _logger_provider, _logging_initialized
 
-    Args:
-        service_name: Name to identify this service in logs
-        exporter_type: Type of exporter to use ('console', 'otlp')
-        otlp_endpoint: Endpoint URL for OTLP exporter (if otlp exporter is selected)
-        root_log_level: Log level for the root logger
-    """
-    global _logger_provider
+    # Only initialize once
+    if _logging_initialized:
+        logging.getLogger("dhenara.agent.observability").debug("Logging already initialized, skipping setup")
+        return
 
     # Create a resource with service info
-    resource = Resource.create({"service.name": service_name})
+    resource = Resource.create({"service.name": settings.service_name})
 
     # Create logger provider
     _logger_provider = LoggerProvider(resource=resource)
 
     # Configure the exporter
-    if exporter_type == "otlp" and otlp_endpoint:
+    if settings.exporter_type == "otlp" and settings.otlp_endpoint:
         # Use OTLP exporter (for production use)
-        log_exporter = OTLPLogExporter(endpoint=otlp_endpoint)
+        log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
+    elif settings.exporter_type == "file" and settings.trace_file_path:
+        log_exporter = JsonFileSpanExporter(settings.trace_file_path)
     else:
         # Default to console exporter (for development)
         log_exporter = ConsoleLogExporter()
@@ -54,28 +54,37 @@ def setup_logging(
     # Create and add a log processor
     _logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
 
+    # Reset root logger handlers to avoid duplication
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
     # Create a handler for the Python standard library
-    handler = LoggingHandler(level=root_log_level, logger_provider=_logger_provider)
+    handler = LoggingHandler(level=settings.root_log_level, logger_provider=_logger_provider)
 
     # Configure logging with this handler
-    logging.basicConfig(level=root_log_level, handlers=[handler])
-
-    # Also set the handler on the root logger to make sure it's available
-    root_logger = logging.getLogger()
-    root_logger.addHandler(handler)
+    logging.basicConfig(
+        level=settings.root_log_level,
+        handlers=[handler],
+        force=True,
+    )
 
     # Set the level on the dhenara loggers
-    logging.getLogger("dhenara").setLevel(root_log_level)
+    dhenara_logger = logging.getLogger("dhenara")
+    dhenara_logger.setLevel(settings.root_log_level)
 
-    logging.info(f"Logging initialized with {exporter_type} exporter")
+    # Mark as initialized
+    _logging_initialized = True
+
+    logging.getLogger("dhenara.agent.observability").info(
+        f"Logging initialized with {settings.exporter_type} exporter at level {settings.root_log_level}"
+    )
 
 
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the given name.
-
     Args:
         name: Name for the logger (typically module name)
-
     Returns:
         A standard logging.Logger instance configured with OpenTelemetry
     """
@@ -89,7 +98,6 @@ def log_with_context(
     extra_attributes: dict[str, Any] | None = None,
 ) -> None:
     """Log a message with current span context information.
-
     Args:
         logger: Logger to use
         level: Logging level
@@ -114,3 +122,18 @@ def log_with_context(
 
     # Log the message with the extra context
     logger.log(level, message, extra=extra)
+
+
+def set_logging_level(level: int) -> None:
+    """Set logging level for all dhenara loggers.
+    Args:
+        level: Logging level (e.g., logging.INFO, logging.DEBUG)
+    """
+    # Set level for the dhenara logger and all children
+    logging.getLogger("dhenara").setLevel(level)
+
+    # Update handlers too
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        if isinstance(handler, LoggingHandler):
+            handler.setLevel(level)

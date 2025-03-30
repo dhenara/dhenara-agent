@@ -1,5 +1,3 @@
-# src/dhenara/agent/observability/console_viewer.py
-import argparse
 import json
 import os
 from datetime import datetime
@@ -30,6 +28,18 @@ class ConsoleTraceViewer:
                     self.traces.append(trace_data)
                 except json.JSONDecodeError:
                     continue
+
+        # with open(self.trace_file) as jsonl_f:
+        #    jsonlist = list(jsonl_f)
+
+        # print(f"AJ: jsonlist{jsonlist}")
+
+        # for line in jsonlist:
+        #    try:
+        #        trace_data = json.loads(line.strip())
+        #        self.traces.append(trace_data)
+        #    except json.JSONDecodeError:
+        #        continue
 
     def print_summary(self) -> None:
         """Print a summary of the traces."""
@@ -76,7 +86,7 @@ class ConsoleTraceViewer:
         spans.sort(key=lambda s: s.get("start_time", 0))
 
         # Create a span hierarchy
-        span_map = {s.get("span_id"): s for s in spans}
+        span_map = {s.get("span_id"): s for s in spans}  # noqa: F841
         hierarchy = {}
 
         for span in spans:
@@ -89,7 +99,7 @@ class ConsoleTraceViewer:
             else:
                 # Find parent in hierarchy
                 parent = None
-                for root_id, root in hierarchy.items():
+                for root in hierarchy.values():
                     if self._find_parent(root, parent_id, span_id, span):
                         parent = True
                         break
@@ -118,7 +128,7 @@ class ConsoleTraceViewer:
             node["children"][span_id] = {"span": span, "children": {}}
             return True
 
-        for child_id, child in node["children"].items():
+        for child in node["children"].values():
             if self._find_parent(child, parent_id, span_id, span):
                 return True
 
@@ -147,7 +157,7 @@ class ConsoleTraceViewer:
                 print(f"{indent}  {key}: {value}")
 
         # Print children
-        for child_id, child in node["children"].items():
+        for child in node["children"].values():
             self._print_span_tree(child, depth + 1)
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from dhenara.agent.dsl.base import NodeInput
 from dhenara.agent.dsl.events import EventBus, EventType
+from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
@@ -25,11 +26,15 @@ class RunContext:
         agent_identifier: str,
         run_root: Path | None = None,
         run_id: str | None = None,
-        logging_level: int = logging.INFO,
+        observability_settings: ObservabilitySettings | None = None,
     ):
+        if not observability_settings:
+            observability_settings = ObservabilitySettings()
+
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)
         self.agent_identifier = agent_identifier
+        self.observability_settings = observability_settings
 
         self.run_root = run_root or project_root / "runs"
 
@@ -70,7 +75,7 @@ class RunContext:
         self.git_branch_name = f"run/{self.run_id}"
         self.outcome_repo.create_run_branch(self.git_branch_name)
 
-        self.setup_observability(logging_level)
+        self.setup_observability()
 
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
@@ -169,17 +174,8 @@ class RunContext:
             commit_outcome=True,
         )
 
-    def setup_native_logging(self, logging_level: int):
-        # Configure logging
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        )
-        logger = logging.getLogger("dhenara")
-        logger.setLevel(logging_level)
-        logging.getLogger("dhenara.agent").setLevel(logging_level)
-
-    def setup_observability(self, logging_level: int):
+    def setup_observability(self):
+        """Set up observability for the run context."""
         # Setup observability
         from dhenara.agent.observability import configure_observability
 
@@ -188,14 +184,52 @@ class RunContext:
         # else will flag permission issues with isolated context
         Path(self.trace_file).touch()
 
-        configure_observability(
-            service_name=f"dhenara-dad-{self.agent_identifier}",
-            exporter_type="file",  # Using our custom file exporter
-            trace_file_path=str(self.trace_file),
-            logging_level=logging_level,
-        )
+        # Use agent_identifier as service name if not provided
+        if not self.observability_settings.service_name:
+            self.observability_settings.service_name = f"dhenara-dad-{self.agent_identifier}"
 
-        # Set logger level for a specific package
-        self.setup_native_logging(logging_level)
+        # Use the centralized setup - don't call setup_native_logging afterward
+        configure_observability(self.observability_settings)
 
-        print(f"Tracing enabled. Traces will be written to: {self.trace_file}")
+        # TODO
+        # self.initialize_observability_even_listing()
+
+        # Log tracing info
+        logger.info(f"Tracing enabled. Traces will be written to: {self.trace_file}")
+
+    # TODO: Check if below is required
+    def initialize_observability_even_listing(self) -> None:
+        # Instrument the event bus to capture event-related spans
+        original_publish = self.event_bus.publish
+
+        async def instrumented_publish(event):
+            # Get tracer
+            from dhenara.agent.observability.tracing import get_tracer
+
+            tracer = get_tracer("dhenara.agent.events")
+
+            # Create span
+            with tracer.start_as_current_span(
+                f"event.{event.type}",
+                attributes={
+                    "event.type": event.type,
+                    "event.nature": event.nature,
+                },
+            ) as span:
+                try:
+                    # Execute original publish
+                    result = await original_publish(event)
+
+                    # Add result info to span
+                    if hasattr(event, "handled"):
+                        span.set_attribute("event.handled", event.handled)
+
+                    return result
+                except Exception as e:
+                    # Record error in span
+                    span.record_exception(e)
+                    span.set_attribute("error", str(e))
+                    raise
+
+        # Replace the event bus publish method
+        self.event_bus.publish = instrumented_publish

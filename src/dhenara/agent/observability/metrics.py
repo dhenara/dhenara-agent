@@ -7,6 +7,9 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 
+from dhenara.agent.observability.exporters import JsonFileSpanExporter
+from dhenara.agent.observability.types import ObservabilitySettings
+
 # Default service name
 DEFAULT_SERVICE_NAME = "dhenara-agent"
 
@@ -14,11 +17,7 @@ DEFAULT_SERVICE_NAME = "dhenara-agent"
 _meter_provider = None
 
 
-def setup_metrics(
-    service_name: str = DEFAULT_SERVICE_NAME,
-    exporter_type: str = "console",
-    otlp_endpoint: str | None = None,
-) -> None:
+def setup_metrics(settings: ObservabilitySettings) -> None:
     """Configure OpenTelemetry metrics for the application.
 
     Args:
@@ -29,12 +28,15 @@ def setup_metrics(
     global _meter_provider
 
     # Create a resource with service info
-    resource = Resource.create({"service.name": service_name})
+    resource = Resource.create({"service.name": settings.service_name})
 
     # Configure the exporter
-    if exporter_type == "otlp" and otlp_endpoint:
+    if settings.exporter_type == "otlp" and settings.otlp_endpoint:
         # Use OTLP exporter (for production use)
-        metric_exporter = OTLPMetricExporter(endpoint=otlp_endpoint)
+        metric_exporter = OTLPMetricExporter(endpoint=settings.otlp_endpoint)
+    elif settings.exporter_type == "file" and settings.trace_file_path:
+        # Use custom file exporter
+        metric_exporter = JsonFileSpanExporter(settings.trace_file_path)
     else:
         # Default to console exporter (for development)
         metric_exporter = ConsoleMetricExporter()
@@ -46,7 +48,7 @@ def setup_metrics(
     _meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
     metrics.set_meter_provider(_meter_provider)
 
-    logging.info(f"Metrics initialized with {exporter_type} exporter")
+    logging.info(f"Metrics initialized with {settings.exporter_type} exporter")
 
 
 def get_meter(name: str) -> metrics.Meter:

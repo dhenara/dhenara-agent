@@ -10,7 +10,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
-from .exporters import JsonFileSpanExporter
+from dhenara.agent.observability.exporters import JsonFileSpanExporter
+from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
 DEFAULT_SERVICE_NAME = "dhenara-dad"
@@ -19,12 +20,7 @@ DEFAULT_SERVICE_NAME = "dhenara-dad"
 _tracer_provider = None
 
 
-def setup_tracing(
-    service_name: str = DEFAULT_SERVICE_NAME,
-    exporter_type: str = "console",
-    otlp_endpoint: str | None = None,
-    trace_file_path: str | None = None,
-) -> None:
+def setup_tracing(settings: ObservabilitySettings) -> None:
     """Configure OpenTelemetry tracing for the application.
 
     Args:
@@ -36,28 +32,28 @@ def setup_tracing(
     global _tracer_provider
 
     # Create a resource with service info
-    resource = Resource.create({"service.name": service_name})
+    resource = Resource.create({"service.name": settings.service_name})
 
     # Create the tracer provider
     _tracer_provider = TracerProvider(resource=resource)
 
     # Configure the exporter
-    if exporter_type == "otlp" and otlp_endpoint:
+    if settings.exporter_type == "otlp" and settings.otlp_endpoint:
         # Use OTLP exporter (for production use)
-        otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
-        _tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
-    elif exporter_type == "file" and trace_file_path:
+        span_exporter = OTLPSpanExporter(endpoint=settings.otlp_endpoint)
+    elif settings.exporter_type == "file" and settings.trace_file_path:
         # Use custom file exporter
-        file_exporter = JsonFileSpanExporter(trace_file_path)
-        _tracer_provider.add_span_processor(BatchSpanProcessor(file_exporter))
+        span_exporter = JsonFileSpanExporter(settings.trace_file_path)
     else:
         # Default to console exporter (for development)
-        console_exporter = ConsoleSpanExporter()
-        _tracer_provider.add_span_processor(BatchSpanProcessor(console_exporter))
+        span_exporter = ConsoleSpanExporter()
+
+    # Create tracing processor
+    _tracer_provider.add_span_processor(BatchSpanProcessor(span_exporter))
 
     # Set the global tracer provider
     trace.set_tracer_provider(_tracer_provider)
-    logging.info(f"Tracing initialized with {exporter_type} exporter")
+    logging.info(f"Tracing initialized with {settings.exporter_type} exporter")
 
 
 def get_tracer(name: str) -> trace.Tracer:

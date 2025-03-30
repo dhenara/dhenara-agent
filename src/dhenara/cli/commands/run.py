@@ -90,7 +90,7 @@ async def _run_agent(
 
             print("Launching trace dashboard...")
             view_trace_in_console(file=run_ctx.trace_file)
-            run_dashboard(str(run_ctx.trace_file))
+            # run_dashboard(str(run_ctx.trace_file))
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")
