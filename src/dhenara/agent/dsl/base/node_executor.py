@@ -15,17 +15,16 @@ from dhenara.agent.dsl.base import (
     NodeSettings,
 )
 from dhenara.agent.dsl.events import NodeInputRequiredEvent
+from dhenara.agent.observability import log_with_context, record_metric, trace_node
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
-
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
 
 
 class NodeExecutor(ABC):
     """Base handler for executing flow nodes.
-
     All node type handlers should inherit from this class and implement
     the handle method to process their specific node type.
     """
@@ -38,6 +37,7 @@ class NodeExecutor(ABC):
         identifier: str,
     ):
         self.identifier = identifier
+        self.logger = logging.getLogger(f"dhenara.agent.executor.{identifier}")
 
     async def get_input_for_node(
         self,
@@ -48,6 +48,7 @@ class NodeExecutor(ABC):
         """Get input for a node, trying static inputs first then event handlers."""
         # Check static inputs first
         if node_id in execution_context.run_context.static_inputs:
+            log_with_context(self.logger, logging.DEBUG, f"Using static input for node {node_id}")
             return execution_context.run_context.static_inputs[node_id]
 
         if NodeInputRequiredEvent.type in node_definition.pre_events:
@@ -56,10 +57,9 @@ class NodeExecutor(ABC):
                 node_definition=node_definition,
                 execution_context=execution_context,
             )
-
             return node_input
 
-        logger.debug(f"Failed to fetch inputs for node {node_id}")
+        log_with_context(self.logger, logging.DEBUG, f"Failed to fetch inputs for node {node_id}")
         return None
 
     # Inbuild  events
@@ -84,6 +84,7 @@ class NodeExecutor(ABC):
 
         return node_input
 
+    @trace_node("base_executor")
     async def execute(
         self,
         node_id: NodeID,
@@ -92,7 +93,12 @@ class NodeExecutor(ABC):
     ) -> Any:
         resource_config: ResourceConfig = execution_context.resource_config
 
-        logger.debug("Waiting for node input")
+        log_with_context(
+            self.logger,
+            logging.DEBUG,
+            "Waiting for node input",
+            {"node_id": str(node_id), "node_type": node_definition.node_type},
+        )
 
         node_input = None
         if node_definition.pre_execute_input_required:
@@ -101,16 +107,24 @@ class NodeExecutor(ABC):
                 node_definition=node_definition,
                 execution_context=execution_context,
             )
-            logger.debug(f"Node Input: {node_input}")
+
+            log_with_context(self.logger, logging.DEBUG, "Node Input received", {"node_id": str(node_id)})
 
             if not isinstance(node_input, self.input_model):
+                log_with_context(
+                    self.logger,
+                    logging.ERROR,
+                    f"Input validation failed. Expected {self.input_model} but got {type(node_input)}",
+                    {"node_id": str(node_id)},
+                )
                 raise ValueError(
                     f"Input validation failed. Expects type of {self.input_model} but got a type of {type(node_input)}"
                 )
 
-        logger.debug("Node input received")
+        # Record start time for metrics
+        start_time = datetime.now()
 
-        # Record node input if configured
+        # Record input if configured
         input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
         input_git_settings = node_definition.git_settings.input if node_definition.git_settings else None
         if input_record_settings and input_record_settings.enabled:
@@ -142,9 +156,9 @@ class NodeExecutor(ABC):
         #            f"A streaming node node_executor is expected to returned an AsyncGenerator not{type(result)}. "
         #            f"Node {flow_node.identifier}, node_executor {node_executor.identifier}"
         #        )
-
         #    return result
 
+        # Execute the node
         result = await self.execute_node(
             node_id=node_id,
             node_definition=node_definition,
@@ -152,18 +166,51 @@ class NodeExecutor(ABC):
             node_input=node_input,
             resource_config=resource_config,
         )
-        logger.debug(f"Node Execution completed: resuult= {result}")
 
-        # TODO_FUTURE
-        ## Determine if we should send SSE update
-        # should_send_update = flow_node.response_settings and flow_node.response_settings.send_updates
+        # Record metrics
+        end_time = datetime.now()
+        duration_ms = (end_time - start_time).total_seconds() * 1000
+        record_metric(
+            meter_name="dhenara.agent.node",
+            metric_name="node_execution_duration",
+            value=duration_ms,
+            metric_type="histogram",
+            attributes={
+                "node_id": str(node_id),
+                "node_type": node_definition.node_type,
+            },
+        )
 
-        # if should_send_update:
-        #    if self.response_protocol == ResponseProtocolEnum.HTTP_SSE:
-        #        return self._create_node_execution_sse_generator(result)
-        #    else:
-        #        raise ValueError()
+        # Record success/failure metrics
+        if result is not None:
+            record_metric(
+                meter_name="dhenara.agent.node",
+                metric_name="node_execution_success",
+                value=1,
+                attributes={
+                    "node_id": str(node_id),
+                    "node_type": node_definition.node_type,
+                },
+            )
+        else:
+            record_metric(
+                meter_name="dhenara.agent.node",
+                metric_name="node_execution_failure",
+                value=1,
+                attributes={
+                    "node_id": str(node_id),
+                    "node_type": node_definition.node_type,
+                },
+            )
 
+        log_with_context(
+            self.logger,
+            logging.DEBUG,
+            f"Node Execution completed in {duration_ms:.2f}ms",
+            {"node_id": str(node_id), "duration_ms": duration_ms, "has_result": result is not None},
+        )
+
+        # Record results to storage
         return await self.record_results(
             node_id=node_id,
             node_definition=node_definition,

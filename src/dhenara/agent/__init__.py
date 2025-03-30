@@ -1,5 +1,7 @@
 # ruff: noqa: F401
 
+from .observability import *
+
 # Export main classes
 from .types import *
 from .config import *

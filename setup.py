@@ -12,7 +12,17 @@ setup(
         "requests>=2.25.1",
         "pydantic>=2.0.0",
         "dhenara>=1.0.0",  # Dependency on dhenai
+        # tracing
+        "opentelemetry-api>=1.20.0",
+        "opentelemetry-sdk>=1.20.0",
+        "opentelemetry-exporter-otlp>=1.20.0",
     ],
+    extras_require={
+        "observability": [
+            "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+            "opentelemetry-instrumentation>=0.40b0",
+        ]
+    },
     python_requires=">=3.10",
     description="Dhenara Inc AI-Agent Platform SDK",
     author="Dhenara",

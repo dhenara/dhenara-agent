@@ -1,4 +1,5 @@
 from datetime import datetime
+from logging import Logger
 from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
@@ -25,6 +26,8 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     block_class: ClassVar[type[BlockT]]
 
     run_context: RunContext
+    logger:Logger |None = None
+
 
     async def execute(
         self,
