@@ -59,7 +59,6 @@ async def _run_agent(
     run_id,
 ):
     """Async implementation of run_agent."""
-
     # Find project root
     if not project_root:
         project_root = find_project_root()
@@ -81,21 +80,22 @@ async def _run_agent(
                 run_context=run_ctx,
             )
 
-        # click.echo(f"\n\n")
-        # click.echo(f"✅ Run completed successfully. Run ID: {run_ctx.run_id}")
-        # click.echo(f"   Artifacts in workding directory: {run_ctx.run_dir}/{run_ctx.run_id}")
-        # click.echo(f"   Outcome repo: {run_ctx.outcome_repo_dir}")
-        # click.echo(f"   To see the outcome, you need to checkout to working branch in git repo as")
-        # click.echo(f"           git checkout {run_ctx.git_branch_name}")
-        # click.echo(f"\n\n")
-
+        print(f"Agent run completed successfully. Run ID: {run_ctx.run_id}")
         print_run_summary(run_ctx)
+
+        # View the traces in the dashboard if the file exists
+        if run_ctx.trace_file.exists():
+            # Launch the dashboard if traces were generated
+            from dhenara.agent.observability.cli import run_dashboard, view_trace_in_console
+
+            print("Launching trace dashboard...")
+            view_trace_in_console(file=run_ctx.trace_file)
+            run_dashboard(str(run_ctx.trace_file))
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")
         run_ctx.metadata["error"] = str(e)
         run_ctx.complete_run(status="failed")
-        # click.echo(f"❌ Run failed: {e}")
         print_error_summary(str(e))
 
 

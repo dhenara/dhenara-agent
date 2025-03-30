@@ -1,4 +1,3 @@
-# src/dhenara/agent/observability/tracing.py
 import asyncio
 import functools
 import logging
@@ -11,8 +10,10 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
+from .exporters import JsonFileSpanExporter
+
 # Default service name
-DEFAULT_SERVICE_NAME = "dhenara-agent"
+DEFAULT_SERVICE_NAME = "dhenara-dad"
 
 # Configure tracer provider
 _tracer_provider = None
@@ -22,13 +23,15 @@ def setup_tracing(
     service_name: str = DEFAULT_SERVICE_NAME,
     exporter_type: str = "console",
     otlp_endpoint: str | None = None,
+    trace_file_path: str | None = None,
 ) -> None:
     """Configure OpenTelemetry tracing for the application.
 
     Args:
         service_name: Name to identify this service in traces
-        exporter_type: Type of exporter to use ('console', 'otlp')
+        exporter_type: Type of exporter to use ('console', 'file', 'otlp')
         otlp_endpoint: Endpoint URL for OTLP exporter (if otlp exporter is selected)
+        trace_file_path: Path to write traces (if file exporter is selected)
     """
     global _tracer_provider
 
@@ -43,6 +46,10 @@ def setup_tracing(
         # Use OTLP exporter (for production use)
         otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
         _tracer_provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
+    elif exporter_type == "file" and trace_file_path:
+        # Use custom file exporter
+        file_exporter = JsonFileSpanExporter(trace_file_path)
+        _tracer_provider.add_span_processor(BatchSpanProcessor(file_exporter))
     else:
         # Default to console exporter (for development)
         console_exporter = ConsoleSpanExporter()

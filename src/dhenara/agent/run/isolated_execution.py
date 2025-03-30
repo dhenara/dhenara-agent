@@ -36,10 +36,6 @@ class IsolatedExecution:
 
     async def run(self, agent_module, run_context: RunContext):
         """Run the agent in the isolated environment."""
-        # TODO
-        # Set up logging for this run
-        # log_file = self.run_context.state_dir / "execution.log"
-        # TODO setup_logging(log_file)
 
         # Execute the agent
         try:

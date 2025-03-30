@@ -6,9 +6,11 @@ from .logging import setup_logging, get_logger, log_with_context
 from .config import configure_observability, load_config_from_file
 
 __all__ = [
+    "configure_observability",
     "get_logger",
     "get_meter",
     "get_tracer",
+    "load_config_from_file",
     "log_with_context",
     "record_metric",
     "setup_logging",
@@ -16,6 +18,4 @@ __all__ = [
     "setup_tracing",
     "trace_method",
     "trace_node",
-    "configure_observability",
-    "load_config_from_file",
 ]

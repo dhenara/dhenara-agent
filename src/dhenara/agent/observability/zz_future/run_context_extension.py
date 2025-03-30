@@ -1,7 +1,7 @@
 import logging
 
 # from dhenara.agent.run import RunContext # TODO
-from .config import configure_observability
+from ..config import configure_observability
 
 
 def initialize_observability(
@@ -35,7 +35,7 @@ def initialize_observability(
 
     async def instrumented_publish(event):
         # Get tracer
-        from .tracing import get_tracer
+        from ..tracing import get_tracer
 
         tracer = get_tracer("dhenara.agent.events")
 

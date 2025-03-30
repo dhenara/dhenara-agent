@@ -11,28 +11,19 @@ def configure_observability(
     service_name: str = "dhenara-agent",
     exporter_type: str = "console",
     otlp_endpoint: str | None = None,
+    trace_file_path: str | None = None,
     logging_level: int = logging.INFO,
     enable_tracing: bool = True,
     enable_metrics: bool = True,
     enable_logging: bool = True,
 ) -> None:
-    """Configure all observability components with consistent settings.
-
-    Args:
-        service_name: Name to identify this service
-        exporter_type: Type of exporter to use ('console', 'otlp')
-        otlp_endpoint: Endpoint URL for OTLP exporter
-        logging_level: Log level for the root logger
-        enable_tracing: Whether to enable tracing
-        enable_metrics: Whether to enable metrics
-        enable_logging: Whether to enable enhanced logging
-    """
+    """Configure all observability components with consistent settings."""
     # Read from environment if not provided
     if not otlp_endpoint:
         otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
     if enable_tracing:
-        setup_tracing(service_name, exporter_type, otlp_endpoint)
+        setup_tracing(service_name, exporter_type, otlp_endpoint, trace_file_path)
 
     if enable_metrics:
         setup_metrics(service_name, exporter_type, otlp_endpoint)
@@ -40,7 +31,7 @@ def configure_observability(
     if enable_logging:
         setup_logging(service_name, exporter_type, otlp_endpoint, logging_level)
 
-    logging.info(f"Observability configured for service {service_name} using {exporter_type} exporter")
+    logging.info(f"Observability configured for {service_name} using {exporter_type} exporter")
 
 
 def load_config_from_file(config_file: str) -> dict:

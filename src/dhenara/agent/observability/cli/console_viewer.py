@@ -151,24 +151,15 @@ class ConsoleTraceViewer:
             self._print_span_tree(child, depth + 1)
 
 
-def main():
+def view_trace_in_console(file, trace_id: str | None = None):
     """Command-line interface for the console trace viewer."""
-    parser = argparse.ArgumentParser(description="View OpenTelemetry traces from console export")
-    parser.add_argument("file", help="Path to the trace JSON file")
-    parser.add_argument("--trace", help="ID of a specific trace to view in detail")
-
-    args = parser.parse_args()
 
     try:
-        viewer = ConsoleTraceViewer(args.file)
+        viewer = ConsoleTraceViewer(file)
 
-        if args.trace:
-            viewer.print_trace(args.trace)
+        if trace_id:
+            viewer.print_trace(trace_id)
         else:
             viewer.print_summary()
     except Exception as e:
         print(f"Error: {e}")
-
-
-if __name__ == "__main__":
-    main()

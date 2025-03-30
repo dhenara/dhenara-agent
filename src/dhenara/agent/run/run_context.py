@@ -25,7 +25,7 @@ class RunContext:
         agent_identifier: str,
         run_root: Path | None = None,
         run_id: str | None = None,
-        debug_level: int = logging.INFO,
+        logging_level: int = logging.INFO,
     ):
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)
@@ -38,12 +38,8 @@ class RunContext:
         self.run_id = f"{self.agent_identifier}_{_run_id}"
         self.run_dir = self.run_root / self.run_id
 
-        _state_dir = ".state"
-
         self.static_inputs_dir = self.run_dir / "static_inputs"
         self.static_inputs_dir.mkdir(parents=True, exist_ok=True)
-
-        self.state_dir = self.run_dir / _state_dir
 
         # Outcome is not inside the run id, there is a global outcome with
         # self.outcome_root = self.run_root
@@ -59,7 +55,10 @@ class RunContext:
 
         # Create directories
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.state_dir.mkdir(parents=True, exist_ok=True)
+        # self.state_dir = self.run_dir / ".state"
+        # self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.trace_dir = self.run_dir / ".trace"
+        self.trace_dir.mkdir(parents=True, exist_ok=True)
 
         self.outcome_dir.mkdir(parents=True, exist_ok=True)
         self.outcome_repo_dir.mkdir(parents=True, exist_ok=True)
@@ -71,10 +70,12 @@ class RunContext:
         self.git_branch_name = f"run/{self.run_id}"
         self.outcome_repo.create_run_branch(self.git_branch_name)
 
+        self.setup_observability(logging_level)
+
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
             run_dir=str(self.run_dir),
-            state_dir=str(self.state_dir),
+            trace_dir=str(self.trace_dir),
         )
         self.artifact_manager = ArtifactManager(
             run_env_params=self.run_env_params,
@@ -86,11 +87,6 @@ class RunContext:
 
         # Save initial metadata
         self._save_metadata()
-
-        # logger = logging.getLogger(__name__)
-
-        # Set logger level for a specific package
-        self.setup_logging(debug_level)
 
     def register_node_static_input(self, node_id: str, input_data: NodeInput):
         """Register static input for a node."""
@@ -109,7 +105,7 @@ class RunContext:
             "status": "initialized",
             **self.metadata,
         }
-        with open(self.state_dir / "metadata.json", "w") as f:
+        with open(self.trace_dir / "dad_metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
     def copy_input_files(
@@ -173,12 +169,33 @@ class RunContext:
             commit_outcome=True,
         )
 
-    def setup_logging(self, debug_level: int):
+    def setup_native_logging(self, logging_level: int):
         # Configure logging
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         logger = logging.getLogger("dhenara")
-        logger.setLevel(debug_level)
-        logging.getLogger("dhenara.agent").setLevel(debug_level)
+        logger.setLevel(logging_level)
+        logging.getLogger("dhenara.agent").setLevel(logging_level)
+
+    def setup_observability(self, logging_level: int):
+        # Setup observability
+        from dhenara.agent.observability import configure_observability
+
+        self.trace_file = self.trace_dir / "trace.jsonl"
+        # NOTE: Create the file, not inside observability package,
+        # else will flag permission issues with isolated context
+        Path(self.trace_file).touch()
+
+        configure_observability(
+            service_name=f"dhenara-dad-{self.agent_identifier}",
+            exporter_type="file",  # Using our custom file exporter
+            trace_file_path=str(self.trace_file),
+            logging_level=logging_level,
+        )
+
+        # Set logger level for a specific package
+        self.setup_native_logging(logging_level)
+
+        print(f"Tracing enabled. Traces will be written to: {self.trace_file}")
