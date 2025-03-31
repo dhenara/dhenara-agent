@@ -13,7 +13,6 @@ from opentelemetry.sdk._logs.export import (
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import get_current_span
 
-from dhenara.agent.observability.exporters import JsonFileLogExporter
 from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
@@ -42,10 +41,12 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     _logger_provider = LoggerProvider(resource=resource)
 
     # Configure the exporter
-    if settings.exporter_type == "otlp" and settings.otlp_endpoint:
+    if settings.logging_exporter_type == "otlp" and settings.otlp_endpoint:
         # Use OTLP exporter (for production use)
         log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
-    elif settings.exporter_type == "file" and settings.log_file_path:
+    elif settings.logging_exporter_type == "file" and settings.log_file_path:
+        from dhenara.agent.observability.exporters.file import JsonFileLogExporter
+
         # Use custom file exporter for logs
         log_exporter = JsonFileLogExporter(settings.log_file_path)
     else:
@@ -81,7 +82,7 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     observability_logger.setLevel(settings.root_log_level)
 
     observability_logger.info(
-        f"Logging initialized with {settings.exporter_type} exporter at level {settings.root_log_level}"
+        f"Logging initialized with {settings.logging_exporter_type} exporter at level {settings.root_log_level}"
     )
 
 

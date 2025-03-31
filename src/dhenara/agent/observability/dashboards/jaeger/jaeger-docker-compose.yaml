@@ -1,0 +1,9 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - '16686:16686' # Jaeger UI
+      - '14268:14268' # Collector HTTP endpoint
+      - '6831:6831/udp' # Jaeger thrift compact
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411

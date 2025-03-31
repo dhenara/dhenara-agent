@@ -1,4 +1,3 @@
-# src/dhenara/agent/observability/cli.py
 import argparse
 import http.server
 import json

@@ -85,12 +85,10 @@ async def _run_agent(
 
         # View the traces in the dashboard if the file exists
         if run_ctx.trace_file.exists():
-            # Launch the dashboard if traces were generated
-            from dhenara.agent.observability.cli import view_trace_in_console
-
-            print("Launching trace dashboard...")
-            view_trace_in_console(file=run_ctx.trace_file)
-            # run_dashboard(str(run_ctx.trace_file))
+            # from dhenara.agent.observability.dashboards import view_trace_in_console
+            # view_trace_in_console(file=run_ctx.trace_file)
+            print("To launching dashboards , run")
+            print(f"dhenara dashboard simple {run_ctx.trace_file} ")
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")

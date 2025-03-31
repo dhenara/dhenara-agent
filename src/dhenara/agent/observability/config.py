@@ -26,4 +26,4 @@ def configure_observability(settings: ObservabilitySettings) -> None:
         setup_metrics(settings)
 
     logger = logging.getLogger(settings.observability_logger_name)
-    logger.info(f"Observability configured for {settings.service_name} using {settings.exporter_type} exporter")
+    logger.info(f"Observability configured for {settings.service_name} using {settings.logging_exporter_type} exporter")

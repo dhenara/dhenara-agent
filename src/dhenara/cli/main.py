@@ -16,9 +16,17 @@ def cli():
 # Dynamically import all command modules
 def load_commands():
     commands_path = Path(__file__).parent / "commands"
+    observability_commands_path = Path(__file__).parent.parent / "agent" / "observability" / "cli"
+
     for _, name, _is_pkg in pkgutil.iter_modules([str(commands_path)]):
         if not name.startswith("_"):  # Skip private modules
             module = importlib.import_module(f"dhenara.cli.commands.{name}")
+            if hasattr(module, "register"):
+                module.register(cli)
+
+    for _, name, _is_pkg in pkgutil.iter_modules([str(observability_commands_path)]):
+        if not name.startswith("_"):  # Skip private modules
+            module = importlib.import_module(f"dhenara.agent.observability.cli.{name}")
             if hasattr(module, "register"):
                 module.register(cli)
 

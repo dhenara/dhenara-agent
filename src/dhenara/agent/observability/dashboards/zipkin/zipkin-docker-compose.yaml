@@ -1,0 +1,7 @@
+services:
+  zipkin:
+    image: openzipkin/zipkin:latest
+    ports:
+      - '9411:9411' # Zipkin UI and API
+    environment:
+      - STORAGE_TYPE=mem # For simplicity, store traces in memory

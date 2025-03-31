@@ -1,0 +1,14 @@
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - TERM=linux
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-polystat-panel
+    ports:
+      - '3000:3000'
+    volumes:
+      - 'grafana_storage:/var/lib/grafana'
+volumes:
+  grafana_storage: {}

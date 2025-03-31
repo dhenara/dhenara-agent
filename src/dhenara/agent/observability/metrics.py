@@ -7,7 +7,6 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 
-from dhenara.agent.observability.exporters import JsonFileMetricExporter
 from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
@@ -37,11 +36,13 @@ def setup_metrics(settings: ObservabilitySettings) -> None:
     metric_readers = []
 
     try:
-        if settings.exporter_type == "otlp" and settings.otlp_endpoint:
+        if settings.metrics_exporter_type == "otlp" and settings.otlp_endpoint:
             # Use OTLP exporter (for production use)
             metric_exporter = OTLPMetricExporter(endpoint=settings.otlp_endpoint)
             metric_readers.append(PeriodicExportingMetricReader(metric_exporter))
-        elif settings.exporter_type == "file" and settings.metrics_file_path:
+        elif settings.metrics_exporter_type == "file" and settings.metrics_file_path:
+            from dhenara.agent.observability.exporters.file import JsonFileMetricExporter
+
             # Use custom file exporter
             metric_exporter = JsonFileMetricExporter(settings.metrics_file_path)
             metric_readers.append(PeriodicExportingMetricReader(metric_exporter))
@@ -55,7 +56,7 @@ def setup_metrics(settings: ObservabilitySettings) -> None:
         metrics.set_meter_provider(_meter_provider)
 
         logging.getLogger(settings.observability_logger_name).info(
-            f"Metrics initialized with {settings.exporter_type} exporter"
+            f"Metrics initialized with {settings.metrics_exporter_type} exporter"
         )
     except Exception as e:
         # Add robust error handling so metrics issues don't crash the application
