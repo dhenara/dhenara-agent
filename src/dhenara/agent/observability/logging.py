@@ -46,6 +46,7 @@ def setup_logging(settings: ObservabilitySettings) -> None:
         # Use OTLP exporter (for production use)
         log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
     elif settings.exporter_type == "file" and settings.trace_file_path:
+        # TODO?
         log_exporter = JsonFileSpanExporter(settings.trace_file_path)
     else:
         # Default to console exporter (for development)
@@ -81,16 +82,6 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     )
 
 
-def get_logger(name: str) -> logging.Logger:
-    """Get a logger with the given name.
-    Args:
-        name: Name for the logger (typically module name)
-    Returns:
-        A standard logging.Logger instance configured with OpenTelemetry
-    """
-    return logging.getLogger(name)
-
-
 def log_with_context(
     logger: logging.Logger,
     level: int,
@@ -122,18 +113,3 @@ def log_with_context(
 
     # Log the message with the extra context
     logger.log(level, message, extra=extra)
-
-
-def set_logging_level(level: int) -> None:
-    """Set logging level for all dhenara loggers.
-    Args:
-        level: Logging level (e.g., logging.INFO, logging.DEBUG)
-    """
-    # Set level for the dhenara logger and all children
-    logging.getLogger("dhenara").setLevel(level)
-
-    # Update handlers too
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers:
-        if isinstance(handler, LoggingHandler):
-            handler.setLevel(level)

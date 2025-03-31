@@ -29,7 +29,7 @@ class TraceData:
                 try:
                     trace_data = json.loads(line.strip())
                     self.traces.append(trace_data)
-                except json.JSONDecodeError:
+                except json.JSONDecodeError:  # noqa: PERF203
                     continue
 
     def get_traces(self) -> list[dict[str, Any]]:
@@ -38,11 +38,27 @@ class TraceData:
 
     def get_trace_ids(self) -> list[str]:
         """Get all unique trace IDs."""
-        return list(set(t.get("trace_id") for t in self.traces if "trace_id" in t))
+        trace_ids = set()
+        for trace in self.traces:
+            # Check direct trace_id
+            if "trace_id" in trace:
+                trace_ids.add(trace["trace_id"])
+            # Check trace_id in context
+            elif "context" in trace and "trace_id" in trace["context"]:
+                trace_ids.add(trace["context"]["trace_id"])
+        return list(trace_ids)
 
     def get_spans_for_trace(self, trace_id: str) -> list[dict[str, Any]]:
         """Get all spans for a specific trace ID."""
-        return [t for t in self.traces if t.get("trace_id") == trace_id]
+        matching_spans = []
+        for trace in self.traces:
+            # Check direct trace_id
+            if trace.get("trace_id") == trace_id:
+                matching_spans.append(trace)
+            # Check trace_id in context
+            elif "context" in trace and trace["context"].get("trace_id") == trace_id:
+                matching_spans.append(trace)
+        return matching_spans
 
     def get_trace_summary(self) -> list[dict[str, Any]]:
         """Get a summary of all traces."""
@@ -51,10 +67,12 @@ class TraceData:
 
         for trace_id in trace_ids:
             spans = self.get_spans_for_trace(trace_id)
+            # Find root spans - those with no parent_id
             root_spans = [s for s in spans if s.get("parent_id") is None]
 
             if root_spans:
                 root_span = root_spans[0]
+                # Convert nanoseconds to seconds for timestamps
                 start_time = root_span.get("start_time", 0) / 1e9
                 end_time = root_span.get("end_time", 0) / 1e9
                 duration = end_time - start_time
@@ -81,7 +99,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.trace_data = trace_data
         super().__init__(*args, **kwargs)
 
-    def do_GET(self):
+    def do_GET(self):  # noqa: N802
         """Handle GET requests."""
         if self.path == "/":
             self.send_dashboard_html()
@@ -247,7 +265,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
             </script>
         </body>
         </html>
-        """
+        """  # noqa: E501
 
         self.wfile.write(html.encode())
 
@@ -280,9 +298,17 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     def _build_trace_hierarchy(self, spans: list[dict[str, Any]]) -> dict[str, Any]:
         """Build a hierarchical structure from flat spans."""
         # Create a map of span_id to span
-        span_map = {s.get("span_id"): s for s in spans}
+        span_map = {}
+        for span in spans:
+            if "span_id" in span:
+                span_map[span["span_id"]] = span
+            # If span has context with span_id, use that instead
+            elif "context" in span and "span_id" in span["context"]:
+                span_map[span["context"]["span_id"]] = span
+                # Ensure span has a direct span_id for easier reference
+                span["span_id"] = span["context"]["span_id"]
 
-        # Find the root span
+        # Find the root span (with no parent_id)
         root_spans = [s for s in spans if s.get("parent_id") is None]
         if not root_spans:
             return {"error": "No root span found"}
@@ -294,7 +320,12 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 
     def _build_span_node(self, span: dict[str, Any], span_map: dict[str, dict[str, Any]]) -> dict[str, Any]:
         """Build a hierarchical node for a span."""
+        # Get span_id from context if it exists, otherwise use direct span_id
         span_id = span.get("span_id")
+        if not span_id and "context" in span:
+            span_id = span.get("context", {}).get("span_id")
+
+        # Convert nanoseconds to seconds for timestamps
         start_time = span.get("start_time", 0) / 1e9
         end_time = span.get("end_time", 0) / 1e9
         duration_ms = (end_time - start_time) * 1000
@@ -310,9 +341,14 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         }
 
         # Find and add children
-        for child_span in span_map.values():
-            if child_span.get("parent_id") == span_id:
-                child_node = self._build_span_node(child_span, span_map)
+        for potential_child in span_map.values():
+            child_parent_id = potential_child.get("parent_id")
+            # Also check in context if it exists
+            if not child_parent_id and "context" in potential_child:
+                child_parent_id = potential_child.get("context", {}).get("parent_id")
+
+            if child_parent_id == span_id:
+                child_node = self._build_span_node(potential_child, span_map)
                 node["children"].append(child_node)
 
         return node

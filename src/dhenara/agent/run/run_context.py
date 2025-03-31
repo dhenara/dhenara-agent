@@ -180,15 +180,30 @@ class RunContext:
         from dhenara.agent.observability import configure_observability
 
         self.trace_file = self.trace_dir / "trace.jsonl"
+        self.metrics_file = self.trace_dir / "metrics.jsonl"
+        self.log_file = self.trace_dir / "logs.jsonl"
+
+        # Create the trace directory if it doesn't exist
+        self.trace_dir.mkdir(parents=True, exist_ok=True)
+
         # NOTE: Create the file, not inside observability package,
         # else will flag permission issues with isolated context
         Path(self.trace_file).touch()
+        for file in [self.trace_file, self.log_file, self.metrics_file]:
+            Path(file).touch()
+            ## Ensure the file is readable and writable
+            ##os.chmod(self.trace_file, 0o644)
 
         # Use agent_identifier as service name if not provided
         if not self.observability_settings.service_name:
             self.observability_settings.service_name = f"dhenara-dad-{self.agent_identifier}"
 
-        # Use the centralized setup - don't call setup_native_logging afterward
+        # Set trace file path in settings
+        self.observability_settings.trace_file_path = str(self.trace_file)
+        self.observability_settings.metrics_file_path = str(self.metrics_file)
+        self.observability_settings.log_file_path = str(self.log_file)
+
+        # Use the centralized setup
         configure_observability(self.observability_settings)
 
         # TODO

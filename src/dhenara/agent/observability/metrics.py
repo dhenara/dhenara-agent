@@ -36,6 +36,7 @@ def setup_metrics(settings: ObservabilitySettings) -> None:
         metric_exporter = OTLPMetricExporter(endpoint=settings.otlp_endpoint)
     elif settings.exporter_type == "file" and settings.trace_file_path:
         # Use custom file exporter
+        # TODO
         metric_exporter = JsonFileSpanExporter(settings.trace_file_path)
     else:
         # Default to console exporter (for development)

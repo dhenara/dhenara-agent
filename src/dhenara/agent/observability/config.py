@@ -1,6 +1,5 @@
 # src/dhenara/agent/observability/config.py
 import logging
-import os
 
 from dhenara.agent.observability.types import ObservabilitySettings
 
@@ -12,8 +11,8 @@ from .tracing import setup_tracing
 def configure_observability(settings: ObservabilitySettings) -> None:
     """Configure all observability components with consistent settings."""
     # Read from environment if not provided
-    if not settings.otlp_endpoint:
-        settings.otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    # if not settings.otlp_endpoint:
+    #    settings.otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
     # Configure components in order: logging first, then tracing, then metrics
     if settings.enable_logging:

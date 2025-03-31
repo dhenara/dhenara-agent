@@ -215,3 +215,15 @@ def trace_method(name: str | None = None) -> Callable[[F], F]:
         return cast(F, sync_wrapper)
 
     return decorator
+
+
+def force_flush_tracing():
+    """Force flush all pending spans to be exported."""
+
+    # TODO:
+    # If OpenTelemetry setup ever changes to use multiple span processors
+    # (which is supported in the architecture),revisit below.
+    if _tracer_provider:
+        _tracer_provider._active_span_processor.force_flush()
+        # for span_processor in _tracer_provider._span_processors:
+        #    span_processor.force_flush()

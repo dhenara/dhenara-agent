@@ -42,6 +42,11 @@ class IsolatedExecution:
             result = await agent_module.run(
                 run_context=run_context,
             )
+
+            from dhenara.agent.observability.tracing import force_flush_tracing
+
+            force_flush_tracing()
+
             return result
         except Exception as e:
             # logging.exception(f"Agent execution failed: {e}")

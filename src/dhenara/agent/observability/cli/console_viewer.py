@@ -21,25 +21,17 @@ class ConsoleTraceViewer:
         if not os.path.exists(self.trace_file):
             raise FileNotFoundError(f"Trace file {self.trace_file} not found")
 
+        # print(f"AJ: self.trace_file {self.trace_file}")
+        # print(f"AJ: File size: {os.path.getsize(self.trace_file)} bytes")
+        # print(f"AJ: File readable: {os.access(self.trace_file, os.R_OK)}")
         with open(self.trace_file) as f:
             for line in f:
-                try:
-                    trace_data = json.loads(line.strip())
-                    self.traces.append(trace_data)
-                except json.JSONDecodeError:
-                    continue
-
-        # with open(self.trace_file) as jsonl_f:
-        #    jsonlist = list(jsonl_f)
-
-        # print(f"AJ: jsonlist{jsonlist}")
-
-        # for line in jsonlist:
-        #    try:
-        #        trace_data = json.loads(line.strip())
-        #        self.traces.append(trace_data)
-        #    except json.JSONDecodeError:
-        #        continue
+                if line.strip():  # Skip empty lines
+                    try:
+                        trace_data = json.loads(line)
+                        self.traces.append(trace_data)
+                    except json.JSONDecodeError as e:
+                        print(f"Error parsing JSON: {e}")
 
     def print_summary(self) -> None:
         """Print a summary of the traces."""
@@ -109,7 +101,7 @@ class ConsoleTraceViewer:
                     hierarchy[span_id] = {"span": span, "children": {}}
 
         # Print the hierarchy
-        for root_id, root in hierarchy.items():
+        for _root_id, root in hierarchy.items():  # noqa: PERF102
             self._print_span_tree(root, 0)
 
     def _find_parent(self, node: dict, parent_id: str, span_id: str, span: dict) -> bool:
@@ -172,4 +164,4 @@ def view_trace_in_console(file, trace_id: str | None = None):
         else:
             viewer.print_summary()
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error viewing traces: {e}")

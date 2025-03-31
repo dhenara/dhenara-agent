@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from opentelemetry.sdk.trace import ReadableSpan
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SpanExporter, SpanExportResult
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 
 logger = logging.getLogger(__name__)
 
@@ -38,27 +38,32 @@ class JsonFileSpanExporter(SpanExporter):
                     span_json = self._span_to_json(span)
                     # Write as a single line
                     f.write(json.dumps(span_json) + "\n")
+                    print(f"AJ: export : span={span}")
 
             return SpanExportResult.SUCCESS
         except Exception as e:
-            logger.error(f"Failed to export spans to file: {e}")
+            logger.error(f"Failed to export spans to file: {e}", exc_info=True)
             return SpanExportResult.FAILURE
 
     def _span_to_json(self, span: ReadableSpan) -> dict:
         """Convert a span to a JSON-serializable dict."""
         context = span.get_span_context()
-
         # Basic span data
         span_json = {
             "name": span.name,
-            "trace_id": format(context.trace_id, "032x"),
-            "span_id": format(context.span_id, "016x"),
+            "context": {
+                "trace_id": format(context.trace_id, "032x"),
+                "span_id": format(context.span_id, "016x"),
+                "trace_state": f"{context.trace_state}",
+            },
+            "kind": f"{span.kind}",
             "parent_id": format(span.parent.span_id, "016x") if span.parent else None,
-            "start_time": span.start_time,
-            "end_time": span.end_time,
-            "duration_ns": span.end_time - span.start_time,
+            "start_time": span.start_time.isoformat() if hasattr(span.start_time, "isoformat") else span.start_time,
+            "end_time": span.end_time.isoformat() if hasattr(span.end_time, "isoformat") else span.end_time,
             "status": {
-                "status_code": span.status.status_code.name,
+                "status_code": f"{span.status.status_code.name}"
+                if hasattr(span.status.status_code, "name")
+                else f"{span.status.status_code}",
                 "description": span.status.description,
             },
             "attributes": dict(span.attributes),
@@ -70,20 +75,14 @@ class JsonFileSpanExporter(SpanExporter):
                 }
                 for event in span.events
             ],
+            "links": [],
+            "resource": {
+                "attributes": dict(span.resource.attributes),
+                "schema_url": span.resource.schema_url,
+            },
         }
-
         return span_json
 
     def shutdown(self) -> None:
         """Shutdown the exporter."""
         pass
-
-
-def create_file_exporter(file_path: str) -> JsonFileSpanExporter:
-    """Create a file exporter for spans."""
-    return JsonFileSpanExporter(file_path)
-
-
-def create_console_exporter() -> ConsoleSpanExporter:
-    """Create a console exporter for spans."""
-    return ConsoleSpanExporter()
