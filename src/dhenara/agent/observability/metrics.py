@@ -7,7 +7,7 @@ from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 
-from dhenara.agent.observability.exporters import JsonFileSpanExporter
+from dhenara.agent.observability.exporters import JsonFileMetricExporter
 from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
@@ -21,35 +21,52 @@ def setup_metrics(settings: ObservabilitySettings) -> None:
     """Configure OpenTelemetry metrics for the application.
 
     Args:
-        service_name: Name to identify this service in metrics
-        exporter_type: Type of exporter to use ('console', 'otlp')
-        otlp_endpoint: Endpoint URL for OTLP exporter (if otlp exporter is selected)
+        settings: Observability settings containing configuration details
     """
     global _meter_provider
+
+    # If metrics are already set up, don't reinitialize
+    if _meter_provider is not None:
+        logging.getLogger(settings.observability_logger_name).debug("Metrics already initialized, skipping setup")
+        return
 
     # Create a resource with service info
     resource = Resource.create({"service.name": settings.service_name})
 
-    # Configure the exporter
-    if settings.exporter_type == "otlp" and settings.otlp_endpoint:
-        # Use OTLP exporter (for production use)
-        metric_exporter = OTLPMetricExporter(endpoint=settings.otlp_endpoint)
-    elif settings.exporter_type == "file" and settings.trace_file_path:
-        # Use custom file exporter
-        # TODO
-        metric_exporter = JsonFileSpanExporter(settings.trace_file_path)
-    else:
-        # Default to console exporter (for development)
-        metric_exporter = ConsoleMetricExporter()
+    # Configure metric readers and exporters
+    metric_readers = []
 
-    # Create a metric reader
-    metric_reader = PeriodicExportingMetricReader(metric_exporter)
+    try:
+        if settings.exporter_type == "otlp" and settings.otlp_endpoint:
+            # Use OTLP exporter (for production use)
+            metric_exporter = OTLPMetricExporter(endpoint=settings.otlp_endpoint)
+            metric_readers.append(PeriodicExportingMetricReader(metric_exporter))
+        elif settings.exporter_type == "file" and settings.metrics_file_path:
+            # Use custom file exporter
+            metric_exporter = JsonFileMetricExporter(settings.metrics_file_path)
+            metric_readers.append(PeriodicExportingMetricReader(metric_exporter))
+        else:
+            # Default to console exporter (for development)
+            metric_exporter = ConsoleMetricExporter()
+            metric_readers.append(PeriodicExportingMetricReader(metric_exporter))
 
-    # Create and set the meter provider
-    _meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
-    metrics.set_meter_provider(_meter_provider)
+        # Create and set the meter provider
+        _meter_provider = MeterProvider(resource=resource, metric_readers=metric_readers)
+        metrics.set_meter_provider(_meter_provider)
 
-    logging.info(f"Metrics initialized with {settings.exporter_type} exporter")
+        logging.getLogger(settings.observability_logger_name).info(
+            f"Metrics initialized with {settings.exporter_type} exporter"
+        )
+    except Exception as e:
+        # Add robust error handling so metrics issues don't crash the application
+        logger = logging.getLogger(settings.observability_logger_name)
+        logger.error(f"Failed to set up metrics: {e}", exc_info=True)
+
+        # Set up a basic provider so the rest of the app can continue
+        _meter_provider = MeterProvider(resource=resource)
+        metrics.set_meter_provider(_meter_provider)
+
+        logger.info("Falling back to default metrics provider due to setup error")
 
 
 def get_meter(name: str) -> metrics.Meter:
@@ -61,8 +78,14 @@ def get_meter(name: str) -> metrics.Meter:
     Returns:
         An OpenTelemetry Meter instance
     """
+    # We should check if setup has been done, but don't initialize here
     if _meter_provider is None:
-        setup_metrics()
+        logging.getLogger("dhenara.agent.observability").warning(
+            "Attempting to get meter before metrics initialization. "
+            "Metrics will not be recorded until setup_metrics() is called."
+        )
+        # Return a no-op meter instead of setting up metrics
+        return metrics.get_meter(name)
 
     return metrics.get_meter(name)
 
@@ -83,22 +106,41 @@ def record_metric(
         metric_type: Type of metric ('counter', 'gauge', 'histogram')
         attributes: Optional attributes to associate with the metric
     """
+
+    if _meter_provider is None:
+        logging.getLogger("dhenara.agent.observability").debug(
+            f"Skipping metric recording for {metric_name}: metrics not initialized"
+        )
+        return
+
     meter = get_meter(meter_name)
 
     # Create attributes dict if None
     attributes = attributes or {}
 
     # Record the metric based on type
-    if metric_type == "counter":
-        counter = meter.create_counter(name=metric_name)
-        counter.add(value, attributes)
-    elif metric_type == "gauge":
-        # OpenTelemetry Python SDK doesn't have direct gauge support
-        # Use observable gauge or updown counter instead
-        up_down_counter = meter.create_up_down_counter(name=metric_name)
-        up_down_counter.add(value, attributes)
-    elif metric_type == "histogram":
-        histogram = meter.create_histogram(name=metric_name)
-        histogram.record(value, attributes)
-    else:
-        logging.warning(f"Unknown metric type: {metric_type}")
+    try:
+        if metric_type == "counter":
+            counter = meter.create_counter(name=metric_name)
+            counter.add(value, attributes)
+        elif metric_type == "gauge":
+            # OpenTelemetry Python SDK doesn't have direct gauge support
+            # Use observable gauge or updown counter instead
+            up_down_counter = meter.create_up_down_counter(name=metric_name)
+            up_down_counter.add(value, attributes)
+        elif metric_type == "histogram":
+            histogram = meter.create_histogram(name=metric_name)
+            histogram.record(value, attributes)
+        else:
+            logging.getLogger("dhenara.agent.observability").warning(f"Unknown metric type: {metric_type}")
+    except Exception as e:
+        logging.getLogger("dhenara.agent.observability").error(
+            f"Error recording metric {metric_name}: {e}", exc_info=True
+        )
+
+
+def force_flush_metrics():
+    """Force flush all metrics to be exported."""
+
+    if _meter_provider:
+        _meter_provider.force_flush()

@@ -43,9 +43,11 @@ class IsolatedExecution:
                 run_context=run_context,
             )
 
-            from dhenara.agent.observability.tracing import force_flush_tracing
+            from dhenara.agent.observability import force_flush_logging, force_flush_metrics, force_flush_tracing
 
             force_flush_tracing()
+            force_flush_metrics()
+            force_flush_logging()
 
             return result
         except Exception as e:

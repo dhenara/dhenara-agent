@@ -27,24 +27,36 @@ class JsonFileSpanExporter(SpanExporter):
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export spans to a JSON file, one per line."""
+        print(f"Exporting traces to file {self.file_path} ")
         try:
             # Create parent directory if it doesn't exist
             self.file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Append spans to the file
-            with open(self.file_path, "a") as f:
+            with open(self.file_path, "a", encoding="utf-8") as f:
                 for span in spans:
-                    # Convert span to JSON-serializable dict
-                    span_json = self._span_to_json(span)
-                    # Write as a single line
-                    f.write(json.dumps(span_json) + "\n")
-                    print(f"AJ: export : span={span}")
+                    # Convert span record to a dict and then to a JSON string
+                    span_dict = span.to_json()
+
+                    # Handle if to_json() returns a string or a dict
+                    if isinstance(span_dict, str):
+                        try:
+                            # If it's already a JSON string, parse it back to a dict
+                            span_dict = json.loads(span_dict)
+                        except json.JSONDecodeError:
+                            # If it's not a valid JSON string, just use it as is
+                            f.write(span_dict + "\n")
+                            continue
+
+                    # Write a properly formatted JSON line with newline
+                    f.write(json.dumps(span_dict) + "\n")
 
             return SpanExportResult.SUCCESS
         except Exception as e:
             logger.error(f"Failed to export spans to file: {e}", exc_info=True)
             return SpanExportResult.FAILURE
 
+    # TODO: Delete
     def _span_to_json(self, span: ReadableSpan) -> dict:
         """Convert a span to a JSON-serializable dict."""
         context = span.get_span_context()

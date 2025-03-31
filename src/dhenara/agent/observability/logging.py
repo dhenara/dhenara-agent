@@ -1,4 +1,3 @@
-# src/dhenara/agent/observability/logging.py
 import logging
 from typing import Any
 
@@ -14,7 +13,7 @@ from opentelemetry.sdk._logs.export import (
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import get_current_span
 
-from dhenara.agent.observability.exporters import JsonFileSpanExporter
+from dhenara.agent.observability.exporters import JsonFileLogExporter
 from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
@@ -22,6 +21,7 @@ DEFAULT_SERVICE_NAME = "dhenara-agent"
 
 # Global logger provider
 _logger_provider = None
+
 # Track if logging has been initialized
 _logging_initialized = False
 
@@ -32,7 +32,7 @@ def setup_logging(settings: ObservabilitySettings) -> None:
 
     # Only initialize once
     if _logging_initialized:
-        logging.getLogger("dhenara.agent.observability").debug("Logging already initialized, skipping setup")
+        logging.getLogger(settings.observability_logger_name).debug("Logging already initialized, skipping setup")
         return
 
     # Create a resource with service info
@@ -45,9 +45,9 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     if settings.exporter_type == "otlp" and settings.otlp_endpoint:
         # Use OTLP exporter (for production use)
         log_exporter = OTLPLogExporter(endpoint=settings.otlp_endpoint)
-    elif settings.exporter_type == "file" and settings.trace_file_path:
-        # TODO?
-        log_exporter = JsonFileSpanExporter(settings.trace_file_path)
+    elif settings.exporter_type == "file" and settings.log_file_path:
+        # Use custom file exporter for logs
+        log_exporter = JsonFileLogExporter(settings.log_file_path)
     else:
         # Default to console exporter (for development)
         log_exporter = ConsoleLogExporter()
@@ -77,7 +77,10 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     # Mark as initialized
     _logging_initialized = True
 
-    logging.getLogger("dhenara.agent.observability").info(
+    observability_logger = logging.getLogger(settings.observability_logger_name)
+    observability_logger.setLevel(settings.root_log_level)
+
+    observability_logger.info(
         f"Logging initialized with {settings.exporter_type} exporter at level {settings.root_log_level}"
     )
 
@@ -113,3 +116,10 @@ def log_with_context(
 
     # Log the message with the extra context
     logger.log(level, message, extra=extra)
+
+
+def force_flush_logging():
+    """Force flush all logging to be exported."""
+
+    if _logger_provider:
+        _logger_provider.force_flush()
