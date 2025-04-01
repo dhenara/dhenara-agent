@@ -10,7 +10,8 @@ from dhenara.agent.dsl.base import (
     ExecutionContext,
 )
 from dhenara.agent.dsl.flow import FlowBlock, FlowElement, FlowExecutionContext, FlowNode, FlowNodeDefinition
-from dhenara.agent.observability import log_with_context, record_metric, trace_method
+from dhenara.agent.observability import log_with_context, record_metric
+from dhenara.agent.observability.tracing import trace_method
 from dhenara.ai.types.resource import ResourceConfig
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)

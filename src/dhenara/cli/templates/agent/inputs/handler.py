@@ -11,8 +11,6 @@ async def async_input(prompt: str) -> str:
 
 
 async def ai_model_input_handler(event: NodeInputRequiredEvent):
-    print(f"received event {event.as_dict()}\n\n")
-
     if event.node_type == FlowNodeTypeEnum.ai_model_call:
         if event.node_id == "ai_model_call_1":
             user_query = await async_input("Enter your query: ")

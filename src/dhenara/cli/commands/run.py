@@ -83,12 +83,17 @@ async def _run_agent(
         print(f"Agent run completed successfully. Run ID: {run_ctx.run_id}")
         print_run_summary(run_ctx)
 
-        # View the traces in the dashboard if the file exists
-        if run_ctx.trace_file.exists():
-            # from dhenara.agent.observability.dashboards import view_trace_in_console
-            # view_trace_in_console(file=run_ctx.trace_file)
-            print("To launching dashboards , run")
-            print(f"dhenara dashboard simple {run_ctx.trace_file} ")
+        ## View the traces in the dashboard if the file exists
+        # if run_ctx.trace_file.exists():
+        #    # from dhenara.agent.observability.dashboards import view_trace_in_console
+        #    # view_trace_in_console(file=run_ctx.trace_file)
+        #    print("To launching dashboards , run")
+        #    print(f"dhenara dashboard simple {run_ctx.trace_file} ")
+
+        if run_ctx.log_file.exists():
+            print(f"Logs in {run_ctx.log_file} ")
+
+        print()
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")

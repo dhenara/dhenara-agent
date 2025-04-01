@@ -15,7 +15,8 @@ from dhenara.agent.dsl.base import (
     NodeSettings,
 )
 from dhenara.agent.dsl.events import NodeInputRequiredEvent
-from dhenara.agent.observability import log_with_context, record_metric, trace_node
+from dhenara.agent.observability import log_with_context, record_metric
+from dhenara.agent.observability.tracing import trace_node
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)

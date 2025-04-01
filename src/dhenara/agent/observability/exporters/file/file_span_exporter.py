@@ -27,7 +27,6 @@ class JsonFileSpanExporter(SpanExporter):
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
         """Export spans to a JSON file, one per line."""
-        print(f"Exporting traces to file {self.file_path} ")
         try:
             # Create parent directory if it doesn't exist
             self.file_path.parent.mkdir(parents=True, exist_ok=True)

@@ -21,7 +21,9 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeOutcome,
     AIModelNodeOutputData,
     AIModelNodeSettings,
+    ai_model_node_tracing_profile,
 )
+from dhenara.agent.observability.tracing import trace_node
 from dhenara.ai import AIModelClient
 from dhenara.ai.types import (
     AIModelCallConfig,
@@ -43,11 +45,13 @@ logger = logging.getLogger(__name__)
 class AIModelNodeExecutor(FlowNodeExecutor):
     input_model = AIModelNodeInput
     setting_model = AIModelNodeSettings
+    _tracing_profile = ai_model_node_tracing_profile
 
     def __init__(self):
         super().__init__(identifier="ai_model_node_executor")
         self.resource_config: ResourceConfig | None = None
 
+    @trace_node("ai_model_call")
     async def execute_node(
         self,
         node_id: NodeID,
@@ -261,6 +265,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             execution_context=execution_context,
             result=result,
         )
+
+        return result
 
     def _derive_result(
         self,

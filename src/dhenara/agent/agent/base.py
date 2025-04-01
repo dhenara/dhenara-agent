@@ -6,7 +6,9 @@ from pydantic import ValidationError as PydanticValidationError
 from dhenara.agent.dsl.agent import AgentNode
 from dhenara.agent.dsl.base import ComponentDefinition, NodeID
 from dhenara.agent.dsl.flow import FlowExecutor
-from dhenara.agent.observability import log_with_context, trace_method
+from dhenara.agent.dsl.inbuilt.registry import trace_registry  # noqa: F401 : For loading global registers
+from dhenara.agent.observability import log_with_context
+from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.run import RunContext
 from dhenara.ai.types.resource import ResourceConfig

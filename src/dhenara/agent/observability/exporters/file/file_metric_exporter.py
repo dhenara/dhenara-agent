@@ -35,7 +35,6 @@ class JsonFileMetricExporter(MetricExporter):
         **kwargs,
     ) -> MetricExportResult:
         """Export metrics to a JSON file, one per line."""
-        print(f"Exporting metrics to file {self.file_path} ")
         try:
             # Create parent directory if it doesn't exist
             self.file_path.parent.mkdir(parents=True, exist_ok=True)
