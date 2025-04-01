@@ -3,7 +3,6 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from dhenara.agent.dsl.base import (
     DADTemplateEngine,
@@ -44,7 +43,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> Any:
+    ) -> NodeExecutionResult[CommandNodeOutputData] | None:
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
@@ -72,7 +71,11 @@ class CommandNodeExecutor(FlowNodeExecutor):
             failed_commands = 0
 
             for formatted_cmd in formatted_commands:
-                add_trace_attribute("executing_command", formatted_cmd, TracingDataCategory.primary)
+                add_trace_attribute(
+                    f"command_{formatted_commands.index(formatted_cmd)}",
+                    formatted_cmd,
+                    TracingDataCategory.primary,
+                )
 
                 # Execute the command
                 process = await asyncio.create_subprocess_shell(
@@ -138,6 +141,17 @@ class CommandNodeExecutor(FlowNodeExecutor):
                     if settings.fail_fast:
                         break
 
+            add_trace_attribute(
+                "commands_summary",
+                {
+                    "total": len(formatted_commands),
+                    "successful": successful_commands,
+                    "failed": failed_commands,
+                    "all_succeeded": all_succeeded,
+                },
+                TracingDataCategory.primary,
+            )
+
             # Create output data
             output_data = CommandNodeOutputData(
                 all_succeeded=all_succeeded,
@@ -173,16 +187,16 @@ class CommandNodeExecutor(FlowNodeExecutor):
                 result=result,
             )
 
-            return output_data
+            return result
 
         except Exception as e:
             logger.exception(f"Command node execution error: {e}")
-            self.set_node_execution_failed(
+            return self.set_node_execution_failed(
+                node_id=node_id,
                 node_definition=node_definition,
                 execution_context=execution_context,
                 message=f"Command execution failed: {e}",
             )
-            return None
 
     def get_formatted_commands_and_dir(
         self,

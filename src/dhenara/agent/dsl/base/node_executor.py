@@ -331,9 +331,20 @@ class NodeExecutor(ABC):
 
     def set_node_execution_failed(
         self,
+        node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
         message: str,
-    ):
+    ) -> NodeExecutionResult:
         execution_context.execution_failed = True
         execution_context.execution_failed_message = message
+
+        return NodeExecutionResult(
+            node_identifier=node_id,
+            status=ExecutionStatusEnum.FAILED,
+            input=None,
+            output=None,
+            outcome=None,
+            error=message,
+            created_at=datetime.now(),
+        )

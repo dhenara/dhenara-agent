@@ -9,7 +9,6 @@ from opentelemetry.trace import Span, Status, StatusCode
 
 from dhenara.agent.observability.tracing import get_tracer
 from dhenara.agent.observability.tracing.data import (
-    NodeTracingProfile,
     TraceCollector,
     TracingDataCategory,
     TracingDataField,
@@ -130,168 +129,6 @@ def add_profile_values_to_span(span: Span, data_object: Any, fields: list[Tracin
         span.set_attribute(attribute_name, sanitized_value)
 
 
-# TODO: Not used anymode. Merge with below
-def node_trace_decorator(profile: NodeTracingProfile | None = None):
-    """
-    Decorator factory that creates a decorator for tracing node execution
-    with a specific tracing profile.
-
-    Args:
-        profile: Optional explicit tracing profile to use
-                (if None, will look up profile based on node_type)
-
-    Returns:
-        A decorator function for node execution methods
-    """
-
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Extract key parameters from function arguments
-            bound_args = inspect.signature(func).bind(*args, **kwargs)
-            bound_args.apply_defaults()
-            all_args = bound_args.arguments
-
-            # Extract common node parameters
-            node_id = all_args.get("node_id", "unknown")
-            node_definition = all_args.get("node_definition")
-            execution_context = all_args.get("execution_context")
-            node_input = all_args.get("node_input")
-
-            # Get self if this is a method
-            self = args[0] if args and hasattr(args[0], "__class__") else None
-
-            # Get node type - either from profile or try to extract from node definition
-            node_type = profile.node_type if profile else getattr(node_definition, "node_type", "unknown")
-
-            # Get the profile to use - either provided explicitly or from registry
-            tracing_profile = profile
-            if not tracing_profile:
-                # Check if self object has a tracing profile
-                if self and hasattr(self, "_tracing_profile"):
-                    tracing_profile = self._tracing_profile
-                else:
-                    tracing_profile = TracingProfileRegistry.get_or_default(node_type)
-
-            # Create tracer and start timing
-            tracer = get_tracer(f"dhenara.agent.node.{node_type}")
-            start_time = time.time()
-
-            # Get tracing context for linking spans
-            current_span = trace.get_current_span()
-            parent_context = current_span.get_span_context() if current_span else None
-
-            # Set baggage values if execution context available
-            if execution_context:
-                flow_id = getattr(execution_context, "flow_id", None)
-                execution_id = getattr(execution_context, "execution_id", None)
-
-                if flow_id:
-                    baggage.set_baggage("flow.id", str(flow_id))
-                if execution_id:
-                    baggage.set_baggage("execution.id", str(execution_id))
-
-            # Create the span with basic attributes
-            with tracer.start_as_current_span(
-                f"node.{node_type}.execute",
-                attributes={
-                    "node.id": str(node_id),
-                    "node.type": node_type,
-                    "execution.start_time": start_time,
-                },
-            ) as span:
-                # Link to parent span if available
-                if parent_context and parent_context.is_valid:
-                    span.set_attribute("parent.trace_id", format(parent_context.trace_id, "032x"))
-                    span.set_attribute("parent.span_id", format(parent_context.span_id, "016x"))
-
-                # Add execution context data
-                if execution_context:
-                    # Add any fields from tracing profile
-                    add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
-
-                    # Always include node hierarchy if available
-                    if hasattr(execution_context, "get_node_hierarchy_path"):
-                        hierarchy = execution_context.get_node_hierarchy_path()
-                        span.set_attribute("node.hierarchy", hierarchy)
-
-                # Add input data based on profile
-                if node_input and tracing_profile.input_fields:
-                    add_profile_values_to_span(span, node_input, tracing_profile.input_fields, "input")
-
-                try:
-                    # Execute the function
-                    result = await func(*args, **kwargs)
-
-                    # Calculate and record execution time
-                    end_time = time.time()
-                    duration_ms = (end_time - start_time) * 1000
-                    span.set_attribute("execution.duration_ms", duration_ms)
-                    span.set_attribute("execution.end_time", end_time)
-
-                    # Add result data based on profile
-                    if result and tracing_profile.result_fields:
-                        add_profile_values_to_span(span, result, tracing_profile.result_fields, "result")
-
-                    # Add output data based on profile
-                    if result and hasattr(result, "output") and tracing_profile.output_fields:
-                        add_profile_values_to_span(span, result.output, tracing_profile.output_fields, "output")
-
-                    # Set success status
-                    span.set_status(Status(StatusCode.OK))
-                    span.set_attribute("execution.status", "success")
-
-                    return result
-                except Exception as e:
-                    # Record error details
-                    end_time = time.time()
-                    duration_ms = (end_time - start_time) * 1000
-                    span.set_attribute("execution.duration_ms", duration_ms)
-                    span.set_attribute("execution.end_time", end_time)
-
-                    # Record the error
-                    span.record_exception(e)
-                    span.set_status(Status(StatusCode.ERROR, str(e)))
-                    span.set_attribute("execution.status", "error")
-                    span.set_attribute("error.type", e.__class__.__name__)
-                    span.set_attribute("error.message", str(e))
-
-                    raise
-
-        return wrapper
-
-    return decorator
-
-
-# def trace_node(node_type: str | None = None):
-#    """
-#    Decorator for tracing node execution with lazy profile lookup.
-#    """
-#
-#    def decorator(func):
-#        @functools.wraps(func)
-#        async def wrapper(*args, **kwargs):
-#            # Extract node type from arguments if not provided
-#            actual_node_type = node_type
-#            if not actual_node_type:
-#                # Try to get it from node_definition
-#                bound_args = inspect.signature(func).bind(*args, **kwargs)
-#                bound_args.apply_defaults()
-#                node_definition = bound_args.arguments.get("node_definition")
-#                actual_node_type = getattr(node_definition, "node_type", "unknown")
-#
-#            # Look up profile at runtime
-#            profile = TracingProfileRegistry.get(actual_node_type)
-#
-#            # Use the node_trace_decorator directly
-#            decorated_func = node_trace_decorator(profile)(func)
-#            return await decorated_func(*args, **kwargs)
-#
-#        return wrapper
-#
-#    return decorator
-
-
 def trace_node(node_type: str | None = None):
     """
     Decorator for tracing node execution.
@@ -320,17 +157,22 @@ def trace_node(node_type: str | None = None):
             execution_context = all_args.get("execution_context")
             node_input = all_args.get("node_input")
 
-            # Determine node type - either from explicit parameter, profile, or node definition
+            # Get self if this is a method (for potential profile lookup)
+            self = args[0] if args and hasattr(args[0], "__class__") else None
+
+            # Determine node type - try multiple sources in order of preference
             detected_node_type = node_type
             if not detected_node_type and node_definition and hasattr(node_definition, "node_type"):
                 detected_node_type = node_definition.node_type
-
-            # If we still don't have a node type, use a default
             if not detected_node_type:
                 detected_node_type = "unknown"
 
-            # Get the profile to use - either provided explicitly or from registry
-            tracing_profile = profile or TracingProfileRegistry.get_or_default(detected_node_type)
+            # Get the profile to use - check multiple potential sources
+            tracing_profile = profile
+            if not tracing_profile and self and hasattr(self, "_tracing_profile"):
+                tracing_profile = self._tracing_profile
+            if not tracing_profile:
+                tracing_profile = TracingProfileRegistry.get_or_default(detected_node_type)
 
             # Create tracer and start timing
             tracer = get_tracer(f"dhenara.agent.node.{detected_node_type}")
@@ -381,8 +223,7 @@ def trace_node(node_type: str | None = None):
                         add_profile_values_to_span(span, node_input, tracing_profile.input_fields, "input")
 
                     try:
-                        # Execute the function - this is where internal functions
-                        # can add attributes to the collector
+                        # Execute the function
                         result = await func(*args, **kwargs)
 
                         # Calculate and record execution time
@@ -399,9 +240,22 @@ def trace_node(node_type: str | None = None):
                         if result and hasattr(result, "output") and tracing_profile.output_fields:
                             add_profile_values_to_span(span, result.output, tracing_profile.output_fields, "output")
 
-                        # Set success status
-                        span.set_status(Status(StatusCode.OK))
-                        span.set_attribute("execution.status", "success")
+                        status_code = Status(StatusCode.ERROR)
+                        success_status = "error"
+
+                        if result and hasattr(result, "error"):
+                            error_description = result.error
+                        else:
+                            error_description = "No Error Info available"
+
+                        if result and hasattr(result, "status"):
+                            if result.status in ["completed"]:  # ExecutionStatusEnum.COMPLETED
+                                status_code = Status(StatusCode.OK)
+                                success_status = "success"
+                                error_description = None
+
+                        span.set_status(status_code, error_description)
+                        span.set_attribute("execution.status", success_status)
 
                         return result
                     except Exception as e:

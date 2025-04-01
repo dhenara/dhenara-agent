@@ -60,7 +60,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> Any:
+    ) -> NodeExecutionResult[AIModelNodeOutputData]:
         self.resource_config = resource_config
 
         if not self.resource_config:
@@ -98,7 +98,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             )
 
         if user_selected_resource and not node_definition.check_resource_in_node(user_selected_resource):
-            self.set_node_execution_failed(
+            return self.set_node_execution_failed(
+                node_id=node_id,
                 node_definition=node_definition,
                 execution_context=execution_context,
                 message=(
@@ -106,7 +107,6 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                     "Either provide a valid resource or call with no resources."
                 ),
             )
-            return None
 
         if user_selected_resource:
             node_resource = user_selected_resource

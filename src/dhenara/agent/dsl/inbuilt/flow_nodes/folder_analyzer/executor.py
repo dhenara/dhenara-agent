@@ -46,7 +46,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> Any:
+    ) -> NodeExecutionResult[FolderAnalyzerNodeOutputData] | None:
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
@@ -109,16 +109,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
             # Create node output
             node_output = NodeOutput[FolderAnalyzerNodeOutputData](data=output_data)
 
-            # Create execution result
-            result = NodeExecutionResult(
-                node_identifier=node_id,
-                status=ExecutionStatusEnum.COMPLETED if output_data.success else ExecutionStatusEnum.FAILED,
-                input=node_input,
-                output=node_output,
-                outcome=outcome,
-                created_at=datetime.now(),
-            )
-
             # After analysis is complete
             if "analysis" in locals() and analysis:
                 add_trace_attribute(
@@ -133,6 +123,16 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     TracingDataCategory.primary,
                 )
 
+            # Create execution result
+            result = NodeExecutionResult(
+                node_identifier=node_id,
+                status=ExecutionStatusEnum.COMPLETED if output_data.success else ExecutionStatusEnum.FAILED,
+                input=node_input,
+                output=node_output,
+                outcome=outcome,
+                created_at=datetime.now(),
+            )
+
             # Update execution context
             self.update_execution_context(
                 node_id=node_id,
@@ -140,16 +140,16 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 result=result,
             )
 
-            return output_data
+            return result
 
         except Exception as e:
             logger.exception(f"Folder analyzer execution error: {e}")
-            self.set_node_execution_failed(
+            return self.set_node_execution_failed(
+                node_id=node_id,
                 node_definition=node_definition,
                 execution_context=execution_context,
                 message=f"Folder analysis failed: {e}",
             )
-            return None
 
     def _should_exclude(self, path: Path, exclude_patterns: list[str], include_hidden: bool) -> bool:
         """Check if a path should be excluded based on patterns and hidden status."""
