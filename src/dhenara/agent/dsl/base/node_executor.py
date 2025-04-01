@@ -16,7 +16,6 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.events import NodeInputRequiredEvent
 from dhenara.agent.observability import log_with_context, record_metric
-from dhenara.agent.observability.tracing import trace_node
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
@@ -85,7 +84,7 @@ class NodeExecutor(ABC):
 
         return node_input
 
-    @trace_node("base_executor")
+    # @trace_node("base_executor")
     async def execute(
         self,
         node_id: NodeID,

@@ -8,9 +8,9 @@ from typing import Any
 class TracingDataCategory(Enum):
     """Categories for organizing tracing data by importance."""
 
-    PRIMARY = "primary"  # Most important data, shown first/highlighted
-    SECONDARY = "secondary"  # Supporting data, shown on hover/expand
-    TERTIARY = "tertiary"  # Technical details, only shown on detailed view
+    primary = "primary"  # Most important data, shown first/highlighted
+    secondary = "secondary"  # Supporting data, shown on hover/expand
+    tertiary = "tertiary"  # Technical details, only shown on detailed view
 
 
 @dataclass

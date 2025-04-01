@@ -24,6 +24,7 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     ai_model_node_tracing_profile,
 )
 from dhenara.agent.observability.tracing import trace_node
+from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute, trace_collect
 from dhenara.ai import AIModelClient
 from dhenara.ai.types import (
     AIModelCallConfig,
@@ -74,6 +75,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         )
         return result
 
+    @trace_collect()
     async def _call_ai_model(
         self,
         node_id: NodeID,
@@ -119,6 +121,15 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         if not node_resource:
             raise ValueError("No default resource found in flow node configuration")
 
+        add_trace_attribute(
+            "node_resource",
+            getattr(node_resource, "item_type", "unknown"),
+            TracingDataCategory.secondary,
+        )
+        # Add query information if available
+        if hasattr(node_resource, "query"):
+            add_trace_attribute("node_resource", node_resource.query, TracingDataCategory.secondary)
+
         # 2. Fix Setting
         # -------------------
         settings: AIModelNodeSettings = node_definition.select_settings(node_input=node_input)
@@ -127,13 +138,12 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # 3. Fix AI Model endpoint
         # -------------------
-        logger.debug(f"call_ai_model: node_resource={node_resource}")
         ai_model_ep = self.resource_config.get_resource(node_resource)
-        logger.debug(f"call_ai_model: ai_model_ep={ai_model_ep}")
+        add_trace_attribute("model_endpoint_id", getattr(ai_model_ep, "id", "unknown"), TracingDataCategory.primary)
+        add_trace_attribute("model_name", getattr(ai_model_ep, "model_name", "unknown"), TracingDataCategory.primary)
 
         # 4. Fix Prompt and system instruction
         # -------------------
-        # Parse inputs
         prompt = settings.prompt
         instructions = settings.system_instructions
 
@@ -153,6 +163,13 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             mode="expression",
         )
 
+        # Add the final prompt to tracing
+        add_trace_attribute(
+            "final_prompt",
+            prompt.text if hasattr(prompt, "text") else str(prompt),
+            TracingDataCategory.primary,
+        )
+
         # TODO: template support for instructions and context?
         if instructions is not None:
             for instruction in instructions:
@@ -165,25 +182,38 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                         f"Failed to get node prompt. Illegal type of {type(instruction)} in Node instructions"
                     )
 
-        # 5. Fix contex
+        # Add system instructions to tracing
+        add_trace_attribute("system_instructions", instructions, TracingDataCategory.primary)
+
+        # 5. Fix context
         # -------------------
         if settings.context:
             context = settings.context
         else:
-            previous_node_prompts: list = await self.get_previous_node_outputs_as_prompts(
+            previous_node_prompts = await self.get_previous_node_outputs_as_prompts(
                 node_id=node_id,
                 node_definition=node_definition,
                 execution_context=execution_context,
             )
-            # logger.debug(f"call_ai_model: previous_prompts={previous_prompts}")
             context = previous_node_prompts
+
+        # Add context to tracing
+        if context:
+            add_trace_attribute("context_count", len(context), TracingDataCategory.secondary)
+            # Add preview of first few context items
+            for i, ctx in enumerate(context[:3]):
+                add_trace_attribute(
+                    f"context[{i}]",
+                    ctx.text if hasattr(ctx, "text") else str(ctx),
+                    TracingDataCategory.secondary,
+                )
 
         # 6. Fix options
         # -------------------
         node_options = settings.model_call_config.options if settings.model_call_config else {}
 
-        logger.debug(f"call_ai_model:  prompt={prompt}, context={context} instructions={instructions}")
-        logger.debug(f"call_ai_model:  node_optons={node_options}")
+        # logger.debug(f"call_ai_model:  prompt={prompt}, context={context} instructions={instructions}")
+        # logger.debug(f"call_ai_model:  node_optons={node_options}")
 
         # pop the non-standard options.  NOTE: pop
         reasoning = node_options.pop("reasoning", False)
@@ -199,6 +229,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         else:
             max_reasoning_tokens = None
         logger.debug(f"call_ai_model: options={options}")
+
+        # Add options to tracing
+        add_trace_attribute("model_options", options, TracingDataCategory.secondary)
+        add_trace_attribute("test_mode", test_mode, TracingDataCategory.tertiary)
 
         # 7. AIModelCallConfig
         model_call_config = None
@@ -218,6 +252,26 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 test_mode=test_mode,
             )
 
+        # Add model call config details to tracing
+        if model_call_config:
+            config_data = {
+                "streaming": model_call_config.streaming,
+                "max_output_tokens": getattr(model_call_config, "max_output_tokens", None),
+                "reasoning": getattr(model_call_config, "reasoning", False),
+            }
+
+            if hasattr(model_call_config, "structured_output") and model_call_config.structured_output:
+                config_data["has_structured_output"] = True
+                if hasattr(model_call_config.structured_output, "output_schema"):
+                    schema_name = getattr(
+                        model_call_config.structured_output.output_schema,
+                        "__name__",
+                        str(model_call_config.structured_output.output_schema),
+                    )
+                    config_data["structured_output_schema"] = schema_name
+
+            add_trace_attribute("model_call_config", config_data, TracingDataCategory.secondary)
+
         # 8. Call model
         # -------------------
         client = AIModelClient(
@@ -226,6 +280,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             config=model_call_config,
         )
 
+        # Add a trace attribute just before the API call
+        add_trace_attribute("api_call_started", datetime.now().isoformat(), TracingDataCategory.tertiary)
+
+        # Make the API call
         response = await client.generate_async(
             prompt=prompt,
             context=context,
@@ -235,6 +293,21 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             logger.exception(
                 f"Illegal response type for {type(response)} AIModel Call. Expected type is AIModelCallResponse"
             )
+
+        # Add API response metadata to tracing
+        if response:
+            add_trace_attribute("api_call_completed", datetime.now().isoformat(), TracingDataCategory.tertiary)
+
+            # Add usage information if available
+            if hasattr(response, "full_response") and hasattr(response.full_response, "usage"):
+                usage = response.full_response.usage
+                usage_data = usage.model_dump() if hasattr(usage, "model_dump") else str(usage)
+                add_trace_attribute("usage", usage_data, TracingDataCategory.primary)
+            if hasattr(response, "full_response") and hasattr(response.full_response, "usage_charge"):
+                usage_charge = response.full_response.usage_charge
+                charge_data = usage_charge.model_dump() if hasattr(usage_charge, "model_dump") else str(usage_charge)
+                add_trace_attribute("cost", f"${charge_data.get('cost', '?')}", TracingDataCategory.primary)
+                add_trace_attribute("charge", f"${charge_data.get('charge', '?')}", TracingDataCategory.primary)
 
         if streaming:
             if not isinstance(response.stream_generator, AsyncGenerator):

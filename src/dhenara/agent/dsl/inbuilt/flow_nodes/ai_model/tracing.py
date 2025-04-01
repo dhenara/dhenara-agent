@@ -1,9 +1,9 @@
 from dhenara.agent.dsl.flow import FlowNodeTypeEnum
-from dhenara.agent.observability.tracing import (
+from dhenara.agent.observability.tracing import truncate_string
+from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
     TracingDataCategory,
     TracingDataField,
-    truncate_string,
 )
 
 
@@ -45,13 +45,13 @@ ai_model_node_tracing_profile = NodeTracingProfile(
         TracingDataField(
             name="prompt_vars",
             source_path="prompt_variables",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             description="User prompt variables",
         ),
         TracingDataField(
             name="system_instructions_vars",
             source_path="instruction_variables",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             description="System instruction variables",
         ),
     ],
@@ -60,14 +60,14 @@ ai_model_node_tracing_profile = NodeTracingProfile(
         TracingDataField(
             name="response_text",
             source_path="data.response.chat_response.text()",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             max_length=1000,
             description="Model response text",
         ),
         TracingDataField(
             name="structured_output",
             source_path="data.response.chat_response.structured()",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             description="Structured output",
         ),
     ],
@@ -77,48 +77,48 @@ ai_model_node_tracing_profile = NodeTracingProfile(
         TracingDataField(
             name="response_text",
             source_path="outcome.text",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             max_length=1000,
             description="Response text",
         ),
         TracingDataField(
             name="has_structured_data",
             source_path="outcome.structured",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             transform=lambda x: bool(x),
             description="Has structured data",
         ),
         TracingDataField(
             name="token_usage",
             source_path="output.data.response.full_response.usage",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             transform=format_usage,
             description="Token usage and cost",
         ),
         TracingDataField(
             name="model",
             source_path="output.data.response.full_response.model",
-            category=TracingDataCategory.PRIMARY,
+            category=TracingDataCategory.primary,
             description="Model used",
         ),
         # Secondary result data
         TracingDataField(
             name="status",
             source_path="output.data.response.status",
-            category=TracingDataCategory.SECONDARY,
+            category=TracingDataCategory.secondary,
             description="Response status",
         ),
         TracingDataField(
             name="finish_reason",
             source_path="output.data.response.full_response.choices[0].finish_reason",
-            category=TracingDataCategory.SECONDARY,
+            category=TracingDataCategory.secondary,
             description="Finish reason",
         ),
         # Tertiary data (full details for debugging)
         TracingDataField(
             name="full_data",
             source_path="output.data",
-            category=TracingDataCategory.TERTIARY,
+            category=TracingDataCategory.tertiary,
             transform=lambda x: str(x)[:1000] if x else None,
             description="Complete output data",
         ),
@@ -126,7 +126,7 @@ ai_model_node_tracing_profile = NodeTracingProfile(
     ## Context data - execution environment
     # context_fields=[
     #    TracingDataField(
-    #        name="flow_id", source_path="component_id", category=TracingDataCategory.SECONDARY, description="Flow ID"
+    #        name="flow_id", source_path="component_id", category=TracingDataCategory.secondary, description="Flow ID"
     #    ),
     # ],
 )
