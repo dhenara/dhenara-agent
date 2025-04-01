@@ -295,19 +295,26 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             )
 
         # Add API response metadata to tracing
-        if response:
-            add_trace_attribute("api_call_completed", datetime.now().isoformat(), TracingDataCategory.tertiary)
+        if hasattr(response, "full_response") and hasattr(response.full_response, "usage_charge"):
+            usage_charge = response.full_response.usage_charge
+            charge_data = usage_charge.model_dump() if hasattr(usage_charge, "model_dump") else str(usage_charge)
 
-            # Add usage information if available
-            if hasattr(response, "full_response") and hasattr(response.full_response, "usage"):
-                usage = response.full_response.usage
-                usage_data = usage.model_dump() if hasattr(usage, "model_dump") else str(usage)
-                add_trace_attribute("usage", usage_data, TracingDataCategory.primary)
-            if hasattr(response, "full_response") and hasattr(response.full_response, "usage_charge"):
-                usage_charge = response.full_response.usage_charge
-                charge_data = usage_charge.model_dump() if hasattr(usage_charge, "model_dump") else str(usage_charge)
-                add_trace_attribute("cost", f"${charge_data.get('cost', '?')}", TracingDataCategory.primary)
-                add_trace_attribute("charge", f"${charge_data.get('charge', '?')}", TracingDataCategory.primary)
+            # Extract cost with consistent formatting regardless of notation
+            cost = charge_data.get("cost", None)
+            if cost is not None:
+                formatted_cost = f"${float(cost):.6f}"  # Convert to float and format with 6 decimal places
+            else:
+                formatted_cost = "$?"
+
+            # Same for charge if needed
+            charge = charge_data.get("charge", None)
+            if charge is not None:
+                formatted_charge = f"${float(charge):.6f}"
+            else:
+                formatted_charge = "$?"
+
+            add_trace_attribute("cost", formatted_cost, TracingDataCategory.primary)
+            add_trace_attribute("charge", formatted_charge, TracingDataCategory.primary)
 
         if streaming:
             if not isinstance(response.stream_generator, AsyncGenerator):

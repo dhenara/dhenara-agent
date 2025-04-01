@@ -69,9 +69,64 @@ class TraceCollector:
         """Apply all collected attributes to a span."""
         for category, attrs in self.attributes.items():
             if isinstance(attrs, dict):
-                # Update the dict (input, output etc) set via TracingProfile
                 for key, value in attrs.items():
-                    span.set_attribute(f"{category}.{key}", value)
+                    # Handle different types of values
+                    serialized_value = self._serialize_value(value)
+                    span.set_attribute(f"{category}.{key}", serialized_value)
+
+    def _serialize_value(self, value: Any) -> Any:
+        """
+        Serialize a value to make it compatible with OpenTelemetry spans.
+
+        OpenTelemetry supports: str, bool, int, float, and sequences of these types.
+        """
+        # Handle None
+        if value is None:
+            return "None"
+
+        # Handle basic types that OTel supports directly
+        if isinstance(value, (str, bool, int, float)):
+            return value
+
+        # Handle lists and tuples - recursively serialize each item
+        if isinstance(value, (list, tuple)):
+            # Only serialize up to 10 items to avoid huge spans
+            serialized = [self._serialize_value(item) for item in value[:10]]
+            if len(value) > 10:
+                serialized.append("... (truncated)")
+            return serialized
+
+        # Handle dictionaries - recursively serialize each value
+        if isinstance(value, dict):
+            # Return a simplified representation for nested dicts
+            simplified = {}
+            # Only include first 10 keys to avoid huge spans
+            for i, (k, v) in enumerate(value.items()):
+                if i >= 10:
+                    simplified["..."] = "(truncated)"
+                    break
+                simplified[str(k)] = self._serialize_value(v)
+            return str(simplified)  # Convert to string to ensure OTel compatibility
+
+        # Handle Pydantic models (or any object with a dict method)
+        if hasattr(value, "dict") and callable(value.dict):
+            try:
+                # Convert Pydantic model to dict and then serialize
+                return self._serialize_value(value.dict())
+            except Exception:
+                # Fallback to string representation
+                return str(value)
+
+        if hasattr(value, "model_dump") and callable(value.model_dump):
+            try:
+                # Convert Pydantic model to dict and then serialize
+                return self._serialize_value(value.model_dump())
+            except Exception:
+                # Fallback to string representation
+                return str(value)
+
+        # For any other types, use string representation
+        return str(value)
 
     @classmethod
     def get_current(cls) -> Optional["TraceCollector"]:
