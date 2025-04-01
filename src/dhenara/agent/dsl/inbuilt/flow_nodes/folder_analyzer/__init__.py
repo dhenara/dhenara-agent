@@ -1,3 +1,4 @@
+from .tracing import folder_analyzer_node_tracing_profile
 from .settings import FolderAnalyzerSettings
 from .input import FolderAnalyzerNodeInput
 from .output import FolderAnalyzerNodeOutputData, FolderAnalyzerNodeOutcome, FileInfo, DirectoryInfo
@@ -13,4 +14,5 @@ __all__ = [
     "FolderAnalyzerNodeOutcome",
     "FolderAnalyzerNodeOutputData",
     "FolderAnalyzerSettings",
+    "folder_analyzer_node_tracing_profile",
 ]

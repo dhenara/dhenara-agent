@@ -15,25 +15,28 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeOutput,
 )
-from dhenara.agent.dsl.flow import FlowNodeExecutor
+from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
+from dhenara.agent.observability.tracing import trace_node
+from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import CommandNodeInput
 from .output import CommandNodeOutcome, CommandNodeOutputData, CommandResult
 from .settings import CommandNodeSettings
+from .tracing import command_node_tracing_profile
 
 logger = logging.getLogger(__name__)
 
 
 class CommandNodeExecutor(FlowNodeExecutor):
-    """Executor for Command Node."""
-
     input_model = CommandNodeInput
     setting_model = CommandNodeSettings
+    _tracing_profile = command_node_tracing_profile
 
     def __init__(self):
         super().__init__(identifier="command_executor")
 
+    @trace_node(FlowNodeTypeEnum.command.value)
     async def execute_node(
         self,
         node_id: NodeID,
@@ -69,7 +72,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
             failed_commands = 0
 
             for formatted_cmd in formatted_commands:
-                logger.debug(f"Executing command: {formatted_cmd}")
+                add_trace_attribute("executing_command", formatted_cmd, TracingDataCategory.primary)
 
                 # Execute the command
                 process = await asyncio.create_subprocess_shell(
@@ -102,6 +105,16 @@ class CommandNodeExecutor(FlowNodeExecutor):
                     )
                     results.append(result)
 
+                    add_trace_attribute(
+                        f"command_result_{formatted_commands.index(formatted_cmd)}",
+                        {
+                            "returncode": process.returncode,
+                            "success": success,
+                            "stdout_length": len(stdout) if stdout else 0,
+                            "stderr_length": len(stderr) if stderr else 0,
+                        },
+                        TracingDataCategory.primary,
+                    )
                     # Handle fail_fast
                     if settings.fail_fast and not success:
                         logger.warning(f"Command failed, stopping execution: {formatted_cmd}")

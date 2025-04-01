@@ -15,7 +15,7 @@ from dhenara.agent.dsl.base import (
     SpecialNodeIDEnum,
     StreamingStatusEnum,
 )
-from dhenara.agent.dsl.flow import FlowNodeExecutor
+from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
     AIModelNodeOutcome,
@@ -52,7 +52,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         super().__init__(identifier="ai_model_node_executor")
         self.resource_config: ResourceConfig | None = None
 
-    @trace_node("ai_model_call")
+    @trace_node(FlowNodeTypeEnum.ai_model_call.value)
     async def execute_node(
         self,
         node_id: NodeID,

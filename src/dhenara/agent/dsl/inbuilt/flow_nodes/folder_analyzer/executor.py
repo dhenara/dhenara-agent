@@ -15,12 +15,15 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeOutput,
 )
-from dhenara.agent.dsl.flow import FlowNodeExecutor
+from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
+from dhenara.agent.observability.tracing import trace_node
+from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import FolderAnalyzerNodeInput
 from .output import DirectoryInfo, FileInfo, FolderAnalyzerNodeOutcome, FolderAnalyzerNodeOutputData
 from .settings import FolderAnalyzerSettings
+from .tracing import folder_analyzer_node_tracing_profile
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +33,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
 
     input_model = FolderAnalyzerNodeInput
     setting_model = FolderAnalyzerSettings
+    _tracing_profile = folder_analyzer_node_tracing_profile
 
     def __init__(self):
         super().__init__(identifier="foldera_analyzer_executor")
 
+    @trace_node(FlowNodeTypeEnum.folder_analyzer.value)
     async def execute_node(
         self,
         node_id: NodeID,
@@ -59,13 +64,22 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
             # Convert path to Path object and resolve
             path = Path(path).expanduser().resolve()
 
+            # Add trace attributes for better visibility
+            add_trace_attribute("path", str(path), TracingDataCategory.primary)
+            add_trace_attribute("max_depth", settings.max_depth, TracingDataCategory.secondary)
+            add_trace_attribute("include_hidden", settings.include_hidden, TracingDataCategory.secondary)
+            add_trace_attribute("include_stats", settings.include_stats, TracingDataCategory.secondary)
+            add_trace_attribute("include_content", settings.include_content, TracingDataCategory.secondary)
+
             # Verify path exists and is a directory
             if not path.exists():
+                add_trace_attribute("error", f"Path does not exist: {path}", TracingDataCategory.primary)
                 output_data = FolderAnalyzerNodeOutputData(
                     success=False, path=str(path), error=f"Path does not exist: {path}"
                 )
                 outcome = FolderAnalyzerNodeOutcome(success=False, errors=[f"Path does not exist: {path}"])
             elif not path.is_dir():
+                add_trace_attribute("error", f"Path is not a directory: {path}", TracingDataCategory.primary)
                 output_data = FolderAnalyzerNodeOutputData(
                     success=False, path=str(path), error=f"Path is not a directory: {path}"
                 )
@@ -104,6 +118,20 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 outcome=outcome,
                 created_at=datetime.now(),
             )
+
+            # After analysis is complete
+            if "analysis" in locals() and analysis:
+                add_trace_attribute(
+                    "stats_summary",
+                    {
+                        "total_files": stats["total_files"],
+                        "total_dirs": stats["total_dirs"],
+                        "total_size": stats["total_size"],
+                        "file_types_count": len(stats["file_types"]),
+                        "errors_count": len(stats["errors"]),
+                    },
+                    TracingDataCategory.primary,
+                )
 
             # Update execution context
             self.update_execution_context(

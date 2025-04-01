@@ -15,17 +15,20 @@ from dhenara.agent.dsl.base import (
     NodeOutput,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
-from dhenara.agent.dsl.flow import FlowNodeExecutor
+from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types import (
     FileModificationContent,
     FileOperation,
     FileOperationType,
 )
+from dhenara.agent.observability.tracing import trace_node
+from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import FileOperationNodeInput
 from .output import FileOperationNodeOutcome, FileOperationNodeOutputData, OperationResult
 from .settings import FileOperationNodeSettings
+from .tracing import file_operation_node_tracing_profile
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +38,12 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
 
     input_model = FileOperationNodeInput
     setting_model = FileOperationNodeSettings
+    _tracing_profile = file_operation_node_tracing_profile
 
     def __init__(self):
         super().__init__(identifier="file_operation_executor")
 
+    @trace_node(FlowNodeTypeEnum.file_operation.value)
     async def execute_node(
         self,
         node_id: NodeID,
@@ -70,6 +75,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 execution_context=execution_context,
                 settings=settings,
             )
+            add_trace_attribute("base_directory", str(base_directory), TracingDataCategory.primary)
 
             operations: list[FileOperation] = []
             # Get operations from different possible sources
@@ -97,7 +103,18 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             failed_operations = 0
             errors: list[str] = []
 
+            add_trace_attribute("operations_count", len(operations), TracingDataCategory.primary)
+
             for operation in operations:
+                add_trace_attribute(
+                    f"operation_{operations.index(operation)}",
+                    {
+                        "type": operation.type,
+                        "path": operation.path,
+                    },
+                    TracingDataCategory.secondary,
+                )
+
                 try:
                     # Validate the operation
                     if not operation.validate_content_type():
@@ -228,6 +245,20 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                     failed_operations += 1
                     logger.error(error_msg, exc_info=True)
 
+                op_idx = operations.index(operation)
+                if op_idx < len(results):
+                    result = results[op_idx]
+                    add_trace_attribute(
+                        f"operation_result_{op_idx}",
+                        {
+                            "type": result.type,
+                            "path": result.path,
+                            "success": result.success,
+                            "error": result.error,
+                        },
+                        TracingDataCategory.secondary,
+                    )
+
             # Create output data
             all_succeeded = failed_operations == 0
             output_data = FileOperationNodeOutputData(
@@ -241,6 +272,17 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 successful_operations=successful_operations,
                 failed_operations=failed_operations,
                 errors=errors,
+            )
+
+            add_trace_attribute(
+                "operations_summary",
+                {
+                    "total": len(operations),
+                    "successful": successful_operations,
+                    "failed": failed_operations,
+                    "all_succeeded": all_succeeded,
+                },
+                TracingDataCategory.primary,
             )
 
             # Create node output

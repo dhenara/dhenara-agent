@@ -1,3 +1,4 @@
+from .tracing import command_node_tracing_profile
 from .settings import CommandNodeSettings
 from .input import CommandNodeInput
 from .output import CommandNodeOutputData, CommandNodeOutcome, CommandResult
@@ -12,4 +13,5 @@ __all__ = [
     "CommandNodeOutputData",
     "CommandNodeSettings",
     "CommandResult",
+    "command_node_tracing_profile",
 ]
