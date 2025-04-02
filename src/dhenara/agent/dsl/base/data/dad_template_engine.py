@@ -55,6 +55,7 @@ class DADTemplateEngine(TemplateEngine):
             #    1.environment variables
             "run_id": run_env_params.run_id,
             "run_dir": str(run_env_params.run_dir),
+            "run_root": str(run_env_params.run_root),
             # --- Internal vars
             #    1. state variables
             "_dad_trace_dir": str(run_env_params.trace_dir),

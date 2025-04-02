@@ -19,6 +19,9 @@ class FileInfo(BaseModel):
     mime_type: str | None = None
     is_text: bool | None = None
     content_preview: str | None = None
+    content: str | None = None  # full content
+    word_count: int | None = None  # word counts
+    summary: str | None = None  # file summary
     error: str | None = None
 
 
@@ -43,7 +46,7 @@ class FolderAnalyzerNodeOutputData(BaseModel):
 
     success: bool
     path: str
-    analysis: DirectoryInfo = None
+    analysis: DirectoryInfo | None = None
     error: str | None = None
 
 
@@ -51,8 +54,13 @@ class FolderAnalyzerNodeOutcome(NodeOutcome):
     """Outcome for the Folder Analyzer Node."""
 
     success: bool = Field(default=False)
+    analysis: DirectoryInfo | None = None
+    tree_diagram: str | None = Field(default=None, description="ASCII tree diagram of the directory structure")
+    root_path: str | None = Field(default=None, description="Root path for analysis")
     total_files: int = Field(default=0)
     total_directories: int = Field(default=0)
     total_size: int = Field(default=0)
     file_types: dict[str, int] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
+    gitignore_patterns: list[str] | None = Field(default=None)
+    total_words_read: int | None = Field(default=None)

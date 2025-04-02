@@ -80,6 +80,7 @@ class RunContext:
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
             run_dir=str(self.run_dir),
+            run_root=str(self.run_root),
             trace_dir=str(self.trace_dir),
         )
         self.artifact_manager = ArtifactManager(

@@ -21,14 +21,61 @@ class FolderAnalyzerSettings(NodeSettings):
         description="Whether to include hidden files/dirs",
     )
     include_stats: bool = Field(
-        default=True,
+        default=False,
         description="Whether to include file/dir stats",
     )
-    include_content: bool = Field(
+    include_content_preview: bool = Field(
         default=False,
         description="Whether to include file content previews",
+    )
+    respect_gitignore: bool = Field(
+        default=True,
+        description="Whether to respect .gitignore patterns",
     )
     max_file_size: int | None = Field(
         default=1024 * 1024,  # 1MB default max for content preview
         description="Maximum file size to analyze content",
+    )
+    # New fields
+    read_content: bool = Field(
+        default=False,
+        description="Whether to read and include full file content",
+    )
+    max_words_per_file: int | None = Field(
+        default=None,
+        description="Maximum number of words to include per file when reading content.Set None for unlimitted words",
+        ge=0,
+    )
+    max_total_words: int | None = Field(
+        default=None,
+        description="Maximum total number of words to include across all files.Set None for unlimitted words",
+        ge=0,
+    )
+    generate_file_summary: bool = Field(
+        default=False,
+        description="Whether to generate a summary for each file",
+    )
+
+    # Path format options
+    use_relative_paths: bool = Field(
+        default=True,
+        description="Whether to use paths relative to the root directory",
+    )
+    include_root_in_path: bool = Field(
+        default=False,
+        description="Whether to include the root directory in paths",
+    )
+
+    # Tree diagram options
+    generate_tree_diagram: bool = Field(
+        default=False,
+        description="Whether to generate a tree diagram of the directory structure",
+    )
+    tree_diagram_max_depth: int | None = Field(
+        default=None,
+        description="Maximum depth for the tree diagram",
+    )
+    tree_diagram_include_files: bool = Field(
+        default=True,
+        description="Whether to include files in the tree diagram",
     )

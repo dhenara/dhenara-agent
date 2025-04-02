@@ -9,5 +9,6 @@ class RunEnvParams:
 
     run_id: str
     run_dir: str
+    run_root: str
     trace_dir: str
     outcome_repo_dir: str | None = None

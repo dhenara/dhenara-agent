@@ -53,7 +53,7 @@ def print_run_summary(run_ctx):
 
     # Print run details
     print_info("Run ID", run_ctx.run_id)
-    print_info("Artifacts location", f"{run_ctx.run_dir}/{run_ctx.run_id}")
+    print_info("Artifacts location", f"{run_ctx.run_dir}")
     print_info("Outcome repository", run_ctx.outcome_repo_dir)
 
     # Print next steps section

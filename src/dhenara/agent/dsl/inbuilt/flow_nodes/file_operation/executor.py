@@ -52,19 +52,6 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
         node_input: NodeInput,
         resource_config: ResourceConfig,
     ) -> NodeExecutionResult[FileOperationNodeOutputData] | None:
-        """
-        Execute file operations as specified in the node input or settings.
-
-        Args:
-            node_id: Unique identifier for the node
-            node_definition: Definition of the node to execute
-            execution_context: Context for the execution
-            node_input: Input parameters for the node
-            resource_config: Configuration for resources
-
-        Returns:
-            FileOperationNodeOutputData object or None if execution fails
-        """
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
@@ -78,21 +65,50 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             add_trace_attribute("base_directory", str(base_directory), TracingDataCategory.primary)
 
             operations: list[FileOperation] = []
-            # Get operations from different possible sources
-            if hasattr(node_input, "json_operations") and node_input.json_operations:
-                # Parse JSON operations
-                try:
-                    ops_data = json.loads(node_input.json_operations)
-                    if isinstance(ops_data, dict) and "operations" in ops_data:
-                        operations = [FileOperation(**op) for op in ops_data["operations"]]
-                    elif isinstance(ops_data, list):
-                        operations = [FileOperation(**op) for op in ops_data]
-                except json.JSONDecodeError as e:
-                    raise ValueError(f"Invalid JSON in operations: {e}")
-            elif hasattr(node_input, "operations") and node_input.operations:
-                operations = node_input.operations
-            elif hasattr(settings, "operations") and settings.operations:
-                operations = settings.operations
+
+            # Extract operations from operations_template if provided
+            if hasattr(settings, "operations_template") and settings.operations_template is not None:
+                template_result = DADTemplateEngine.render_dad_template(
+                    template=settings.operations_template,
+                    variables={},
+                    dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
+                    run_env_params=execution_context.run_context.run_env_params,
+                    node_execution_results=execution_context.execution_results,
+                    mode="expression",
+                )
+
+                # Parse operations from template result (which could be a JSON string)
+                if template_result:
+                    try:
+                        # Try to parse as JSON first
+                        parsed_ops = json.loads(template_result)
+                        if isinstance(parsed_ops, list):
+                            operations = [FileOperation(**op) if isinstance(op, dict) else op for op in parsed_ops]
+                        elif isinstance(parsed_ops, dict) and "operations" in parsed_ops:
+                            operations = [
+                                FileOperation(**op) if isinstance(op, dict) else op for op in parsed_ops["operations"]
+                            ]
+                    except json.JSONDecodeError:
+                        # If not valid JSON, log an error
+                        logger.error(f"Unable to parse operations from template result: {template_result}")
+
+            # If no operations from template, try other sources
+            if not operations:
+                # Get operations from different possible sources
+                if hasattr(node_input, "json_operations") and node_input.json_operations:
+                    # Parse JSON operations
+                    try:
+                        ops_data = json.loads(node_input.json_operations)
+                        if isinstance(ops_data, dict) and "operations" in ops_data:
+                            operations = [FileOperation(**op) for op in ops_data["operations"]]
+                        elif isinstance(ops_data, list):
+                            operations = [FileOperation(**op) for op in ops_data]
+                    except json.JSONDecodeError as e:
+                        raise ValueError(f"Invalid JSON in operations: {e}")
+                elif hasattr(node_input, "operations") and node_input.operations:
+                    operations = node_input.operations
+                elif hasattr(settings, "operations") and settings.operations:
+                    operations = settings.operations
 
             if not operations:
                 raise ValueError("No file operations specified")
@@ -321,19 +337,17 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
         node_input: FileOperationNodeInput,
         execution_context: ExecutionContext,
         settings: FileOperationNodeSettings,
-    ) -> tuple[list[str], Path]:
+    ) -> str:
         """Format path with variables."""
         variables = {}
         dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
         # Extract file operations from input or settings
         base_directory = "."
-
         # Determine base directory from input or settings
         if hasattr(node_input, "base_directory") and node_input.base_directory:
             base_directory = node_input.base_directory
         elif hasattr(settings, "base_directory") and settings.base_directory:
             base_directory = settings.base_directory
-
         # Resolve base directory with variables
         return DADTemplateEngine.render_dad_template(
             template=base_directory,
