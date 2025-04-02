@@ -128,7 +128,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                         settings=settings,
                         exclude_patterns=exclude_patterns,
                     )
-                    print(f"AJ: tree_diagram\n{tree_diagram}")
 
                 outcome = FolderAnalyzerNodeOutcome(
                     success=True,

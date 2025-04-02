@@ -335,6 +335,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # Get result
         result = self._derive_result(
             node_id=node_id,
+            node_definition=node_definition,
+            execution_context=execution_context,
             node_input=node_input,
             model_call_config=model_call_config,
             response=response,
@@ -351,12 +353,23 @@ class AIModelNodeExecutor(FlowNodeExecutor):
     def _derive_result(
         self,
         node_id: NodeID,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
         node_input: NodeInput,
         model_call_config: AIModelCallConfig,
         response,
     ) -> NodeExecutionResult:
         # Non streaming
-        logger.debug(f"call_ai_model: status={response.status}, response={response},")
+
+        if response is None:
+            return self.set_node_execution_failed(
+                node_id=node_id,
+                node_definition=node_definition,
+                execution_context=execution_context,
+                message=("Response in None"),
+            )
+
+        logger.debug(f"call_ai_model: status={response.status if response else 'FAIL'}, response={response},")
         node_output = NodeOutput[AIModelNodeOutputData](
             data=AIModelNodeOutputData(
                 response=response,

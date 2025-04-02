@@ -26,6 +26,7 @@ class NodeExecutionResult(BaseModel, Generic[OutputDataT]):
     output: NodeOutput[OutputDataT] | None
     outcome: NodeOutcome | None
     error: str | None = None
+    errors: list[str] | None = None
     # storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime
 

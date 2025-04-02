@@ -268,10 +268,14 @@ class NodeExecutor(ABC):
                 output_git_settings = node_definition.git_settings.output
                 outcome_git_settings = node_definition.git_settings.outcome
 
-            output_data = result.output.data
+            output_data = result.output.data if result.output else None
             outcome_data = result.outcome
 
-            output_data = output_data.model_dump() if hasattr(output_data, "model_dump") else output_data
+            if outcome_data is not None:
+                output_data = output_data.model_dump() if hasattr(output_data, "model_dump") else output_data
+            else:
+                output_data = {"error": result.error, "errors": result.errors}
+
             outcome_data = outcome_data.model_dump() if hasattr(outcome_data, "model_dump") else outcome_data
 
             # Record the node output
