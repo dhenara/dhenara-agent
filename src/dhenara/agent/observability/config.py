@@ -8,9 +8,14 @@ from .logging import setup_logging
 from .metrics import setup_metrics
 from .tracing import setup_tracing
 
+_current_settings: ObservabilitySettings = None
+
 
 def configure_observability(settings: ObservabilitySettings) -> None:
     """Configure all observability components with consistent settings."""
+    global _current_settings
+    _current_settings = settings
+
     # Read from environment if not provided
     if not settings.otlp_endpoint:
         settings.otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
@@ -27,3 +32,18 @@ def configure_observability(settings: ObservabilitySettings) -> None:
 
     logger = logging.getLogger(settings.observability_logger_name)
     logger.info(f"Observability configured for {settings.service_name} using {settings.logging_exporter_type} exporter")
+
+
+def get_current_settings() -> ObservabilitySettings:
+    """Get the current observability settings."""
+    global _current_settings
+    if _current_settings is None:
+        # Return default settings if not configured
+        _current_settings = ObservabilitySettings()
+        logger = logging.getLogger(_current_settings.observability_logger_name)
+        logger.warning(
+            "Using default settings for bbservability was it was not configured. "
+            "Use `configure_observability()` to configure it with your preference"
+        )
+
+    return _current_settings

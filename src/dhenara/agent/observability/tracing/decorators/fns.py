@@ -14,6 +14,7 @@ from dhenara.agent.observability.tracing.data import (
     TracingDataField,
     TracingProfileRegistry,
 )
+from dhenara.agent.observability.tracing.tracing_log_handler import TraceLogCapture, inject_logs_into_span
 
 # Maximum string length for trace attributes
 MAX_STRING_LENGTH = 4096
@@ -206,6 +207,10 @@ def trace_node(node_type: str | None = None):
                     span.set_attribute("parent.trace_id", format(parent_context.trace_id, "032x"))
                     span.set_attribute("parent.span_id", format(parent_context.span_id, "016x"))
 
+                # Start capturing logs for this span
+                span_id = format(span.get_span_context().span_id, "016x")
+                TraceLogCapture.start_capture(span_id)
+
                 # Create a trace collector for this execution
                 with TraceCollector(span=span) as _collector:
                     # Add execution context data
@@ -257,6 +262,9 @@ def trace_node(node_type: str | None = None):
                         span.set_status(status_code, error_description)
                         span.set_attribute("execution.status", success_status)
 
+                        # Inject captured logs into the span
+                        inject_logs_into_span(span)
+
                         return result
                     except Exception as e:
                         # Record error details
@@ -271,6 +279,9 @@ def trace_node(node_type: str | None = None):
                         span.set_attribute("execution.status", "error")
                         span.set_attribute("error.type", e.__class__.__name__)
                         span.set_attribute("error.message", str(e))
+
+                        # Inject captured logs into the span
+                        inject_logs_into_span(span)
 
                         raise
 

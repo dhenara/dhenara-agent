@@ -13,6 +13,7 @@ from opentelemetry.sdk._logs.export import (
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.trace import get_current_span
 
+from dhenara.agent.observability.tracing.tracing_log_handler import TraceLogHandler
 from dhenara.agent.observability.types import ObservabilitySettings
 
 # Default service name
@@ -64,10 +65,12 @@ def setup_logging(settings: ObservabilitySettings) -> None:
     # Create a handler for the Python standard library
     handler = LoggingHandler(level=settings.root_log_level, logger_provider=_logger_provider)
 
-    # Configure logging with this handler
+    trace_handler = TraceLogHandler(level=settings.root_log_level)
+
+    # Configure logging with these handlers
     logging.basicConfig(
         level=settings.root_log_level,
-        handlers=[handler],
+        handlers=[handler, trace_handler],
         force=True,
     )
 

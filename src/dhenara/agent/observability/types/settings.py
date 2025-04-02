@@ -22,3 +22,6 @@ class ObservabilitySettings(BaseModel):
 
     # For all log msgs in observability package
     observability_logger_name: str = "dhenara.agent.observability"
+
+    # Configuration for log capture in traces
+    trace_log_level: int = logging.WARNING  # Minimum level to include in traces
