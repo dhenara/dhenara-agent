@@ -2,7 +2,7 @@ import logging
 from typing import Any, Literal, TypeVar
 
 from dhenara.agent.types.data import RunEnvParams
-from dhenara.ai.types.genai.dhenara.request.data import Prompt, PromptText
+from dhenara.ai.types.genai.dhenara.request.data import Prompt, PromptText, TextTemplate
 
 from .template_engine import TemplateEngine
 
@@ -163,6 +163,12 @@ class DADTemplateEngine(TemplateEngine):
                     return cls._apply_word_limit(rendered_text, max_words)
                 else:
                     raise ValueError(f"Unsupported prompt.text type: {type(template.text)}")
+
+            elif isinstance(template, TextTemplate):
+                template_text = template.text
+                rendered_text = cls.render_template(template_text, combined_variables, mode)
+                return cls._apply_word_limit(rendered_text, max_words)
+
             else:
                 raise ValueError(f"Unsupported template type: {type(template)}")
 
@@ -185,15 +191,41 @@ class DADTemplateEngine(TemplateEngine):
             return cls._apply_word_limit(parsed_text, max_words)
         else:
             template_text = prompt_text.template.text
-            parsed_text = cls.render_template(template_text, variables, mode)
 
-            # Now format the parsed text ( ie to replace python {} variables in string)
+            # Phase 1: Extract and protect DAD template variables (${...})
+            import re
+
+            protected_dad_vars = {}
+
+            # Find and replace DAD template variables with placeholders
+            def replace_dad_vars(match):
+                dad_var = match.group(0)  # Get the full ${...} variable
+                # Create a unique placeholder that won't conflict with any text
+                placeholder = f"__DAD_VAR_{len(protected_dad_vars)}__"
+                protected_dad_vars[placeholder] = dad_var
+                return placeholder
+
+            # Pattern to find DAD template variables
+            dad_var_pattern = r"\${[^}]+}"
+
+            # Replace all ${...} with placeholders
+            protected_text = re.sub(dad_var_pattern, replace_dad_vars, template_text)
+
+            # Phase 2: Now safely apply Python string formatting
+            # This will format {var} style variables without interfering with DAD variables
             _temp = prompt_text.template.model_copy()
-            _temp.text = parsed_text
-            _temp.disable_checks = False
+            _temp.text = protected_text
+            _temp.disable_checks = False  # Not needed since DAD vars are now placeholders
             formatted_text = _temp.format(**variables)
 
-            return cls._apply_word_limit(formatted_text, max_words)
+            # Phase 3: Restore DAD template variables for later processing
+            for placeholder, dad_var in protected_dad_vars.items():
+                formatted_text = formatted_text.replace(placeholder, dad_var)
+
+            # Phase 4: Now process the DAD template variables
+            parsed_text = cls.render_template(formatted_text, variables, mode)
+
+            return cls._apply_word_limit(parsed_text, max_words)
 
     @staticmethod
     def _apply_word_limit(text: str, max_words: int | None) -> str:

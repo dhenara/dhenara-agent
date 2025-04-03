@@ -1,5 +1,6 @@
 # ruff:noqa: E501
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
@@ -28,7 +29,18 @@ class FileModificationContent(PydanticBaseModel):
 class FileOperation(PydanticBaseModel):
     """Represents a single file operation for the filesystem"""
 
-    type: FileOperationType = Field(..., description="Type of file operation to perform")
+    # INFO:
+    # Do no add Emuns ( like FileOperationType) they will cause issues in AIModel structured outputs FileOperationType
+    type: Literal[
+        "create_directory",
+        "delete_directory",
+        "create_file",
+        "modify_file",
+        "delete_file",
+    ] = Field(
+        ...,
+        description="Type of file operation to perform",
+    )
     path: str = Field(..., description="Path to the target file or directory")
     content: str | FileModificationContent | None = Field(
         None,

@@ -42,8 +42,8 @@ def get_current_settings() -> ObservabilitySettings:
         _current_settings = ObservabilitySettings()
         logger = logging.getLogger(_current_settings.observability_logger_name)
         logger.warning(
-            "Using default settings for bbservability was it was not configured. "
-            "Use `configure_observability()` to configure it with your preference"
+            "Using default settings for observability as it was not configured. "
+            "Use `configure_observability()` to set it with your preference"
         )
 
     return _current_settings

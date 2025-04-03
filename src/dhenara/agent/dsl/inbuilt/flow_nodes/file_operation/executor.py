@@ -144,12 +144,12 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
 
                     full_path = Path(base_directory) / operation.path
 
-                    if operation.type == FileOperationType.create_directory:
+                    if operation.type == FileOperationType.create_directory.value:
                         full_path.mkdir(parents=True, exist_ok=True)
                         results.append(OperationResult(type="create_directory", path=operation.path, success=True))
                         successful_operations += 1
 
-                    elif operation.type == FileOperationType.create_file:
+                    elif operation.type == FileOperationType.create_file.value:
                         # Content should be a string for create_file
                         content = operation.content or ""
                         if not isinstance(content, str):
@@ -167,7 +167,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                         results.append(OperationResult(type="create_file", path=operation.path, success=True))
                         successful_operations += 1
 
-                    elif operation.type == FileOperationType.modify_file:
+                    elif operation.type == FileOperationType.modify_file.value:
                         if not full_path.exists():
                             error_msg = f"File does not exist: {operation.path}"
                             results.append(
@@ -223,7 +223,10 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                         results.append(OperationResult(type="modify_file", path=operation.path, success=True))
                         successful_operations += 1
 
-                    elif operation.type in [FileOperationType.delete_directory, FileOperationType.delete_file]:
+                    elif operation.type in [
+                        FileOperationType.delete_directory.value,
+                        FileOperationType.delete_file.value,
+                    ]:
                         if not full_path.exists():
                             error_msg = f"Path does not exist: {operation.path}"
                             results.append(
