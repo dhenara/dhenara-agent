@@ -1,12 +1,13 @@
 import json
 import logging
+import os
 import shutil
 import uuid
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from dhenara.agent.dsl.base import NodeInput
+from dhenara.agent.dsl.base import NodeID, NodeInput
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.shared.utils import get_project_identifier
@@ -27,6 +28,9 @@ class RunContext:
         run_root: Path | None = None,
         run_id: str | None = None,
         observability_settings: ObservabilitySettings | None = None,
+        #  for re-run functionality
+        previous_run_id: str | None = None,
+        start_node_id: str | None = None,
     ):
         if not observability_settings:
             observability_settings = ObservabilitySettings()
@@ -38,9 +42,24 @@ class RunContext:
 
         self.run_root = run_root or project_root / "runs"
 
+        # Store re-run parameters
+        self.run_id = run_id
+        self.previous_run_id = previous_run_id
+        self.start_node_id = start_node_id
+
+        self.event_bus = EventBus()
+
+    def set_previous_run(self, previous_run_id: str, start_node_id: str | None = None):
+        self.previous_run_id = previous_run_id
+        self.start_node_id = start_node_id
+
+    def setup_run(self):
+        # Indicates if this is a rerun of a previous execution
+        self.is_rerun = self.previous_run_id is not None
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        _run_id = run_id or f"run_{timestamp}_{uuid.uuid4().hex[:6]}"
-        self.run_id = f"{self.agent_identifier}_{_run_id}"
+        run_or_rerun = "rerun" if self.is_rerun else "run"
+        self.run_id = f"{self.agent_identifier}_{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_dir = self.run_root / self.run_id
 
         self.static_inputs_dir = self.run_dir / "static_inputs"
@@ -75,21 +94,41 @@ class RunContext:
         self.git_branch_name = f"run/{self.run_id}"
         self.outcome_repo.create_run_branch(self.git_branch_name)
 
+        # Initialize previous run context
+        self.previous_run_dir = None
+        if self.previous_run_id:
+            self.previous_run_dir = self.run_root / self.previous_run_id
+            if not self.previous_run_dir.exists():
+                logger.error(f"Previous run directory does not exist: {self.previous_run_dir}")
+                self.previous_run_id = None
+                self.previous_run_dir = None
+
+        # Setup observability with rerun info
         self.setup_observability()
 
+        # Add rerun info to metadata
+        if self.is_rerun:
+            self.metadata["rerun_info"] = {
+                "previous_run_id": self.previous_run_id,
+                "start_node_id": self.start_node_id,
+            }
+
+        # Create run environment parameters
         self.run_env_params = RunEnvParams(
             run_id=self.run_id,
             run_dir=str(self.run_dir),
             run_root=str(self.run_root),
             trace_dir=str(self.trace_dir),
+            outcome_repo_dir=str(self.outcome_repo_dir) if self.outcome_repo_dir else None,
         )
+
+        # Initialize artifact manager
         self.artifact_manager = ArtifactManager(
             run_env_params=self.run_env_params,
             outcome_repo=self.outcome_repo,
         )
 
-        self.event_bus = EventBus()
-        self.static_inputs = {}  # For predefined inputs
+        self.static_inputs = {}
 
         # Save initial metadata
         self._save_metadata()
@@ -175,6 +214,86 @@ class RunContext:
             commit_outcome=True,
         )
 
+    async def load_node_from_previous_run(self, node_id: NodeID, copy_artifacts: bool = True) -> dict | None:
+        """Copy artifacts from previous run up to the start node."""
+        if not self.previous_run_dir or not self.previous_run_dir.exists():
+            logger.error(f"Cannot copy artifacts: Previous run directory not found. Looked for {self.previous_run_dir}")
+            return
+
+        if copy_artifacts:
+            await self._copy_previous_run_node_artifacts(node_id)
+            logger.info(f"Copied previous execution result artifacts for node {node_id}")
+
+        return await self._load_previous_run_node_execution_result_dict(node_id)
+
+    async def _copy_previous_run_node_artifacts(self, node_id: str):
+        """Copy artifacts for a specific node from previous run."""
+        if not self.previous_run_dir:
+            return
+
+        # Determine the hierarchy path for this node
+        node_hier_dir = node_id
+        try:
+            # Try to use hierarchy path if we can generate it correctly
+            # This might require more context than we have here
+            node_hier_dir = f"{self.agent_identifier}/{node_id}"
+        except Exception as e:
+            logger.warning(f"Using direct node_id for artifact copying: {e}")
+
+        # Define source and target directories
+        src_input_dir = self.previous_run_dir / node_hier_dir
+        dst_input_dir = self.run_dir / node_hier_dir
+
+        # Ensure target directory exists
+        dst_input_dir.mkdir(parents=True, exist_ok=True)
+
+        if src_input_dir.exists():
+            # Copy input, output, and outcome files
+            for file_name in ["outcome.json", "result.json"]:
+                src_file = src_input_dir / file_name
+                if src_file.exists():
+                    dst_file = dst_input_dir / file_name
+                    try:
+                        shutil.copy2(src_file, dst_file)
+                        logger.debug(f"Copied {file_name} for node {node_id}")
+                    except Exception as e:
+                        logger.warning(f"Failed to copy {file_name} for node {node_id}: {e}")
+
+            ## Copy any other files in the directory
+            # for src_file in src_input_dir.glob("*"):
+            #    if src_file.is_file() and src_file.name not in ["input.json", "output.json", "outcome.json"]:
+            #        dst_file = dst_input_dir / src_file.name
+            #        try:
+            #            shutil.copy2(src_file, dst_file)
+            #            logger.debug(f"Copied additional file {src_file.name} for node {node_id}")
+            #        except Exception as e:
+            #            logger.warning(f"Failed to copy additional file {src_file.name} for node {node_id}: {e}")
+
+    async def _load_previous_run_node_execution_result_dict(self, node_id: str) -> dict | None:
+        """Copy artifacts for a specific node from previous run."""
+        if not self.previous_run_dir:
+            return None
+
+        # Determine the hierarchy path for this node
+        node_hier_dir = node_id
+        try:
+            # Try to use hierarchy path if we can generate it correctly
+            # This might require more context than we have here
+            node_hier_dir = f"{self.agent_identifier}/{node_id}"
+        except Exception as e:
+            logger.warning(f"Using direct node_id for artifact copying: {e}")
+
+        # Define source and target directories
+        src_input_dir = self.previous_run_dir / node_hier_dir
+        result_file = src_input_dir / "result.json"
+
+        if src_input_dir.exists() and result_file.exists():
+            with open(result_file) as f:  # noqa: ASYNC230
+                _results = json.load(f)
+                return _results
+
+        return None
+
     def setup_observability(self):
         """Set up observability for the run context."""
         # Setup observability
@@ -199,7 +318,19 @@ class RunContext:
         if not self.observability_settings.service_name:
             self.observability_settings.service_name = f"dhenara-dad-{self.agent_identifier}"
 
-        # Set trace file path in settings
+        # Add rerun information to tracing
+        if self.is_rerun:
+            # Modify the service name to indicate it's a rerun
+            self.observability_settings.service_name = f"{self.observability_settings.service_name}-rerun"
+
+            # Set additional tracing attributes for rerun info
+            if self.previous_run_id:
+                # These will be picked up by the tracing system
+                os.environ["OTEL_RESOURCE_ATTRIBUTES"] = (
+                    f"previous_run_id={self.previous_run_id},start_node_id={self.start_node_id or 'none'}"
+                )
+
+        # Set trace file paths in settings
         self.observability_settings.trace_file_path = str(self.trace_file)
         self.observability_settings.metrics_file_path = str(self.metrics_file)
         self.observability_settings.log_file_path = str(self.log_file)

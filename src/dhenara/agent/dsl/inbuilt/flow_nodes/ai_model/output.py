@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from dhenara.agent.dsl.base import NodeOutcome
+from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.genai.dhenara import AIModelCallResponse
 from dhenara.ai.types.shared.base import BaseModel
 from dhenara.ai.types.shared.file import GenericFile
@@ -11,6 +11,10 @@ class AIModelNodeOutputData(BaseModel):
         ...,
         description="External Api call Response",
     )
+
+
+class AIModelNodeOutput(NodeOutput[AIModelNodeOutputData]):
+    pass
 
 
 class AIModelNodeOutcome(NodeOutcome):

@@ -49,15 +49,33 @@ class BaseAgent(metaclass=AgentMeta):
     async def run(
         self,
         run_context: RunContext,
+        start_node_id: str | None = None,
     ):
         log_with_context(self.logger, logging.INFO, f"Starting agent {self.agent_id}", {"agent_id": str(self.agent_id)})
 
-        run_context.copy_input_files()
+        # Copy input files from the previous run if this is a rerun
+        if hasattr(run_context, "is_rerun") and run_context.is_rerun and run_context.previous_run_id:
+            log_with_context(
+                self.logger,
+                logging.INFO,
+                f"Rerunning from previous run {run_context.previous_run_id}"
+                + (f" starting at node {start_node_id}" if start_node_id else ""),
+                {
+                    "agent_id": str(self.agent_id),
+                    "previous_run_id": run_context.previous_run_id,
+                    "start_node_id": start_node_id or "none",
+                },
+            )
+        else:
+            # Normal run, copy input files
+            run_context.copy_input_files()
+
         run_context.read_static_inputs()
 
         try:
             await self._run_flow(
                 run_context=run_context,
+                start_node_id=start_node_id or getattr(run_context, "start_node_id", None),
             )
 
             logger.debug("process_post: run completed")
@@ -87,6 +105,7 @@ class BaseAgent(metaclass=AgentMeta):
         self,
         run_context: RunContext,
         resource_profile="default",
+        start_node_id: str | None = None,
     ):
         flow_definition: ComponentDefinition = self.agent_node.flow
         try:
@@ -104,9 +123,10 @@ class BaseAgent(metaclass=AgentMeta):
                 run_context=run_context,
             )
 
-            # Execute the flow
+            # Execute the flow, potentially starting from a specific node
             _results = await executor.execute(
                 resource_config=resource_config,
+                start_node_id=start_node_id,
             )
 
         except PydanticValidationError as e:

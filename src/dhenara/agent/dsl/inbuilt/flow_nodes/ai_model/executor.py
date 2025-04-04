@@ -19,6 +19,7 @@ from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
     AIModelNodeOutcome,
+    AIModelNodeOutput,
     AIModelNodeOutputData,
     AIModelNodeSettings,
     ai_model_node_tracing_profile,
@@ -42,6 +43,12 @@ from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 logger = logging.getLogger(__name__)
 
+AIModelNodeExecutionResult = NodeExecutionResult[
+    AIModelNodeInput,
+    AIModelNodeOutput,
+    AIModelNodeOutcome,
+]
+
 
 class AIModelNodeExecutor(FlowNodeExecutor):
     input_model = AIModelNodeInput
@@ -52,6 +59,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         super().__init__(identifier="ai_model_node_executor")
         self.resource_config: ResourceConfig | None = None
 
+    def get_result_class(self):
+        return AIModelNodeExecutionResult
+
     @trace_node(FlowNodeTypeEnum.ai_model_call.value)
     async def execute_node(
         self,
@@ -60,7 +70,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> NodeExecutionResult[AIModelNodeOutputData]:
+    ) -> AIModelNodeExecutionResult:
         self.resource_config = resource_config
 
         if not self.resource_config:
@@ -358,7 +368,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         node_input: NodeInput,
         model_call_config: AIModelCallConfig,
         response,
-    ) -> NodeExecutionResult:
+    ) -> AIModelNodeExecutionResult:
         # Non streaming
 
         if response is None:
@@ -393,7 +403,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         )
 
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
-        return NodeExecutionResult[AIModelNodeOutputData](
+        return AIModelNodeExecutionResult(
             node_identifier=node_id,
             status=status,
             input=node_input,

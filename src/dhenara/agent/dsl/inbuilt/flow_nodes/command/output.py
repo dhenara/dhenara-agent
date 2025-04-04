@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import NodeOutcome
+from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.shared.base import BaseModel
 
 
@@ -22,6 +22,10 @@ class CommandNodeOutputData(BaseModel):
 
     all_succeeded: bool
     results: list[CommandResult]
+
+
+class CommandNodeOutput(NodeOutput[CommandNodeOutputData]):
+    pass
 
 
 class CommandNodeOutcome(NodeOutcome):

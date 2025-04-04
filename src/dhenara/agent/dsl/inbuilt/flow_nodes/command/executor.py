@@ -20,11 +20,18 @@ from dhenara.agent.observability.tracing.data import TracingDataCategory, add_tr
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import CommandNodeInput
-from .output import CommandNodeOutcome, CommandNodeOutputData, CommandResult
+from .output import CommandNodeOutcome, CommandNodeOutput, CommandNodeOutputData, CommandResult
 from .settings import CommandNodeSettings
 from .tracing import command_node_tracing_profile
 
 logger = logging.getLogger(__name__)
+
+
+CommandNodeExecutionResult = NodeExecutionResult[
+    CommandNodeInput,
+    CommandNodeOutput,
+    CommandNodeOutcome,
+]
 
 
 class CommandNodeExecutor(FlowNodeExecutor):
@@ -35,6 +42,9 @@ class CommandNodeExecutor(FlowNodeExecutor):
     def __init__(self):
         super().__init__(identifier="command_executor")
 
+    def get_result_class(self):
+        return CommandNodeExecutionResult
+
     @trace_node(FlowNodeTypeEnum.command.value)
     async def execute_node(
         self,
@@ -43,7 +53,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> NodeExecutionResult[CommandNodeOutputData] | None:
+    ) -> CommandNodeExecutionResult | None:
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
@@ -171,7 +181,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
             node_output = NodeOutput[CommandNodeOutputData](data=output_data)
 
             # Create execution result
-            result = NodeExecutionResult(
+            result = CommandNodeExecutionResult(
                 node_identifier=node_id,
                 status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
                 input=node_input,

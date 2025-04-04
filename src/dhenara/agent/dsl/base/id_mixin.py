@@ -217,3 +217,27 @@ class NavigationMixin(Generic[T]):
     def _get_top_level_elements(self) -> list[T]:
         """Get all top-level elements."""
         raise NotImplementedError
+
+    # INFO: Not used currently, may be deleted in the future
+    def _get_flattened_elements(self) -> tuple[list[T], list[str]]:
+        """
+        Get flattened lists of all elements and their identifiers, in execution order.
+        Returns:
+            Tuple of (elements_list, identifiers_list)
+        """
+        elements = []
+        identifiers = []
+
+        def _collect(element_list):
+            for element in element_list:
+                element_id = self._get_element_identifier(element)
+                elements.append(element)
+                identifiers.append(element_id)
+                # Process children if any
+                children = self._get_element_children(element)
+                if children:
+                    _collect(children)
+
+        # Start with top-level elements
+        _collect(self._get_top_level_elements())
+        return elements, identifiers

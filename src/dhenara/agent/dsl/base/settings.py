@@ -38,17 +38,10 @@ class RecordSettingsItem(BaseModel):
     )
 
 
-DEFAULT_INPUT_RECORD_SETTINGS = RecordSettingsItem(
-    enabled=True,
-    path="${node_hier}/",  # node_hier instead of node_id # "${run_id}/${node_id}/"
-    filename="input.json",
-    file_format=RecordFileFormatEnum.json,
-)
-
-DEFAULT_OUPUT_RECORD_SETTINGS = RecordSettingsItem(
+DEFAULT_RESULT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
     path="${node_hier}/",  # Use node_hier instead of node_id
-    filename="output.json",
+    filename="result.json",
     file_format=RecordFileFormatEnum.json,
 )
 
@@ -61,17 +54,13 @@ DEFAULT_OUTCOME_RECORD_SETTINGS = RecordSettingsItem(
 
 
 class NodeRecordSettings(BaseModel):
-    input: RecordSettingsItem = Field(
-        default_factory=lambda: DEFAULT_INPUT_RECORD_SETTINGS.model_copy(deep=True),
-        description="Input record settings",
-    )
-    output: RecordSettingsItem = Field(
-        default_factory=lambda: DEFAULT_OUPUT_RECORD_SETTINGS.model_copy(deep=True),
-        description="Output record settings",
+    result: RecordSettingsItem = Field(
+        default_factory=lambda: DEFAULT_RESULT_RECORD_SETTINGS.model_copy(deep=True),
+        description="Record settings for comprehensive Node-Execution-Result",
     )
     outcome: RecordSettingsItem | None = Field(
         default_factory=lambda: DEFAULT_OUTCOME_RECORD_SETTINGS.model_copy(deep=True),
-        description="Outcome record settings",
+        description="Record settings for focused outcome",
     )
 
     @classmethod
@@ -112,17 +101,13 @@ class GitSettingsItem(BaseModel):
 
 
 class NodeGitSettings(BaseModel):
-    input: GitSettingsItem | None = Field(
+    result: GitSettingsItem | None = Field(
         default=None,
-        description="Input git settings",
-    )
-    output: GitSettingsItem | None = Field(
-        default=None,
-        description="Output git settings",
+        description="Git record settings for comprehensive Node-Execution-Result",
     )
     outcome: GitSettingsItem | None = Field(
         default=None,
-        description="Outcome git settings",
+        description="Git Record settings for focused outcome",
     )
 
     @classmethod

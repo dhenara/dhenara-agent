@@ -1,3 +1,4 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -38,6 +39,11 @@ class NodeExecutor(ABC):
     ):
         self.identifier = identifier
         self.logger = logging.getLogger(f"dhenara.agent.executor.{identifier}")
+
+    @abstractmethod
+    def get_result_class(self):
+        """Get the executon resutl class. Used to reload previous results."""
+        pass
 
     async def get_input_for_node(
         self,
@@ -124,9 +130,13 @@ class NodeExecutor(ABC):
         # Record start time for metrics
         start_time = datetime.now()
 
+        # TODO_FUTURE: Remove, as we record the result with input
         # Record input if configured
-        input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
-        input_git_settings = node_definition.git_settings.input if node_definition.git_settings else None
+        # input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
+        # input_git_settings = node_definition.git_settings.input if node_definition.git_settings else None
+        input_record_settings = None
+        input_git_settings = None
+
         if input_record_settings and input_record_settings.enabled:
             input_data = node_input.model_dump() if hasattr(node_input, "model_dump") else node_input
             execution_context.artifact_manager.record_data(
@@ -256,35 +266,41 @@ class NodeExecutor(ABC):
 
             execution_context.updated_at = datetime.now()
             # Get record settings from the node if available
-            output_record_settings = None
-            output_record_settings = None
-            output_git_settings = None
-            outcome_git_settings = None
+            result_record_settings = None
+            result_record_settings = None
+            result_git_record_settings = None
+            outcome_git_record_settings = None
 
             if node_definition.record_settings:
-                output_record_settings = node_definition.record_settings.output
+                result_record_settings = node_definition.record_settings.result
                 outcome_record_settings = node_definition.record_settings.outcome
             if node_definition.git_settings:
-                output_git_settings = node_definition.git_settings.output
-                outcome_git_settings = node_definition.git_settings.outcome
+                result_git_record_settings = node_definition.git_settings.result
+                outcome_git_record_settings = node_definition.git_settings.outcome
 
-            output_data = result.output.data if result.output else None
+            # NOTE:
+            # When output is set in record settings, use it for recoring result which has
+            #   1. Node Input
+            #   2. Node Output
+            #   3. Node Outcome
+            #   4. Node Error
+
+            # INFO:
+            # To avoid serialization errors (like datatime), use pydatnic for json conversion and
+            # then converte back to dict, instead of `result.model_dump()`
+            result_data = json.loads(result.model_dump_json())
+
+            # TODO_FUTURE: Avoid dulicate data recoding for outcome and input
             outcome_data = result.outcome
-
-            if outcome_data is not None:
-                output_data = output_data.model_dump() if hasattr(output_data, "model_dump") else output_data
-            else:
-                output_data = {"error": result.error, "errors": result.errors}
-
             outcome_data = outcome_data.model_dump() if hasattr(outcome_data, "model_dump") else outcome_data
 
             # Record the node output
             execution_context.artifact_manager.record_data(
-                record_type="output",
+                record_type="result",
                 dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
-                data=output_data,
-                record_settings=output_record_settings,
-                git_settings=output_git_settings,
+                data=result_data,
+                record_settings=result_record_settings,
+                git_settings=result_git_record_settings,
             )
 
             # Record the node outcome
@@ -293,7 +309,7 @@ class NodeExecutor(ABC):
                 dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=outcome_data,
                 record_settings=outcome_record_settings,
-                git_settings=outcome_git_settings,
+                git_settings=outcome_git_record_settings,
             )
 
         return None

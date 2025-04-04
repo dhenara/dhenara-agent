@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from dhenara.agent.dsl.base import NodeOutcome
+from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.shared.base import BaseModel
 
 
@@ -20,6 +20,10 @@ class FileOperationNodeOutputData(BaseModel):
     operations_count: int
     results: list[OperationResult]
     error: str | None = None
+
+
+class FileOperationNodeOutput(NodeOutput[FileOperationNodeOutputData]):
+    pass
 
 
 class FileOperationNodeOutcome(NodeOutcome):

@@ -32,15 +32,33 @@ def run():
     default=None,
     help="Custom run ID . Defaults is <agent_identifier>_<timestamp>_<uid>",
 )
+@click.option(
+    "--previous-run-id",
+    default=None,
+    help="ID of a previous run to use as a base for this run",
+)
+@click.option(
+    "--start-node-id",
+    default=None,
+    help="Node ID to start execution from (skips all previous nodes)",
+)
 def run_agent(
     identifier,
     project_root,
     run_root,
     run_id,
+    previous_run_id,
+    start_node_id,
 ):
     """Run an agent with the specified inputs.
 
     NAME is the name of the agent.
+
+    Examples:
+        dhenara run agent my_agent                     # Run the agent normally
+        dhenara run agent my_agent --previous-run-id run_123  # Rerun a previous execution
+        dhenara run agent my_agent --start-node-id node2     # Start execution from node2
+        dhenara run agent my_agent --previous-run-id run_123 --start-node-id node2  # Rerun from node2
     """
     asyncio.run(
         _run_agent(
@@ -48,6 +66,8 @@ def run_agent(
             project_root,
             run_root,
             run_id,
+            previous_run_id,
+            start_node_id,
         )
     )
 
@@ -57,12 +77,13 @@ async def _run_agent(
     project_root,
     run_root,
     run_id,
+    previous_run_id,
+    start_node_id,
 ):
     """Async implementation of run_agent."""
     # Find project root
     if not project_root:
         project_root = find_project_root()
-
     if not project_root:
         click.echo("Error: Not in a Dhenara project directory.")
         return
@@ -72,15 +93,30 @@ async def _run_agent(
     if not (agent_module and run_ctx):
         raise ValueError("Failed to get agent module and run context")
 
+    # Update run context with rerun parameters if provided
+    if previous_run_id or start_node_id:
+        run_ctx.set_previous_run(
+            previous_run_id=previous_run_id,
+            start_node_id=start_node_id,
+        )
+
+    # Do run setup
+    run_ctx.setup_run()
+
     try:
         # Run agent in a subprocess for isolation
         async with IsolatedExecution(run_ctx) as executor:
             _result = await executor.run(
                 agent_module=agent_module,
                 run_context=run_ctx,
+                start_node_id=start_node_id,
             )
 
-        print(f"Agent run completed successfully. Run ID: {run_ctx.run_id}")
+        # Display rerun information if applicable
+        run_type = "rerun" if previous_run_id else "standard run"
+        start_info = f"from node {start_node_id}" if start_node_id else "from beginning"
+        print(f"Agent {run_type} completed successfully {start_info}. Run ID: {run_ctx.run_id}")
+
         print_run_summary(run_ctx)
 
         ## View the traces in the dashboard if the file exists

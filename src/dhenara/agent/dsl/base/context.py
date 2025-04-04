@@ -8,7 +8,7 @@ from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base.results import NodeExecutionResult, OutputDataT
+from dhenara.agent.dsl.base.results import NodeExecutionResult, NodeInputT, NodeOutcomeT, NodeOutputT
 from dhenara.agent.dsl.base.utils import NodeHierarchyHelper
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
@@ -55,11 +55,21 @@ class ExecutionContext(BaseModelABC):
     # Flow-specific tracking
     current_node_identifier: NodeID | None = Field(default=None)
 
+    # Add start_node_id field
+    start_node_id: NodeID | None = Field(default=None, description="Node ID to start execution from")
+
     # TODO_FUTURE: An option to statically override node settings
     # initial_inputs: NodeInputs = Field(default_factory=dict)
 
     execution_status: ExecutionStatusEnum = Field(default=ExecutionStatusEnum.PENDING)
-    execution_results: dict[NodeID, NodeExecutionResult[OutputDataT]] = Field(default_factory=dict)
+    execution_results: dict[
+        NodeID,
+        NodeExecutionResult[
+            NodeInputT,
+            NodeOutputT,
+            NodeOutcomeT,
+        ],
+    ] = Field(default_factory=dict)
     execution_failed: bool = Field(default=False)
     execution_failed_message: str | None = Field(default=None)
     metadata: dict[str, Any] = Field(default_factory=dict)

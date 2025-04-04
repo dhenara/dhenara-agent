@@ -90,6 +90,33 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         pass
 
     # -------------------------------------------------------------------------
+    async def load_from_previous_run(
+        self,
+        node_id: NodeID,
+        execution_context: ContextT,
+    ) -> Any:
+        executer = self.get_node_executor()
+        result_class = executer.get_result_class()
+
+        result_data = await execution_context.run_context.load_node_from_previous_run(
+            node_id=node_id,
+            copy_artifacts=True,
+        )
+
+        if result_data:
+            try:
+                result = result_class(**result_data)
+                execution_context.set_result(node_id, result)
+            except Exception as e:
+                execution_context.logger.error(f"Failed to load previous run data for node {node_id}: {e}")
+                return None
+        else:
+            execution_context.logger.error(
+                f"Falied to load data from previous execution result artifacts for node {node_id}"
+            )
+            return None
+
+    # -------------------------------------------------------------------------
     def select_settings(
         self,
         node_input: NodeInput,

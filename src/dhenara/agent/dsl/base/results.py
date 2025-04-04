@@ -1,4 +1,3 @@
-# flow_execution.py
 from datetime import datetime
 from typing import Generic, TypeVar
 
@@ -6,28 +5,20 @@ from dhenara.ai.types.shared.base import BaseModel
 
 from .defs import NodeID
 from .enums import ExecutionStatusEnum
-from .node_io import NodeInput, NodeOutcome, NodeOutput
 
-# TODO
-# TODO
-# TODO
-# TODO
-StorageEntityDBData = list[str]  # list of strings
-
-OutputDataT = TypeVar("OutputT", bound=BaseModel)
+NodeInputT = TypeVar("NodeInputT", bound=BaseModel)
+NodeOutputT = TypeVar("NodeOutputT", bound=BaseModel)
+NodeOutcomeT = TypeVar("NodeOutcomeT", bound=BaseModel)
 
 
-# -----------------------------------------------------------------------------
-class NodeExecutionResult(BaseModel, Generic[OutputDataT]):
+class NodeExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeOutcomeT]):
     node_identifier: NodeID
     status: ExecutionStatusEnum
-    # user_inputs: list[Content] | None
-    input: NodeInput | None
-    output: NodeOutput[OutputDataT] | None
-    outcome: NodeOutcome | None
+    input: NodeInputT | None
+    output: NodeOutputT | None
+    outcome: NodeOutcomeT | None
     error: str | None = None
     errors: list[str] | None = None
-    # storage_data: dict[StorageEntityTypeEnum, StorageEntityDBData]
     created_at: datetime
 
 

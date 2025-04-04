@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from dhenara.agent.dsl.base import DADTemplateEngine, GitSettingsItem, RecordFileFormatEnum, RecordSettingsItem
 from dhenara.agent.types.data import RunEnvParams
@@ -40,8 +40,8 @@ class ArtifactManager:
     def record_data(
         self,
         dad_dynamic_variables: dict,
-        data: Any,
-        record_type: Literal["input", "output", "outcome"],
+        data: dict | str | bytes,
+        record_type: Literal["input", "outcome", "result"],
         record_settings: RecordSettingsItem = None,
         git_settings: GitSettingsItem = None,
     ) -> bool:
@@ -51,6 +51,7 @@ class ArtifactManager:
 
         variables = None
 
+        # TODO_FUTURE: Do data type checks
         def _save_file(output_file):
             # Save data in the specified format
             if record_settings.file_format == RecordFileFormatEnum.json:

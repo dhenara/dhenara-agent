@@ -21,11 +21,23 @@ from dhenara.agent.observability.tracing.data import TracingDataCategory, add_tr
 from dhenara.ai.types.resource import ResourceConfig
 
 from .input import FolderAnalyzerNodeInput
-from .output import DirectoryInfo, FileInfo, FolderAnalyzerNodeOutcome, FolderAnalyzerNodeOutputData
+from .output import (
+    DirectoryInfo,
+    FileInfo,
+    FolderAnalyzerNodeOutcome,
+    FolderAnalyzerNodeOutput,
+    FolderAnalyzerNodeOutputData,
+)
 from .settings import FolderAnalyzerSettings
 from .tracing import folder_analyzer_node_tracing_profile
 
 logger = logging.getLogger(__name__)
+
+FolderAnalyzerNodeExecutionResult = NodeExecutionResult[
+    FolderAnalyzerNodeInput,
+    FolderAnalyzerNodeOutput,
+    FolderAnalyzerNodeOutcome,
+]
 
 
 class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
@@ -39,6 +51,9 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         super().__init__(identifier="folder_analyzer_executor")
         self._total_words_read = 0
 
+    def get_result_class(self):
+        return FolderAnalyzerNodeExecutionResult
+
     @trace_node(FlowNodeTypeEnum.folder_analyzer.value)
     async def execute_node(
         self,
@@ -47,7 +62,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         resource_config: ResourceConfig,
-    ) -> NodeExecutionResult[FolderAnalyzerNodeOutputData] | None:
+    ) -> FolderAnalyzerNodeExecutionResult | None:
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
@@ -174,7 +189,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 )
 
             # Create execution result
-            result = NodeExecutionResult(
+            result = FolderAnalyzerNodeExecutionResult(
                 node_identifier=node_id,
                 status=ExecutionStatusEnum.COMPLETED if output_data.success else ExecutionStatusEnum.FAILED,
                 input=node_input,

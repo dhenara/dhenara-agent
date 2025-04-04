@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import NodeOutcome
+from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.shared.base import BaseModel
 
 
@@ -48,6 +48,10 @@ class FolderAnalyzerNodeOutputData(BaseModel):
     path: str
     analysis: DirectoryInfo | None = None
     error: str | None = None
+
+
+class FolderAnalyzerNodeOutput(NodeOutput[FolderAnalyzerNodeOutputData]):
+    pass
 
 
 class FolderAnalyzerNodeOutcome(NodeOutcome):
