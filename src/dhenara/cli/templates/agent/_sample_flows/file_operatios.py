@@ -122,7 +122,7 @@ flow.node(
                     content=FileModificationContent(
                         start_point_match="/* REPLACE_START */",
                         end_point_match="/* REPLACE_END */",
-                        new_content="This is the new modified content",
+                        content="This is the new modified content",
                     ),
                 ),
                 FileOperation(
@@ -131,7 +131,7 @@ flow.node(
                     content=FileModificationContent(
                         start_point_match="This is",
                         end_point_match="file1.txt",
-                        new_content=" the updated content of ",
+                        content=" the updated content of ",
                     ),
                 ),
             ],
@@ -239,7 +239,7 @@ flow.node(
                     content=FileModificationContent(
                         start_point_match="start",
                         end_point_match="end",
-                        new_content="content",
+                        content="content",
                     ),
                 ),
                 # Try to delete a non-existent file

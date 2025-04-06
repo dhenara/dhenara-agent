@@ -20,7 +20,7 @@ class FileModificationContent(PydanticBaseModel):
 
     start_point_match: str = Field(..., description="Pattern to identify the starting point for modification")
     end_point_match: str = Field(..., description="Pattern to identify the ending point for modification")
-    new_content: str = Field(
+    content: str = Field(
         ...,
         description="New content to insert between start and end points. Use empty string to delete content between points.",
     )

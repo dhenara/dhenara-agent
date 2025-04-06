@@ -245,15 +245,15 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                             continue
 
                         # Perform the modification
-                        new_content = (
+                        content = (
                             file_content[: start_idx + len(mod_content.start_point_match)]
-                            + mod_content.new_content
+                            + mod_content.content
                             + file_content[end_idx:]
                         )
 
                         # Write the modified content
                         with open(full_path, "w") as f:
-                            f.write(new_content)
+                            f.write(content)
 
                         results.append(OperationResult(type="modify_file", path=operation.path, success=True))
                         successful_operations += 1
