@@ -352,12 +352,6 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             response=response,
         )
 
-        self.update_execution_context(
-            node_id=node_id,
-            execution_context=execution_context,
-            result=result,
-        )
-
         return result
 
     def _derive_result(
@@ -394,6 +388,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             structured_outcome = response.chat_response.structured()
             if not structured_outcome:
                 logger.error("AIModelNode structured_outcome is None when node settings sets structured_output")
+
+            if not isinstance(structured_outcome, dict):
+                logger.error(f"AIModelNode structured_outcome is not a dict but of type {type(structured_outcome)}")
         else:
             text_outcome = response.chat_response.text()
 

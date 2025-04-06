@@ -69,20 +69,10 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         # Execute non-streaming node
         result = await node_executor.execute(
             node_id=node_id,
-            node_definition=self,  # TODO: Change type in node_executor
+            node_definition=self,
             execution_context=execution_context,
-            # initial_inputs=initial_inputs,
-            # resource_config=execution_context.resource_config,
         )
-
-        if result is not None:  # Streaming case will return an async generator
-            return result
-
-        execution_context.set_result(node_id, result)
-        # TODO
-        # if execution_context.execution_failed:
-        #    execution_context.execution_status = ExecutionStatusEnum.FAILED
-        #    return None
+        return result
 
     @abstractmethod
     def get_node_executor(self):  # NodeExecutor:
@@ -106,7 +96,11 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         if result_data:
             try:
                 result = result_class(**result_data)
+                # Set the result in the execution context
                 execution_context.set_result(node_id, result)
+
+                # TODO_FUTURE: record for tracing ?
+                return result
             except Exception as e:
                 execution_context.logger.error(f"Failed to load previous run data for node {node_id}: {e}")
                 return None

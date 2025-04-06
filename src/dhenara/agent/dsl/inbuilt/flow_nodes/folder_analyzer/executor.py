@@ -198,13 +198,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 created_at=datetime.now(),
             )
 
-            # Update execution context
-            self.update_execution_context(
-                node_id=node_id,
-                execution_context=execution_context,
-                result=result,
-            )
-
             return result
 
         except Exception as e:

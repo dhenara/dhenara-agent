@@ -134,9 +134,14 @@ class ExecutionContext(BaseModelABC):
 
         return current
 
-    def set_result(self, key: str, value: Any) -> None:
+    def set_result(
+        self,
+        node_id: NodeID,
+        result: NodeExecutionResult,
+    ):
         """Set a result value in the context."""
-        self.results[key] = value
+        self.execution_results[node_id] = result
+        self.updated_at = datetime.now()
 
     def set_execution_failed(self, message: str) -> None:
         """Mark execution as failed with a message."""

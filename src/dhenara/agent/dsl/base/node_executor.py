@@ -177,6 +177,13 @@ class NodeExecutor(ABC):
             resource_config=resource_config,
         )
 
+        # Set the result in the execution context
+        execution_context.set_result(node_id, result)
+
+        # TODO: Check for straming result
+        # if result is not None:  # Streaming case will return an async generator
+        #    return result
+
         # Record metrics
         end_time = datetime.now()
         duration_ms = (end_time - start_time).total_seconds() * 1000
@@ -240,16 +247,6 @@ class NodeExecutor(ABC):
         Handle the execution of a flow node.
         """
         pass
-
-    def update_execution_context(
-        self,
-        node_id: NodeID,
-        execution_context: ExecutionContext,
-        result: NodeExecutionResult,
-    ):
-        """update_execution_context: Should be called from derived classes after results available"""
-        execution_context.execution_results[node_id] = result
-        execution_context.updated_at = datetime.now()
 
     async def record_results(
         self,

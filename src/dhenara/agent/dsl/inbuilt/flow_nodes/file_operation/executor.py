@@ -77,7 +77,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             operations: list[FileOperation] = []
 
             # Extract operations from operations_template if provided
-            if hasattr(settings, "operations_template") and settings.operations_template is not None:
+            if settings.operations_template is not None:
                 template_result = DADTemplateEngine.render_dad_template(
                     template=settings.operations_template,
                     variables={},
@@ -87,20 +87,45 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                     mode="expression",
                 )
 
-                # Parse operations from template result (which could be a JSON string)
+                # Process operations based on the actual type returned
                 if template_result:
                     try:
-                        # Try to parse as JSON first
-                        parsed_ops = json.loads(template_result)
-                        if isinstance(parsed_ops, list):
-                            operations = [FileOperation(**op) if isinstance(op, dict) else op for op in parsed_ops]
-                        elif isinstance(parsed_ops, dict) and "operations" in parsed_ops:
-                            operations = [
-                                FileOperation(**op) if isinstance(op, dict) else op for op in parsed_ops["operations"]
-                            ]
-                    except json.JSONDecodeError:
-                        # If not valid JSON, log an error
-                        logger.error(f"Unable to parse operations from template result: {template_result}")
+                        # Handle list of operations
+                        if isinstance(template_result, list):
+                            operations = []
+                            for op in template_result:
+                                if isinstance(op, dict):
+                                    operations.append(FileOperation(**op))
+                                elif isinstance(op, FileOperation):
+                                    operations.append(op)
+                                else:
+                                    logger.warning(f"Unexpected operation type in list: {type(op)}")
+
+                        # Handle single operation as dict
+                        elif isinstance(template_result, dict):
+                            operations = [FileOperation(**template_result)]
+
+                        # Handle JSON string (for backward compatibility)
+                        elif isinstance(template_result, str):
+                            try:
+                                # Try parsing as JSON
+                                parsed_ops = json.loads(template_result)
+                                if isinstance(parsed_ops, list):
+                                    operations = [FileOperation(**op) for op in parsed_ops]
+                                elif isinstance(parsed_ops, dict):
+                                    operations = [FileOperation(**parsed_ops)]
+                                else:
+                                    logger.error(f"Unexpected structure in JSON string: {type(parsed_ops)}")
+                            except json.JSONDecodeError:
+                                # Not valid JSON, treat as error
+                                logger.error(f"Unable to parse operations from template string: {template_result}")
+
+                        # Handle other unexpected types
+                        else:
+                            logger.error(f"Unsupported template result type: {type(template_result)}")
+
+                    except Exception as e:
+                        logger.error(f"Error processing operations from template: {e}", exc_info=True)
 
             # If no operations from template, try other sources
             if not operations:
@@ -325,13 +350,6 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 output=node_output,
                 outcome=outcome,
                 created_at=datetime.now(),
-            )
-
-            # Update execution context
-            self.update_execution_context(
-                node_id=node_id,
-                execution_context=execution_context,
-                result=result,
             )
 
             return result
