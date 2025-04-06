@@ -2,7 +2,7 @@ from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
 from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types import FileOperation
-from dhenara.ai.types.genai.dhenara.request.data import TextTemplate
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
 class FileOperationNodeSettings(NodeSettings):
@@ -16,7 +16,7 @@ class FileOperationNodeSettings(NodeSettings):
         default_factory=list,
         description="List of file operations to perform",
     )
-    operations_template: TextTemplate | None = Field(
+    operations_template: ObjectTemplate | None = Field(
         default=None,
         description=(
             "Template to extract file operations from previous node results. "

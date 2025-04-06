@@ -155,13 +155,7 @@ class TemplateEngine:
             variables: Dictionary of variables accessible to the expressions
 
         Returns:
-            Evaluated template with expressions replaced by their values
-
-        Examples:
-            >>> TemplateEngine.parse_and_evaluate("Items: ${items[0]}", {"items": ["apple", "banana"]})
-            'Items: apple'
-            >>> TemplateEngine.parse_and_evaluate("Result: ${a > b}", {"a": 5, "b": 3})
-            'Result: True'
+            Evaluated template with expressions replaced by their string values
         """
         if not template:
             return template
@@ -175,6 +169,33 @@ class TemplateEngine:
                 return f"Error: {e!s}"
 
         return cls.EXPR_PATTERN.sub(replace_expr, template)
+
+    @classmethod
+    def evaluate_single_expression(cls, expr_template: str, variables: dict[str, Any]) -> Any:
+        """
+        Evaluate a single expression and return the raw result without string conversion.
+
+        Args:
+            expr_template: Expression template like "${...}"
+            variables: Dictionary of variables accessible to the expressions
+
+        Returns:
+            Raw result of evaluating the expression, preserving its type
+        """
+        if not expr_template:
+            return expr_template
+
+        # Extract the expression from ${...}
+        match = cls.EXPR_PATTERN.search(expr_template)
+        if match:
+            expr = match.group(1).strip()
+            try:
+                return cls._evaluate_expression(expr, variables)
+            except Exception as e:
+                return f"Error: {e!s}"
+
+        # If no expression found, return the template unchanged
+        return expr_template
 
     @classmethod
     def _evaluate_expression(cls, expr: str, variables: dict[str, Any]) -> Any:
