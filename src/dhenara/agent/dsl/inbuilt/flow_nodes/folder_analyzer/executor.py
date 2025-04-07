@@ -23,7 +23,7 @@ from dhenara.ai.types.resource import ResourceConfig
 from .input import FolderAnalyzerNodeInput
 from .output import (
     DirectoryInfo,
-    FileInfo,
+    FAFileInfo,
     FolderAnalyzerNodeOutcome,
     FolderAnalyzerNodeOutput,
     FolderAnalyzerNodeOutputData,
@@ -381,12 +381,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         root_path: Path,
         settings: FolderAnalyzerSettings,
         skip_content: bool = False,
-    ) -> FileInfo:
+    ) -> FAFileInfo:
         """Analyze a single file with enhanced options."""
         # Format the path according to settings
         formatted_path = self._format_path(path, root_path, settings)
 
-        result = FileInfo(
+        result = FAFileInfo(
             type="file",
             name=path.name,
             path=formatted_path,

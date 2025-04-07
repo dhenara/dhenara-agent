@@ -1,71 +1,131 @@
-# ruff:noqa: E501
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 
-# Note: Use PydanticBaseModel and Enum, as these will be used in .dad definitions
 class FileOperationType(Enum):
-    create_directory = "create_directory"
-    delete_directory = "delete_directory"
+    # File operations
     create_file = "create_file"
-    modify_file = "modify_file"
+    read_file = "read_file"
+    read_multiple_files = "read_multiple_files"
+    edit_file = "edit_file"
     delete_file = "delete_file"
 
+    # Directory operations
+    create_directory = "create_directory"
+    delete_directory = "delete_directory"
+    list_directory = "list_directory"
 
-class FileModificationContent(PydanticBaseModel):
-    """Content specification for file modification operations"""
+    # Navigation operations
+    move_file = "move_file"
+    search_files = "search_files"
+    get_file_info = "get_file_info"
+    list_allowed_directories = "list_allowed_directories"
 
-    start_point_match: str = Field(
+
+class EditOperation(BaseModel):
+    """Advanced edit operation with better pattern matching"""
+
+    old_text: str = Field(
         ...,
-        description="A pattern (exact string, regex) that uniquely identifies where the modification should begin in the file",
+        description="Text to search for - must match exactly",
+    )
+    new_text: str = Field(
+        ...,
+        description="Text to replace with",
     )
 
-    end_point_match: str = Field(
+
+class SearchConfig(BaseModel):
+    """Configuration for file search operations"""
+
+    pattern: str = Field(
         ...,
-        description="A pattern (exact string, regex) that uniquely identifies where the modification should end in the file",
+        description="Search pattern to match in filenames",
+    )
+    exclude_patterns: list[str] = Field(
+        default_factory=list,
+        description="Patterns to exclude from search results (glob format supported)",
     )
 
-    content: str = Field(
-        ...,
-        description="The new content that should replace everything between start_point_match and end_point_match (inclusive). Use an empty string to delete the matched section completely.",
-    )
+
+class FileInfo(BaseModel):
+    """Information about a file or directory"""
+
+    size: int = Field(..., description="Size in bytes")
+    created: str = Field(..., description="Creation timestamp")
+    modified: str = Field(..., description="Last modified timestamp")
+    accessed: str = Field(..., description="Last accessed timestamp")
+    is_directory: bool = Field(..., description="Whether this is a directory")
+    is_file: bool = Field(..., description="Whether this is a file")
+    permissions: str = Field(..., description="File permissions in octal format")
 
 
-class FileOperation(PydanticBaseModel):
+class FileOperation(BaseModel):
     """Represents a single file operation for the filesystem"""
 
-    # INFO:
-    # Do no add Emuns ( like FileOperationType) they will cause issues in AIModel structured outputs FileOperationType
+    # Using Literal instead of Enum for better compatibility with structured output
     type: Literal[
+        "create_file",
+        "read_file",
+        "read_multiple_files",
+        "edit_file",
+        "delete_file",
         "create_directory",
         "delete_directory",
-        "create_file",
-        "modify_file",
-        "delete_file",
+        "list_directory",
+        "move_file",
+        "search_files",
+        "get_file_info",
+        "list_allowed_directories",
     ] = Field(
         ...,
         description="Type of file operation to perform",
     )
-    path: str = Field(..., description="Path to the target file or directory")
-    content: str | FileModificationContent | None = Field(
+    path: str | None = Field(
         None,
-        description=(
-            "Content for the file operation:\n"
-            "- For 'create_file': String content of the new file\n"
-            "- For 'modify_file': FileModificationContent object specifying modifications\n"
-            "- For other operations: Should be None"
-        ),
+        description="Path to the target file or directory",
+    )
+    paths: list[str] | None = Field(
+        None,
+        description="Multiple file paths for operations that work on multiple files",
+    )
+    content: str | None = Field(
+        None,
+        description="Content for file creation operations",
+    )
+    edits: list[EditOperation] | None = Field(
+        None,
+        description="List of edits to apply to a file",
+    )
+    dry_run: bool | None = Field(
+        False,
+        description="Preview changes without applying them",
+    )
+    source: str | None = Field(
+        None,
+        description="Source path for move operations",
+    )
+    destination: str | None = Field(
+        None,
+        description="Destination path for move operations",
+    )
+    search_config: SearchConfig | None = Field(
+        None,
+        description="Configuration for file search operations",
     )
 
     def validate_content_type(self) -> bool:
         """Validates that the content field matches the expected type based on operation type"""
         if self.type == "create_file" and not isinstance(self.content, str):
             return False
-        if self.type == "modify_file" and not isinstance(self.content, FileModificationContent):
+        if self.type == "edit_file" and not self.edits:
             return False
-        if self.type in ["delete_file", "delete_directory", "create_directory"] and self.content is not None:
+        if self.type == "read_multiple_files" and not self.paths:
+            return False
+        if self.type == "move_file" and (not self.source or not self.destination):
+            return False
+        if self.type == "search_files" and not self.search_config:
             return False
         return True

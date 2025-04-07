@@ -1,7 +1,15 @@
-from .file_operation import FileOperationType, FileOperation, FileModificationContent
+from .file_operation import (
+    FileOperationType,
+    FileOperation,
+    EditOperation,
+    SearchConfig,
+    FileInfo,
+)
 
 __all__ = [
-    "FileModificationContent",
+    "EditOperation",
+    "FileInfo",
     "FileOperation",
     "FileOperationType",
+    "SearchConfig",
 ]

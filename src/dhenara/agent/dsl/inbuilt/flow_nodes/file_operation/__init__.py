@@ -1,4 +1,4 @@
-from .types import FileOperationType, FileOperation, FileModificationContent
+from .types import FileOperationType, FileOperation, EditOperation, SearchConfig
 
 from .tracing import file_operation_node_tracing_profile
 from .settings import FileOperationNodeSettings
@@ -8,8 +8,7 @@ from .node import FileOperationNode
 from .executor import FileOperationNodeExecutor
 
 __all__ = [
-    "FileModificationContent",
-    "FileModificationContent",
+    "EditOperation",
     "FileOperation",
     "FileOperationNode",
     "FileOperationNodeExecutor",
@@ -19,6 +18,7 @@ __all__ = [
     "FileOperationNodeSettings",
     "FileOperationType",
     "OperationResult",
+    "SearchConfig",
     "file_operation_node_tracing_profile",
     "file_operation_node_tracing_profile",
 ]

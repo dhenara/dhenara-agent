@@ -6,7 +6,8 @@ from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.shared.base import BaseModel
 
 
-class FileInfo(BaseModel):
+# TODO_FUTURE: Merge with FileInfo in FileOpeartion Node
+class FAFileInfo(BaseModel):
     """Information about a file."""
 
     type: str = "file"
@@ -31,7 +32,7 @@ class DirectoryInfo(BaseModel):
     type: str = "directory"
     name: str
     path: str
-    children: list[Any] = []  # Can be FileInfo or DirectoryInfo
+    children: list[Any] = []  # Can be FAFileInfo or DirectoryInfo
     file_count: int = 0
     dir_count: int = 0
     truncated: bool = False

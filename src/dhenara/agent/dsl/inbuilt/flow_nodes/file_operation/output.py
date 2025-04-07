@@ -1,36 +1,46 @@
+# dhenara/agent/dsl/inbuilt/flow_nodes/file_operation/output.py
+
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.ai.types.shared.base import BaseModel
 
+from .types.file_operation import FileInfo
+
 
 class OperationResult(BaseModel):
     """Result of a single file operation."""
 
-    type: str
-    path: str
-    success: bool
-    error: str | None = None
+    type: str = Field(..., description="Type of operation performed")
+    path: str | None = Field(None, description="Path of the file/directory operated on")
+    success: bool = Field(..., description="Whether the operation succeeded")
+    error: str | None = Field(None, description="Error message if operation failed")
+    content: str | None = Field(None, description="Content of file for read operations")
+    file_info: FileInfo | None = Field(None, description="File metadata for info operations")
+    diff: str | None = Field(None, description="Git-style diff showing changes made")
+    files: list[str] | None = Field(None, description="List of files for directory operations")
 
 
 class FileOperationNodeOutputData(BaseModel):
     """Output data for the File Operation Node."""
 
-    success: bool
-    operations_count: int
-    results: list[OperationResult]
-    error: str | None = None
+    success: bool = Field(..., description="Whether all operations succeeded")
+    operations_count: int = Field(..., description="Number of operations attempted")
+    results: list[OperationResult] = Field(..., description="Results of individual operations")
+    error: str | None = Field(None, description="Overall error message if any")
 
 
 class FileOperationNodeOutput(NodeOutput[FileOperationNodeOutputData]):
+    """Node output wrapper class."""
+
     pass
 
 
 class FileOperationNodeOutcome(NodeOutcome):
     """Outcome for the File Operation Node."""
 
-    success: bool = Field(default=False)
-    operations_count: int = Field(default=0)
-    successful_operations: int = Field(default=0)
-    failed_operations: int = Field(default=0)
-    errors: list[str] = Field(default_factory=list)
+    success: bool = Field(default=False, description="Whether all operations succeeded")
+    operations_count: int = Field(default=0, description="Total number of operations attempted")
+    successful_operations: int = Field(default=0, description="Number of successful operations")
+    failed_operations: int = Field(default=0, description="Number of failed operations")
+    errors: list[str] = Field(default_factory=list, description="List of errors encountered")
