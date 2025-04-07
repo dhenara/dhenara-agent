@@ -2,7 +2,6 @@
 from dhenara.agent.dsl import (
     CommandNode,
     CommandNodeSettings,
-    FileModificationContent,
     FileOperation,
     FileOperationNode,
     FileOperationNodeSettings,
@@ -108,34 +107,7 @@ flow.node(
 )
 
 # 6. Test modifying files
-flow.node(
-    "modify_files",
-    FileOperationNode(
-        settings=FileOperationNodeSettings(
-            base_directory="${run_dir}/test_files",
-            operations=[
-                FileOperation(
-                    type="modify_file",
-                    path="sample.txt",
-                    content=FileModificationContent(
-                        start_point_match="/* REPLACE_START */",
-                        end_point_match="/* REPLACE_END */",
-                        content="This is the new modified content",
-                    ),
-                ),
-                FileOperation(
-                    type="modify_file",
-                    path="dir1/file1.txt",
-                    content=FileModificationContent(
-                        start_point_match="This is",
-                        end_point_match="file1.txt",
-                        content=" the updated content of ",
-                    ),
-                ),
-            ],
-        )
-    ),
-)
+# TODO
 
 # 7. Verify file modifications
 flow.node(
@@ -234,11 +206,7 @@ flow.node(
                 FileOperation(
                     type="modify_file",
                     path="non_existent.txt",
-                    content=FileModificationContent(
-                        start_point_match="start",
-                        end_point_match="end",
-                        content="content",
-                    ),
+                    content="abcd",
                 ),
                 # Try to delete a non-existent file
                 FileOperation(

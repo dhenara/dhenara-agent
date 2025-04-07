@@ -35,10 +35,6 @@ class FileOperationNodeSettings(NodeSettings):
     )
 
     # Processing options
-    sequential_processing: bool = Field(
-        default=False, description="Re-read file after each modification to support sequential changes"
-    )
-
     fail_fast: bool = Field(
         default=False,
         description="Stop processing on first failure if True, otherwise continue with remaining operations",
