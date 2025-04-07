@@ -18,11 +18,19 @@ class FileOperationType(Enum):
 class FileModificationContent(PydanticBaseModel):
     """Content specification for file modification operations"""
 
-    start_point_match: str = Field(..., description="Pattern to identify the starting point for modification")
-    end_point_match: str = Field(..., description="Pattern to identify the ending point for modification")
+    start_point_match: str = Field(
+        ...,
+        description="A pattern (exact string, regex) that uniquely identifies where the modification should begin in the file",
+    )
+
+    end_point_match: str = Field(
+        ...,
+        description="A pattern (exact string, regex) that uniquely identifies where the modification should end in the file",
+    )
+
     content: str = Field(
         ...,
-        description="New content to insert between start and end points. Use empty string to delete content between points.",
+        description="The new content that should replace everything between start_point_match and end_point_match (inclusive). Use an empty string to delete the matched section completely.",
     )
 
 
