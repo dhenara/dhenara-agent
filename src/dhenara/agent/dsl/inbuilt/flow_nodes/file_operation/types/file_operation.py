@@ -84,35 +84,35 @@ class FileOperation(BaseModel):
         description="Type of file operation to perform",
     )
     path: str | None = Field(
-        None,
+        default=None,
         description="Path to the target file or directory",
     )
     paths: list[str] | None = Field(
-        None,
+        default=None,
         description="Multiple file paths for operations that work on multiple files",
     )
     content: str | None = Field(
-        None,
+        default=None,
         description="Content for file creation operations",
     )
     edits: list[EditOperation] | None = Field(
-        None,
+        default=None,
         description="List of edits to apply to a file",
     )
     dry_run: bool | None = Field(
-        False,
+        default=False,
         description="Preview changes without applying them",
     )
     source: str | None = Field(
-        None,
+        default=None,
         description="Source path for move operations",
     )
     destination: str | None = Field(
-        None,
+        default=None,
         description="Destination path for move operations",
     )
     search_config: SearchConfig | None = Field(
-        None,
+        default=None,
         description="Configuration for file search operations",
     )
 

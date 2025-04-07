@@ -4,11 +4,10 @@ import os
 import re
 import shutil
 from datetime import datetime
-from difflib import SequenceMatcher, unified_diff
+from difflib import unified_diff
 from fnmatch import fnmatch
 from pathlib import Path
 from stat import filemode
-from typing import Any
 
 from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
@@ -473,7 +472,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                     else:
                         content = full_path.read_text(encoding="utf-8")
                         results.append(f"{file_path}:\n{content}\n")
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     results.append(f"{file_path}: Error - {e!s}")
 
             return OperationResult(type="read_multiple_files", success=True, content="\n---\n".join(results))
@@ -505,111 +504,6 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 path=operation.path,
                 success=False,
                 error=f"Error writing file: {e}",
-            )
-
-    # TODO: Delete: Unused
-    async def _modify_file(
-        self, base_directory: str, operation: FileOperation, settings: FileOperationNodeSettings
-    ) -> OperationResult:
-        """Modify a file using start/end point matching."""
-        if not operation.path:
-            return OperationResult(type="modify_file", success=False, error="Path not specified")
-
-        # if not operation.content or not isinstance(operation.content, FileModificationContent):
-        #    return OperationResult(
-        #        type="modify_file",
-        #        path=operation.path,
-        #        success=False,
-        #        error="Content must be a FileModificationContent object",
-        #    )
-
-        try:
-            full_path = Path(base_directory) / operation.path
-            if not full_path.exists():
-                return OperationResult(
-                    type="modify_file",
-                    path=operation.path,
-                    success=False,
-                    error=f"File does not exist: {operation.path}",
-                )
-
-            # Read the file content
-            file_content = full_path.read_text(encoding="utf-8")
-
-            # Normalize line endings
-            file_content = self._normalize_line_endings(file_content)
-            mod_content = operation.content
-
-            # Track if modification was successful
-            modification_success = False
-            modified_content = file_content
-            diff = None
-
-            # Determine matching method
-            if settings.allow_regex_matching:
-                modification_success, modified_content = self._modify_with_regex(file_content, mod_content)
-            else:
-                if settings.fuzzy_matching:
-                    # Use fuzzy matching
-                    start_idx, end_idx = self._find_with_fuzzy(
-                        file_content,
-                        mod_content.start_point_match,
-                        mod_content.end_point_match,
-                        settings.fuzzy_match_threshold,
-                    )
-                else:
-                    # Use exact matching
-                    start_idx = file_content.find(mod_content.start_point_match)
-                    end_idx = file_content.find(
-                        mod_content.end_point_match,
-                        start_idx + len(mod_content.start_point_match) if start_idx != -1 else 0,
-                    )
-
-                if start_idx == -1 or end_idx == -1:
-                    # Generate error with context if requested
-                    error_msg = self._generate_error_with_context(
-                        file_content=file_content,
-                        operation=operation,
-                        mod_content=mod_content,
-                        settings=settings,
-                        path=operation.path,
-                    )
-                    return OperationResult(type="modify_file", path=operation.path, success=False, error=error_msg)
-
-                # Calculate end position (after end_point_match)
-                end_pos = end_idx + len(mod_content.end_point_match)
-
-                # Perform the modification
-                start_content_end = start_idx + len(mod_content.start_point_match)
-
-                # Handle indentation
-                new_content = mod_content.content
-                if settings.preserve_indentation:
-                    new_content = self._preserve_indentation(file_content, start_idx, new_content)
-
-                modified_content = file_content[:start_idx] + new_content + file_content[end_pos:]
-                modification_success = True
-
-            # If any method succeeded, write the modified content
-            if modification_success:
-                # Create diff if requested
-                if settings.return_diff_format:
-                    diff = self._create_unified_diff(file_content, modified_content, operation.path)
-
-                if not operation.dry_run:
-                    full_path.write_text(modified_content, encoding="utf-8")
-
-                return OperationResult(type="modify_file", path=operation.path, success=True, diff=diff)
-            else:
-                return OperationResult(
-                    type="modify_file",
-                    path=operation.path,
-                    success=False,
-                    error=f"All modification methods failed for {operation.path}",
-                )
-        except Exception as e:
-            return OperationResult(
-                type="modify_file", path=operation.path, success=False, error=f"Error modifying file: {e}"
             )
 
     async def _edit_file(
@@ -644,7 +538,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 try:
                     # Apply a single edit
                     modified_content = self._apply_edit(modified_content, edit, settings.preserve_indentation)
-                except Exception as e:
+                except Exception as e:  # noqa: PERF203
                     all_successful = False
                     error_messages.append(f"Failed to apply edit: {e!s}")
                     if settings.fail_fast:
@@ -1018,143 +912,6 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             return OperationResult(
                 type="get_file_info", path=operation.path, success=False, error=f"Error getting file info: {e}"
             )
-
-    # TODO: Delete: Unused
-    def _modify_with_regex(
-        self,
-        file_content: str,
-        mod_content,  #: FileModificationContent,
-    ) -> tuple[bool, str]:
-        """
-        Use regex to perform the modification directly.
-        Returns: (success, modified_content)
-        """
-        try:
-            # Create a pattern that captures everything between start and end patterns
-            # We use capturing groups to reference the parts we want to keep
-            pattern = f"({re.escape(mod_content.start_point_match)})(.*?)({re.escape(mod_content.end_point_match)})"
-
-            # If user provided actual regex patterns (not escaped literals), use them directly
-            if self._is_regex_pattern(mod_content.start_point_match):
-                pattern = f"({mod_content.start_point_match})(.*?)({mod_content.end_point_match})"
-
-            # Check if pattern exists in the content
-            if not re.search(pattern, file_content, re.DOTALL):
-                return False, file_content
-
-            # Replace with regex - keeping the start and end points, just replacing what's between
-            replacement = mod_content.content
-            modified_content = re.sub(pattern, replacement, file_content, flags=re.DOTALL)
-
-            return True, modified_content
-        except re.error as e:
-            logger.error(f"Regex error during modification: {e}")
-            return False, file_content
-
-    def _is_regex_pattern(self, pattern: str) -> bool:
-        """Check if a string appears to be a regex pattern."""
-        # Look for common regex metacharacters
-        regex_chars = r".*+?^$()[]{}|\\"
-        return any(c in pattern for c in regex_chars)
-
-    # TODO: Delete: Unused
-    def _find_with_fuzzy(self, text: str, start_pattern: str, end_pattern: str, threshold: float) -> tuple[int, int]:
-        """Find start and end indices using fuzzy matching."""
-        try:
-            # Function to find best fuzzy match
-            def find_best_match(pattern, text, threshold):
-                best_match = None
-                best_ratio = threshold
-                best_idx = -1
-
-                # Try different positions in the text
-                for i in range(len(text) - len(pattern) + 1):
-                    chunk = text[i : i + len(pattern)]
-                    ratio = SequenceMatcher(None, pattern, chunk).ratio()
-                    if ratio > best_ratio:
-                        best_ratio = ratio
-                        best_match = chunk
-                        best_idx = i
-
-                return best_idx, best_match, best_ratio
-
-            # Find best match for start pattern
-            start_idx, start_match, start_ratio = find_best_match(start_pattern, text, threshold)
-            if start_idx == -1:
-                logger.debug(f"No fuzzy match found for start pattern: {start_pattern}")
-                return -1, -1
-
-            # Search for end pattern after start match
-            remaining_text = text[start_idx + len(start_match) :]
-            relative_end_idx, end_match, end_ratio = find_best_match(end_pattern, remaining_text, threshold)
-
-            if relative_end_idx == -1:
-                logger.debug(f"No fuzzy match found for end pattern: {end_pattern}")
-                return start_idx, -1
-
-            end_idx = start_idx + len(start_match) + relative_end_idx
-            logger.debug(f"Fuzzy match found - Start ratio: {start_ratio:.2f}, End ratio: {end_ratio:.2f}")
-
-            return start_idx, end_idx
-        except Exception as e:
-            logger.warning(f"Error during fuzzy matching, falling back to exact match: {e}")
-            return text.find(start_pattern), text.find(end_pattern, text.find(start_pattern) + len(start_pattern))
-
-    # TODO: Delete: Unused
-    def _generate_error_with_context(
-        self,
-        file_content: str,
-        operation: FileOperation,
-        mod_content: Any,
-        settings: FileOperationNodeSettings,
-        path: str,
-    ) -> str:
-        """Generate a detailed error message with surrounding context."""
-        base_error = f"Could not find modification points in {path}"
-
-        if not settings.show_context_on_error:
-            return base_error
-
-        # Create a more detailed error message
-        lines = file_content.split("\n")
-
-        # For edit_file operations
-        if hasattr(mod_content, "old_text"):
-            detailed_error = (
-                f"{base_error}\n\nLooking for text: "
-                f"```\n{mod_content.old_text[:100]}{'...' if len(mod_content.old_text) > 100 else ''}```\n"
-            )
-        # For modify_file operations
-        else:
-            # Add start pattern context
-            detailed_error = (
-                f"{base_error}\n\nLooking for start point: "
-                f"```\n{mod_content.start_point_match[:100]}{'...' if len(mod_content.start_point_match) > 100 else ''}```\n"
-            )
-
-            detailed_error += (
-                f"Looking for end point: "
-                f"```\n{mod_content.end_point_match[:100]}{'...' if len(mod_content.end_point_match) > 100 else ''}```\n"
-            )
-
-        # Add file content summary
-        max_content_preview = 500
-        if len(file_content) > max_content_preview:
-            content_preview = (
-                f"{file_content[: max_content_preview // 2]}...{file_content[-max_content_preview // 2 :]}"
-            )
-        else:
-            content_preview = file_content
-
-        detailed_error += f"\nFile content preview:\n```\n{content_preview}```\n"
-
-        # Add file stats
-        detailed_error += f"\nFile stats: {len(lines)} lines, {len(file_content)} characters"
-
-        # Log the full error details at debug level
-        logger.debug(f"Detailed file operation error for {path}:\n{detailed_error}")
-
-        return base_error + " (see logs for details)"
 
     def _normalize_line_endings(self, text: str) -> str:
         """Normalize line endings to LF."""
