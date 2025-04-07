@@ -1,5 +1,3 @@
-from pydantic import BaseModel, Field
-
 from dhenara.agent.dsl import (
     AIModelNode,
     AIModelNodeSettings,
@@ -20,47 +18,26 @@ from dhenara.ai.types import (
     TextTemplate,
 )
 
-
-# Define structured output models
-class CodeFile(BaseModel):
-    filename: str = Field(..., description="Name of the file")
-    content: str = Field(..., description="Content of the file")
-    language: str = Field(..., description="Programming language")
-
-
-class CodePlan(BaseModel):
-    description: str = Field(..., description="Description of the code plan")
-    files: list[CodeFile] = Field(..., description="Files to generate")
-    dependencies: list[str] = Field(default_factory=list, description="Dependencies")
-
-
 test_mode = False
 
-# Define a flow
 flow = (
     Flow()
-    # First node: Create a code plan
     .node(
         "ai_model_call_1",
         AIModelNode(
             resources=[
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                    query={
-                        ResourceQueryFieldsEnum.model_name: "gpt-4o-mini",
-                        ResourceQueryFieldsEnum.api_provider: AIModelAPIProviderEnum.OPEN_AI,
-                    },
-                ),
-                ResourceConfigItem(
-                    item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                    query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
+                    query={ResourceQueryFieldsEnum.model_name: "gpt-4o-mini"},
                     is_default=True,
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
-                    query={
-                        ResourceQueryFieldsEnum.model_name: "gemini-2.0-flashl-lite"
-                    },
+                    query={ResourceQueryFieldsEnum.model_name: "claude-3-7-sonnet"},
+                ),
+                ResourceConfigItem(
+                    item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
+                    query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
                 ),
                 ResourceConfigItem(
                     item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
@@ -78,7 +55,7 @@ flow = (
                     text=PromptText(
                         content=None,
                         template=TextTemplate(
-                            text="{user_query}",
+                            text="$var{user_query}",
                             variables={"user_query": {}},
                         ),
                     ),
@@ -88,9 +65,7 @@ flow = (
                     test_mode=test_mode,
                 ),
             ),
-            record_settings=NodeRecordSettings.with_outcome_format(
-                "text"
-            ),  # Enforce test as default is json
+            record_settings=NodeRecordSettings.with_outcome_format("text"),  # Enforce test as default is json
             git_settings=None,
         ),
     )
@@ -110,30 +85,21 @@ flow = (
                 system_instructions=[
                     "You are a summarizer which generate a title text under 60 characters from the prompts.",
                 ],
-                prompt=Prompt(
-                    role=PromptMessageRoleEnum.USER,
-                    text=PromptText(
-                        content=None,
-                        template=TextTemplate(
-                            text="Summarize in plane text under {number_of_chars} characters.",
-                            variables={
-                                "number_of_chars": {
-                                    "default": 60,
-                                    "allowed": range(50, 100),
-                                }
-                            },
-                        ),
-                    ),
+                prompt=Prompt.with_dad_text(
+                    text="Summarize in plane text under $var{number_of_chars} characters.",
+                    variables={
+                        "number_of_chars": {
+                            "default": 60,
+                            "allowed": range(50, 100),
+                        },
+                    },
                 ),
                 context_sources=[SpecialNodeIDEnum.PREVIOUS],
                 model_call_config=AIModelCallConfig(
-                    # structured_output=CodePlan,
                     test_mode=test_mode,
                 ),
             ),
-            record_settings=NodeRecordSettings.with_outcome_format(
-                "text"
-            ),  # Enforce test as default is json
+            record_settings=NodeRecordSettings.with_outcome_format("text"),  # Enforce test as default is json
             git_settings=None,
         ),
     )

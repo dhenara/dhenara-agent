@@ -17,27 +17,29 @@ class DADTemplateEngine(TemplateEngine):
     This engine provides additional context from RunEnvParams and node execution results
     to be used in template substitution.
 
-    Use `.` notation to access data of input,output& outcome
+    Use `.` notation to access data of input, output & outcome:
+    - $var{} for simple variable substitution
+    - $expr{} for complex expressions with property access, operators, etc.
 
     Examples:
 
         CommandNodeSettings:
             commands=[
-                "ls -la ${run_dir}",
-                "mkdir ${run_dir}/${node_id}/temp_dir",
-                "ls -la ${run_dir}",
-                "mv ${run_dir}/list_files/temp_dir ${run_dir}/${node_id}/.",
+                "ls -la $expr{run_dir}",
+                "mkdir $expr{run_dir}/$expr{node_id}/temp_dir",
+                "ls -la $expr{run_dir}",
+                "mv $expr{run_dir}/list_files/temp_dir $expr{run_dir/node_id}/.",
             ]
-            working_dir="${run_dir}"
+            working_dir="$expr{run_dir}"
 
 
         FolderAnalyzerSettings:
-            path="${run_dir}"
+            path="$expr{run_dir}"
 
 
         AIModelNodeSettings:
             prompt=Prompt.with_dad_text(
-                text="Summarize in plane text under {number_of_chars} characters. ${ai_model_call_1.outcome.text}",
+                text="Summarize in plane text under $var{number_of_chars} chars. $expr{ai_model_call_1.outcome.text}",
                 variables={
                     "number_of_chars": {
                         "default": 60,
@@ -110,6 +112,8 @@ class DADTemplateEngine(TemplateEngine):
             run_env_params: Run environment parameters
             node_execution_results: Results from previous node executions
             mode: "standard" for basic substitution, "expression" for advanced evaluation
+            max_words: Maximum number of words in output text
+            max_words_file: Maximum number of words for file content
             **kwargs: Additional variables for template formatting
 
         Returns:
@@ -203,6 +207,17 @@ class DADTemplateEngine(TemplateEngine):
 
     @classmethod
     def _process_text_template(
+        cls,
+        text_template: TextTemplate,
+        variables: dict[str, Any],
+        mode: Literal["standard", "expression"],
+        max_words: int | None,
+    ) -> str:
+        parsed_text = cls.render_template(text_template.text, variables, mode)
+        return cls._apply_word_limit(parsed_text, max_words)
+
+    @classmethod
+    def _todo_legacy_process_text_template(
         cls,
         text_template: TextTemplate,
         variables: dict[str, Any],

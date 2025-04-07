@@ -34,14 +34,14 @@ class ArtifactManager:
             dad_dynamic_variables=dad_dynamic_variables or {},
             run_env_params=self.run_env_params,
             node_execution_results=None,
-            mode="standard",
+            mode="standard",  # NOTE: Standard mode. No $expr() are allowed
         )
 
     def record_data(
         self,
         dad_dynamic_variables: dict,
         data: dict | str | bytes,
-        record_type: Literal["input", "outcome", "result"],
+        record_type: Literal["outcome", "result"],
         record_settings: RecordSettingsItem = None,
         git_settings: GitSettingsItem = None,
     ) -> bool:

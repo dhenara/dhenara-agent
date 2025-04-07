@@ -2,7 +2,6 @@ import operator
 import re
 from collections.abc import Callable
 from re import Pattern
-from string import Template as StringTemplate
 from typing import Any, Literal, TypeVar
 
 T = TypeVar("T")
@@ -10,32 +9,47 @@ T = TypeVar("T")
 
 class TemplateEngine:
     """
-    Unified template engine supporting both standard variable substitution and complex expressions.
+    Unified template engine supporting variable substitution and complex expressions.
 
     Features:
-    1. standard mode: Basic $variable and ${variable} substitution like Python's string.Template
-    2. Expression mode: Advanced ${...} syntax with:
+    1. Variable substitution with $var{variable}
+    2. Expression evaluation with $expr{...} syntax with:
        - Dot notation for nested properties (obj.property)
        - Array/list indexing (items[0])
        - Operators (>, <, ==, ||, &&, etc.)
        - Python expression evaluation (py:...)
 
+    Escape sequences:
+    - Use $$var{} to output a literal "$var{}" string
+    - Use $$expr{} to output a literal "$expr{}" string
+
     Examples:
-        # Standard substitution (like string.Template)
-        TemplateEngine.render_template("Hello $name", {"name": "World"}, mode="standard")
+        # Variable substitution
+        TemplateEngine.render_template("Hello $var{name}", {"name": "World"})
         # Output: "Hello World"
 
         # Expression mode with property access
-        TemplateEngine.render_template("Count: ${data.count}", {"data": {"count": 42}})
+        TemplateEngine.render_template("Count: $expr{data.count}", {"data": {"count": 42}})
         # Output: "Count: 42"
 
         # Expression mode with operators
-        TemplateEngine.render_template("Result: ${value > 10}", {"value": 15})
+        TemplateEngine.render_template("Result: $expr{value > 10}", {"value": 15})
         # Output: "Result: True"
+
+        # Escape sequences
+        TemplateEngine.render_template("Literal: $$expr{not.evaluated}", {})
+        # Output: "Literal: $expr{not.evaluated}"
+
+        # Regular braces are left untouched
+        TemplateEngine.render_template("Braces: {not.a.placeholder}", {})
+        # Output: "Braces: {not.a.placeholder}"
     """
 
     # Regex patterns
-    EXPR_PATTERN: Pattern = re.compile(r"\${([^}]+)}")
+    EXPR_PATTERN: Pattern = re.compile(r"\$expr{([^}]+)}")
+    VAR_PATTERN: Pattern = re.compile(r"\$var{([^}]+)}")
+    ESCAPED_EXPR_PATTERN: Pattern = re.compile(r"\$\$expr{([^}]+)}")
+    ESCAPED_VAR_PATTERN: Pattern = re.compile(r"\$\$var{([^}]+)}")
     INDEX_PATTERN: Pattern = re.compile(r"(.*)\[(\d+)\]")
 
     # Supported operators and their functions
@@ -89,44 +103,101 @@ class TemplateEngine:
             Rendered template string
 
         Examples:
-            >>> TemplateEngine.render_template("Hello ${name}", {"name": "World"})
+            >>> TemplateEngine.render_template("Hello $var{name}", {"name": "World"})
             'Hello World'
-            >>> TemplateEngine.render_template("Status: ${online || 'offline'}", {"online": None})
+            >>> TemplateEngine.render_template("Status: $expr{online || 'offline'}", {"online": None})
             'Status: offline'
+            >>> TemplateEngine.render_template("Literal: $$expr{not.evaluated}", {})
+            'Literal: $expr{not.evaluated}'
+            >>> TemplateEngine.render_template("Braces: {just plain text}", {})
+            'Braces: {just plain text}'
         """
         if not template:
             return template
 
-        if mode == "standard":
-            return cls.standard_substitute(template, variables)
-        else:
-            return cls.parse_and_evaluate(template, variables)
+        # First handle escape sequences
+        template = cls._process_escape_sequences(template)
+
+        # Process $var{} regardless of mode
+        template = cls._process_var_substitutions(template, variables)
+
+        # Process $expr{} only in expression mode
+        if mode == "expression":
+            template = cls._process_expr_substitutions(template, variables)
+
+        return template
 
     @classmethod
-    def standard_substitute(cls, template_str: str, variables: dict[str, Any]) -> str:
+    def _process_escape_sequences(cls, template: str) -> str:
         """
-        Perform standard variable substitution similar to string.Template.
+        Process escape sequences ($$var{} and $$expr{}) by replacing them
+        with single $ versions.
 
         Args:
-            template_str: Template string with $var or ${var} placeholders
-            variables: Dictionary of variable values
+            template: Template string containing escape sequences
+
+        Returns:
+            String with escape sequences converted to their literal form
+        """
+        if not template:
+            return template
+
+        # Replace $$expr{} with $expr{}
+        template = cls.ESCAPED_EXPR_PATTERN.sub(r"$expr{\1}", template)
+
+        # Replace $$var{} with $var{}
+        template = cls.ESCAPED_VAR_PATTERN.sub(r"$var{\1}", template)
+
+        return template
+
+    @classmethod
+    def _process_var_substitutions(cls, template: str, variables: dict[str, Any]) -> str:
+        """
+        Process simple variable substitutions with $var{} syntax.
+
+        Args:
+            template: Template string containing $var{} patterns
+            variables: Dictionary of variables for substitution
 
         Returns:
             String with variables substituted
-
-        Examples:
-            >>> TemplateEngine.standard_substitute("Hello $name", {"name": "World"})
-            'Hello World'
-            >>> TemplateEngine.standard_substitute("${greeting} $name", {"greeting": "Hi", "name": "Alice"})
-            'Hi Alice'
         """
-        if not template_str:
-            return template_str
+        if not template:
+            return template
 
-        try:
-            return StringTemplate(template_str).safe_substitute(variables)
-        except Exception as e:
-            return f"Error in template substitution: {e!s}"
+        def replace_var(match: re.Match) -> str:
+            var_name = match.group(1).strip()
+            if var_name in variables:
+                value = variables[var_name]
+                return str(value) if value is not None else ""
+            return match.group(0)  # Return unchanged if variable not found
+
+        return cls.VAR_PATTERN.sub(replace_var, template)
+
+    @classmethod
+    def _process_expr_substitutions(cls, template: str, variables: dict[str, Any]) -> str:
+        """
+        Process complex expressions with $expr{} syntax.
+
+        Args:
+            template: Template string containing $expr{} patterns
+            variables: Dictionary of variables for evaluation
+
+        Returns:
+            String with expressions evaluated and substituted
+        """
+        if not template:
+            return template
+
+        def replace_expr(match: re.Match) -> str:
+            expr = match.group(1).strip()
+            try:
+                result = cls._evaluate_expression(expr, variables)
+                return str(result) if result is not None else ""
+            except Exception as e:
+                return f"Error: {e!s}"
+
+        return cls.EXPR_PATTERN.sub(replace_expr, template)
 
     @staticmethod
     def _apply_word_limit(text: str, max_words: int | None) -> str:
@@ -146,37 +217,13 @@ class TemplateEngine:
         return text
 
     @classmethod
-    def parse_and_evaluate(cls, template: str, variables: dict[str, Any]) -> str:
-        """
-        Parse expressions in the template and evaluate them against the variables.
-
-        Args:
-            template: Template string with ${...} expressions
-            variables: Dictionary of variables accessible to the expressions
-
-        Returns:
-            Evaluated template with expressions replaced by their string values
-        """
-        if not template:
-            return template
-
-        def replace_expr(match: re.Match) -> str:
-            expr = match.group(1).strip()
-            try:
-                result = cls._evaluate_expression(expr, variables)
-                return str(result) if result is not None else ""
-            except Exception as e:
-                return f"Error: {e!s}"
-
-        return cls.EXPR_PATTERN.sub(replace_expr, template)
-
-    @classmethod
     def evaluate_single_expression(cls, expr_template: str, variables: dict[str, Any]) -> Any:
         """
         Evaluate a single expression and return the raw result without string conversion.
+        Used primarily for ObjectTemplate evaluation.
 
         Args:
-            expr_template: Expression template like "${...}"
+            expr_template: Expression template like "$expr{...}"
             variables: Dictionary of variables accessible to the expressions
 
         Returns:
@@ -185,7 +232,10 @@ class TemplateEngine:
         if not expr_template:
             return expr_template
 
-        # Extract the expression from ${...}
+        # First handle escape sequences
+        expr_template = cls._process_escape_sequences(expr_template)
+
+        # Extract the expression from $expr{...}
         match = cls.EXPR_PATTERN.search(expr_template)
         if match:
             expr = match.group(1).strip()
@@ -351,23 +401,23 @@ context = {
 }
 
 # Basic property access
-ExpressionParser.parse_and_evaluate("Result is ${node1.data.count}", context)
+ExpressionParser.parse_and_evaluate("Result is $expr{node1.data.count}", context)
 # Output: "Result is 2"
 
 # Array indexing
-ExpressionParser.parse_and_evaluate("First item: ${node1.data.items[0].name}", context)
+ExpressionParser.parse_and_evaluate("First item: $expr{node1.data.items[0].name}", context)
 # Output: "First item: Item 1"
 
 # Conditional operator
-ExpressionParser.parse_and_evaluate("Status: ${node1.data.count > 1 && node2.result}", context)
+ExpressionParser.parse_and_evaluate("Status: $expr{node1.data.count > 1 && node2.result}", context)
 # Output: "Status: True"
 
 # Fallback operator
-ExpressionParser.parse_and_evaluate("Value: ${node1.missing || node1.data.count}", context)
+ExpressionParser.parse_and_evaluate("Value: $expr{node1.missing || node1.data.count}", context)
 # Output: "Value: 2"
 
 # Python expression (advanced)
-ExpressionParser.parse_and_evaluate("Total: ${py:sum([item['name'].count('Item') for item in node1.data.items])}", context)
+ExpressionParser.parse_and_evaluate("Total: $expr{py:sum([item['name'].count('Item') for item in node1.data.items])}", context)
 # Output: "Total: 2"
 
 """  # noqa: E501, W505

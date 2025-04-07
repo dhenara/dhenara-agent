@@ -54,7 +54,7 @@ flow = (
                     text=PromptText(
                         content=None,
                         template=TextTemplate(
-                            text="{user_query}",
+                            text="$var{user_query}",
                             variables={"user_query": {}},
                         ),
                     ),
@@ -85,7 +85,7 @@ flow = (
                     "You are a summarizer which generate a title text under 60 characters from the prompts.",
                 ],
                 prompt=Prompt.with_dad_text(
-                    text="Summarize in plane text under {number_of_chars} characters. ${ai_model_call_1.outcome.text}",
+                    text="Summarize in plane text under $var{number_of_chars} characters. $expr{ai_model_call_1.outcome.text}",  # noqa: E501
                     variables={
                         "number_of_chars": {
                             "default": 60,

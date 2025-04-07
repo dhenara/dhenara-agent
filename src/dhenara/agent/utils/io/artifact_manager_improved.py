@@ -95,7 +95,7 @@ class ArtifactManagerNew:
             dad_dynamic_variables=dad_dynamic_variables or {},
             run_env_params=self.run_env_params,
             node_execution_results=None,
-            mode="standard",
+            mode="standard",  # NOTE: Standard mode. No $expr() are allowed
         )
 
     def _validate_data_for_format(self, data: Any, file_format: RecordFileFormatEnum) -> bool:

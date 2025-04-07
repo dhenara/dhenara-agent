@@ -494,7 +494,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
             dad_dynamic_variables=dad_dynamic_variables,
             run_env_params=execution_context.run_context.run_env_params,
             node_execution_results=None,
-            mode="standard",
         )
         return Path(path).expanduser().resolve()
 

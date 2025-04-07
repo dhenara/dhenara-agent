@@ -84,7 +84,6 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                     dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                     run_env_params=execution_context.run_context.run_env_params,
                     node_execution_results=execution_context.execution_results,
-                    mode="expression",
                 )
 
                 # Process operations based on the actual type returned
@@ -386,5 +385,4 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             dad_dynamic_variables=dad_dynamic_variables,
             run_env_params=execution_context.run_context.run_env_params,
             node_execution_results=None,
-            mode="standard",
         )

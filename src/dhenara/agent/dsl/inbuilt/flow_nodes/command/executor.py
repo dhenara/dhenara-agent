@@ -222,7 +222,6 @@ class CommandNodeExecutor(FlowNodeExecutor):
                 dad_dynamic_variables=dad_dynamic_variables,
                 run_env_params=run_env_params,
                 node_execution_results=None,
-                mode="standard",
             )
             formatted_commands.append(cmd)
 
@@ -234,7 +233,6 @@ class CommandNodeExecutor(FlowNodeExecutor):
             dad_dynamic_variables=dad_dynamic_variables,
             run_env_params=run_env_params,
             node_execution_results=None,
-            mode="standard",
         )
 
         return formatted_commands, Path(working_dir).expanduser().resolve()

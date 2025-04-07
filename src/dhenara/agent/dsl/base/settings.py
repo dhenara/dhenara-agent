@@ -26,7 +26,7 @@ class RecordSettingsItem(BaseModel):
     )
     path: str | TextTemplate = Field(
         ...,
-        description="Path within run directory. Default is ${node_id}",
+        description="Path within run directory. Default is $var{node_id}",
     )
     filename: str | TextTemplate = Field(
         ...,
@@ -40,14 +40,14 @@ class RecordSettingsItem(BaseModel):
 
 DEFAULT_RESULT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${node_hier}/",  # Use node_hier instead of node_id
+    path="$var{node_hier}/",  # Use node_hier instead of node_id
     filename="result.json",
     file_format=RecordFileFormatEnum.json,
 )
 
 DEFAULT_OUTCOME_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
-    path="${node_hier}/",  # Use node_hier instead of node_id
+    path="$var{node_hier}/",  # Use node_hier instead of node_id
     filename="outcome.json",
     file_format=RecordFileFormatEnum.json,
 )

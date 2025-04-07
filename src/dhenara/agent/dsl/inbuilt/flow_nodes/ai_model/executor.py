@@ -170,7 +170,6 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
             run_env_params=execution_context.run_context.run_env_params,
             node_execution_results=execution_context.execution_results,
-            mode="expression",
         )
 
         # Add the final prompt to tracing
@@ -484,7 +483,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 else:
                     previous_node_execution_result = execution_context.execution_results.get(source_node_identifier)
 
-                previous_node_output = previous_node_execution_result.node_output.data
+                previous_node_output = previous_node_execution_result.output.data
 
                 prompt = previous_node_output.response.full_response.to_prompt()
 
