@@ -1,6 +1,6 @@
 # -- Flow
-from .base.context import FlowExecutionContext
-from .base.node import (
+from .context import FlowExecutionContext
+from .node import (
     FlowElement,
     FlowNode,
     FlowBlock,
@@ -9,8 +9,7 @@ from .base.node import (
     FlowNodeExecutor,
 )
 
-from .flow import Flow, FlowExecutor
-from .enums.flow_nodes import FlowNodeTypeEnum
+from .component import Flow, FlowExecutor
 
 __all__ = [
     "Flow",

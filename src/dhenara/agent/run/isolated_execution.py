@@ -36,17 +36,12 @@ class IsolatedExecution:
 
     async def run(
         self,
-        agent_module,
-        run_context: RunContext,
-        start_node_id: str | None = None,
+        runner,
     ):
         """Run the agent in the isolated environment."""
         # Execute the agent
         try:
-            result = await agent_module.run(
-                run_context=run_context,
-                start_node_id=start_node_id,
-            )
+            result = await runner.run()
 
             from dhenara.agent.observability import force_flush_logging, force_flush_metrics, force_flush_tracing
 

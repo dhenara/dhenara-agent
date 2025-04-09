@@ -5,7 +5,7 @@ from pathlib import Path
 
 import click
 
-from dhenara.agent.run import IsolatedExecution
+from dhenara.agent.run import AgentRunner, IsolatedExecution
 from dhenara.agent.shared.utils import find_project_root
 
 from ._print_utils import print_error_summary, print_run_summary
@@ -38,17 +38,21 @@ def run():
     help="ID of a previous run to use as a base for this run",
 )
 @click.option(
-    "--start-node-id",
+    "--agent-start-node-id",
+    default=None,
+    help="Node ID to start execution from (skips all previous nodes)",
+)
+@click.option(
+    "--flow-start-node-id",
     default=None,
     help="Node ID to start execution from (skips all previous nodes)",
 )
 def run_agent(
     identifier,
     project_root,
-    run_root,
-    run_id,
     previous_run_id,
-    start_node_id,
+    agent_start_node_id,
+    flow_start_node_id,
 ):
     """Run an agent with the specified inputs.
 
@@ -64,10 +68,9 @@ def run_agent(
         _run_agent(
             identifier,
             project_root,
-            run_root,
-            run_id,
             previous_run_id,
-            start_node_id,
+            agent_start_node_id,
+            flow_start_node_id,
         )
     )
 
@@ -75,10 +78,9 @@ def run_agent(
 async def _run_agent(
     identifier,
     project_root,
-    run_root,
-    run_id,
     previous_run_id,
-    start_node_id,
+    agent_start_node_id,
+    flow_start_node_id,
 ):
     """Async implementation of run_agent."""
     # Find project root
@@ -89,35 +91,34 @@ async def _run_agent(
         return
 
     # Load agent
-    agent_module, run_ctx = load_agent_module(project_root, f"agents/{identifier}")
-    if not (agent_module and run_ctx):
-        raise ValueError("Failed to get agent module and run context")
+    runner = load_runner_module(project_root, f"runner/{identifier}")
+    if not (runner and isinstance(runner, AgentRunner)):
+        raise ValueError(f"Failed to get runner module inside project. runner={runner}")
 
     # Update run context with rerun parameters if provided
-    if previous_run_id or start_node_id:
-        run_ctx.set_previous_run(
-            previous_run_id=previous_run_id,
-            start_node_id=start_node_id,
-        )
-
-    # Do run setup
-    run_ctx.setup_run()
+    runner.set_previous_run_in_run_ctx(
+        previous_run_id=previous_run_id,
+        agent_start_node_id=agent_start_node_id,
+        flow_start_node_id=flow_start_node_id,
+    )
 
     try:
         # Run agent in a subprocess for isolation
-        async with IsolatedExecution(run_ctx) as executor:
+        async with IsolatedExecution(runner.run_context) as executor:
             _result = await executor.run(
-                agent_module=agent_module,
-                run_context=run_ctx,
-                start_node_id=start_node_id,
+                runner=runner,
             )
 
         # Display rerun information if applicable
         run_type = "rerun" if previous_run_id else "standard run"
-        start_info = f"from node {start_node_id}" if start_node_id else "from beginning"
-        print(f"Agent {run_type} completed successfully {start_info}. Run ID: {run_ctx.run_id}")
+        start_info = (
+            f"from node {agent_start_node_id or ''}:{flow_start_node_id or ''}"
+            if agent_start_node_id or flow_start_node_id
+            else "from beginning"
+        )
+        print(f"Agent {run_type} completed successfully {start_info}. Run ID: {runner.run_context.run_id}")
 
-        print_run_summary(run_ctx)
+        print_run_summary(runner.run_context)
 
         ## View the traces in the dashboard if the file exists
         # if run_ctx.trace_file.exists():
@@ -126,19 +127,19 @@ async def _run_agent(
         #    print("To launching dashboards , run")
         #    print(f"dhenara dashboard simple {run_ctx.trace_file} ")
 
-        if run_ctx.log_file.exists():
-            print(f"Logs in {run_ctx.log_file} ")
+        if runner.run_context.log_file.exists():
+            print(f"Logs in {runner.run_context.log_file} ")
 
         print()
 
     except Exception as e:
         logger.exception(f"Error running agent {identifier}: {e}")
-        run_ctx.metadata["error"] = str(e)
-        run_ctx.complete_run(status="failed")
+        runner.run_context.metadata["error"] = str(e)
+        runner.run_context.complete_run(status="failed")
         print_error_summary(str(e))
 
 
-def load_agent_module(project_root: Path, agent_dir_path: str):
+def load_runner_module(project_root: Path, agent_dir_path: str):
     """Load agent module from the specified path."""
     try:
         # Add current directory to path
@@ -152,7 +153,7 @@ def load_agent_module(project_root: Path, agent_dir_path: str):
 
         # Import agent from path
         run_module = importlib.import_module(module_path)
-        return run_module.agent, run_module.run_context
+        return run_module.runner
 
     except ImportError as e:
         logger.error(f"Failed to import agent from project_root {project_root} path {agent_dir_path}: {e}")

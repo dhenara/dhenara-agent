@@ -6,7 +6,7 @@ from dhenara.agent.dsl.base import (
     ExecutableReference,
     NodeExecutor,
 )
-from dhenara.agent.dsl.flow import FlowExecutionContext
+from dhenara.agent.dsl.components.flow import FlowExecutionContext
 
 
 class FlowElement(ExecutableElement):

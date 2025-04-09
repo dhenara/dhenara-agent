@@ -24,42 +24,53 @@ class RunContext:
     def __init__(
         self,
         project_root: Path,
-        agent_identifier: str,
         run_root: Path | None = None,
         run_id: str | None = None,
         observability_settings: ObservabilitySettings | None = None,
         #  for re-run functionality
         previous_run_id: str | None = None,
-        start_node_id: str | None = None,
+        agent_start_node_id: str | None = None,
+        flow_start_node_id: str | None = None,
+        # Static inputs
+        input_source: Path | None = None,
     ):
         if not observability_settings:
             observability_settings = ObservabilitySettings()
 
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)
-        self.agent_identifier = agent_identifier
+        # self.agent_identifier = agent_identifier
         self.observability_settings = observability_settings
+        self.input_source = input_source
 
         self.run_root = run_root or project_root / "runs"
 
         # Store re-run parameters
         self.run_id = run_id
         self.previous_run_id = previous_run_id
-        self.start_node_id = start_node_id
+        self.agent_start_node_id = agent_start_node_id
+        self.flow_start_node_id = flow_start_node_id
 
         self.event_bus = EventBus()
 
-    def set_previous_run(self, previous_run_id: str, start_node_id: str | None = None):
+    def set_previous_run(
+        self,
+        previous_run_id: str,
+        agent_start_node_id: str | None = None,
+        flow_start_node_id: str | None = None,
+    ):
         self.previous_run_id = previous_run_id
-        self.start_node_id = start_node_id
+        self.agentstart_node_id = agent_start_node_id
+        self.flow_start_node_id = flow_start_node_id
 
-    def setup_run(self):
+    def setup_run(self, run_id_prefix: str | None = None):
         # Indicates if this is a rerun of a previous execution
         self.is_rerun = self.previous_run_id is not None
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_or_rerun = "rerun" if self.is_rerun else "run"
-        self.run_id = f"{self.agent_identifier}_{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
+        _prefix = f"{run_id_prefix}_" if run_id_prefix else ""
+        self.run_id = f"{_prefix}{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_dir = self.run_root / self.run_id
 
         self.static_inputs_dir = self.run_dir / "static_inputs"
@@ -110,7 +121,8 @@ class RunContext:
         if self.is_rerun:
             self.metadata["rerun_info"] = {
                 "previous_run_id": self.previous_run_id,
-                "start_node_id": self.start_node_id,
+                "agent_start_node_id": self.agent_start_node_id,
+                "flow_start_node_id": self.flow_start_node_id,
             }
 
         # Create run environment parameters
@@ -159,7 +171,7 @@ class RunContext:
         files: list | None = None,
     ):
         """Prepare input data and files for the run."""
-        input_source_path = source or self.project_root / "agents" / self.agent_identifier / "inputs" / "data"
+        input_source_path = source or self.input_source
 
         if not input_source_path.exists():
             logger.warning(f"input_source_path {input_source_path} does not exists. No static input files copied")
@@ -236,7 +248,8 @@ class RunContext:
         try:
             # Try to use hierarchy path if we can generate it correctly
             # This might require more context than we have here
-            node_hier_dir = f"{self.agent_identifier}/{node_id}"
+            node_hier_dir = node_id
+            # node_hier_dir = f"{self.agent_identifier}/{node_id}"
         except Exception as e:
             logger.warning(f"Using direct node_id for artifact copying: {e}")
 
@@ -279,7 +292,8 @@ class RunContext:
         try:
             # Try to use hierarchy path if we can generate it correctly
             # This might require more context than we have here
-            node_hier_dir = f"{self.agent_identifier}/{node_id}"
+            node_hier_dir = node_id
+            # node_hier_dir = f"{self.agent_identifier}/{node_id}"
         except Exception as e:
             logger.warning(f"Using direct node_id for artifact copying: {e}")
 
@@ -314,10 +328,6 @@ class RunContext:
             ## Ensure the file is readable and writable
             ##os.chmod(self.trace_file, 0o644)
 
-        # Use agent_identifier as service name if not provided
-        if not self.observability_settings.service_name:
-            self.observability_settings.service_name = f"dhenara-dad-{self.agent_identifier}"
-
         # Add rerun information to tracing
         if self.is_rerun:
             # Modify the service name to indicate it's a rerun
@@ -327,7 +337,9 @@ class RunContext:
             if self.previous_run_id:
                 # These will be picked up by the tracing system
                 os.environ["OTEL_RESOURCE_ATTRIBUTES"] = (
-                    f"previous_run_id={self.previous_run_id},start_node_id={self.start_node_id or 'none'}"
+                    f"previous_run_id={self.previous_run_id},"
+                    f"agent_start_node_id={self.agent_start_node_id or 'none'},"
+                    f"flow_start_node_id={self.flow_start_node_id or 'none'}"
                 )
 
         # Set trace file paths in settings
