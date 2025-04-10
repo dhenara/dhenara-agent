@@ -3,10 +3,8 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field
 
+from dhenara.agent.dsl.base import NodeID, NodeSettings
 from dhenara.ai.types.shared.base import BaseModel
-
-from .defs import NodeID
-from .settings import NodeSettings
 
 
 class NodeInput(BaseModel):

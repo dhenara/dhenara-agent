@@ -8,8 +8,9 @@ this module rather than creating their own.
 
 from typing import Any
 
-from dhenara.agent.resource import ResourceRegistry
 from dhenara.ai.types import AIModel, ResourceConfig
+
+from ._resource_registry import ResourceRegistry
 
 # Standard registries
 model_registry = ResourceRegistry[AIModel](AIModel, name="AIModel")
@@ -17,8 +18,6 @@ resource_config_registry = ResourceRegistry[ResourceConfig](ResourceConfig, name
 
 # Initialize with empty values - applications will populate these
 _registries_initialized = False
-
-# TODO: Cleanup registries spread across multiple files
 
 
 def initialize_registries(resources: dict[str, Any] | None = None) -> None:

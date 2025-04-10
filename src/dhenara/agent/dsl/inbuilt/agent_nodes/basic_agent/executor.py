@@ -32,12 +32,10 @@ BasicAgentNodeExecutionResult = NodeExecutionResult[
 
 
 class BasicAgentNodeExecutor(AgentNodeExecutor):
+    node_type = AgentNodeTypeEnum.basic_agent.value
     input_model = None
     setting_model = None
     _tracing_profile = basic_agent_node_tracing_profile
-
-    def __init__(self):
-        super().__init__(identifier="basic_agent_node_executor")
 
     def get_result_class(self):
         return BasicAgentNodeExecutionResult

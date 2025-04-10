@@ -21,9 +21,6 @@ class ConsoleTraceViewer:
         if not os.path.exists(self.trace_file):
             raise FileNotFoundError(f"Trace file {self.trace_file} not found")
 
-        # print(f"AJ: self.trace_file {self.trace_file}")
-        # print(f"AJ: File size: {os.path.getsize(self.trace_file)} bytes")
-        # print(f"AJ: File readable: {os.access(self.trace_file, os.R_OK)}")
         with open(self.trace_file) as f:
             for line in f:
                 if line.strip():  # Skip empty lines

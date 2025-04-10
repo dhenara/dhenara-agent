@@ -52,13 +52,10 @@ AIModelNodeExecutionResult = NodeExecutionResult[
 
 
 class AIModelNodeExecutor(FlowNodeExecutor):
+    node_type = FlowNodeTypeEnum.ai_model_call.value
     input_model = AIModelNodeInput
     setting_model = AIModelNodeSettings
     _tracing_profile = ai_model_node_tracing_profile
-
-    def __init__(self):
-        super().__init__(identifier="ai_model_node_executor")
-        self.resource_config: ResourceConfig | None = None
 
     def get_result_class(self):
         return AIModelNodeExecutionResult
@@ -71,9 +68,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         node_input: NodeInput,
         execution_context: ExecutionContext,
     ) -> AIModelNodeExecutionResult:
-        self.resource_config = execution_context.resource_config
-
-        if not self.resource_config:
+        if not execution_context.resource_config:
             raise ValueError("resource_config must be set for ai_model_call")
 
         result = await self._call_ai_model(
@@ -148,7 +143,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # 3. Fix AI Model endpoint
         # -------------------
-        ai_model_ep = self.resource_config.get_resource(node_resource)
+        ai_model_ep = execution_context.resource_config.get_resource(node_resource)
         add_trace_attribute("model_endpoint_id", getattr(ai_model_ep, "id", "unknown"), TracingDataCategory.primary)
         add_trace_attribute("model_name", getattr(ai_model_ep, "model_name", "unknown"), TracingDataCategory.primary)
 
@@ -508,9 +503,7 @@ class AIModelNodeStreamExecutor(AIModelNodeExecutor):
         execution_context: ExecutionContext,
         resource_config: ResourceConfig,
     ) -> Any:
-        self.resource_config = resource_config
-
-        if not self.resource_config:
+        if not execution_context.resource_config:
             raise ValueError("resource_config must be set for ai_model_call")
 
         result = await self._call_ai_model(

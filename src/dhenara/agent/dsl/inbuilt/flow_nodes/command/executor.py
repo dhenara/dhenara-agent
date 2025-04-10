@@ -35,12 +35,10 @@ CommandNodeExecutionResult = NodeExecutionResult[
 
 
 class CommandNodeExecutor(FlowNodeExecutor):
+    node_type = FlowNodeTypeEnum.command.value
     input_model = CommandNodeInput
     setting_model = CommandNodeSettings
     _tracing_profile = command_node_tracing_profile
-
-    def __init__(self):
-        super().__init__(identifier="command_executor")
 
     def get_result_class(self):
         return CommandNodeExecutionResult

@@ -10,7 +10,7 @@ from pathlib import Path
 from dhenara.agent.dsl.base import NodeID, NodeInput
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
-from dhenara.agent.resource.registry import resource_config_registry
+from dhenara.agent.run.registry import resource_config_registry
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
@@ -423,7 +423,6 @@ class RunContext:
                 resource_config = self.load_default_resource_config()
                 resource_config_registry.register(resource_profile, resource_config)
 
-            print(f"AJJ: TOP: resouce config = {resource_config}")
             return resource_config
         except Exception as e:
             raise ValueError(f"Error in resource setup: {e}")

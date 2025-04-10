@@ -10,14 +10,14 @@ from .settings import FolderAnalyzerSettings
 class FolderAnalyzerNode(FlowNodeDefinition):
     """Folder analyzer node."""
 
-    node_type: str = FlowNodeTypeEnum.folder_analyzer
+    node_type: str = FlowNodeTypeEnum.folder_analyzer.value
     settings: FolderAnalyzerSettings = Field(
         default=None,
         description="Folder analyzer settings",
     )
 
-    def get_node_executor(self):
-        return FolderAnalyzerNodeExecutor()
+    def get_executor_class(self):
+        return FolderAnalyzerNodeExecutor
 
     @model_validator(mode="after")
     def validate_node_settings(self):

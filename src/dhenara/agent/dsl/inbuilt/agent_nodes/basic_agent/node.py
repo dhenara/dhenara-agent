@@ -17,5 +17,5 @@ class BasicAgentNode(AgentNodeDefinition):
         description="Node specific AP API settings/options",
     )
 
-    def get_node_executor(self):
-        return BasicAgentNodeExecutor()
+    def get_executor_class(self):
+        return BasicAgentNodeExecutor

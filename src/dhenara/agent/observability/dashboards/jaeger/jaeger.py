@@ -24,7 +24,6 @@ def find_docker_compose_file():
 def start_jaeger_dashboard():
     """Start the Jaeger dashboard using Docker Compose."""
     compose_file = find_docker_compose_file()
-    print(f"AJJ:  compose_file = {compose_file}")
 
     click.echo("Starting Jaeger dashboard...")
     subprocess.run(["docker-compose", "-f", str(compose_file), "up", "-d"], check=True)

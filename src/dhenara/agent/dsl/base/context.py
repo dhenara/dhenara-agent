@@ -1,4 +1,3 @@
-# dhenara/agent/dsl/base/context.py
 import json
 import logging
 from asyncio import Event
@@ -8,7 +7,13 @@ from typing import Any, ClassVar, Optional
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base.results import NodeExecutionResult, NodeInputT, NodeOutcomeT, NodeOutputT
+from dhenara.agent.dsl.base.node.node_exe_result import (
+    NodeExecutionResult,
+    NodeInputT,
+    NodeOutcomeT,
+    NodeOutputT,
+)
+from dhenara.agent.dsl.base.node.node_io import NodeInput
 from dhenara.agent.dsl.base.utils import NodeHierarchyHelper
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
@@ -17,7 +22,6 @@ from dhenara.ai.types.resource import ResourceConfig
 
 from .defs import NodeID
 from .enums import ExecutionStatusEnum
-from .node_io import NodeInput
 
 
 class StreamingStatusEnum(BaseEnum):

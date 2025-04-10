@@ -1,10 +1,8 @@
 from datetime import datetime
 from typing import Generic, TypeVar
 
+from dhenara.agent.dsl.base import ExecutionStatusEnum, NodeID
 from dhenara.ai.types.shared.base import BaseModel
-
-from .defs import NodeID
-from .enums import ExecutionStatusEnum
 
 NodeInputT = TypeVar("NodeInputT", bound=BaseModel)
 NodeOutputT = TypeVar("NodeOutputT", bound=BaseModel)

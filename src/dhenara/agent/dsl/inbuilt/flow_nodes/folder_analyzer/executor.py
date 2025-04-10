@@ -41,15 +41,10 @@ FolderAnalyzerNodeExecutionResult = NodeExecutionResult[
 
 
 class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
-    """Executor for Folder Analyzer Node."""
-
+    node_type = FlowNodeTypeEnum.folder_analyzer.value
     input_model = FolderAnalyzerNodeInput
     setting_model = FolderAnalyzerSettings
     _tracing_profile = folder_analyzer_node_tracing_profile
-
-    def __init__(self):
-        super().__init__(identifier="folder_analyzer_executor")
-        self._total_words_read = 0
 
     def get_result_class(self):
         return FolderAnalyzerNodeExecutionResult
@@ -99,7 +94,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
             add_trace_attribute("generate_tree_diagram", settings.generate_tree_diagram, TracingDataCategory.secondary)
 
             # Reset total words counter
-            self._total_words_read = 0
+            total_words_read = 0
 
             # Verify path exists and is a directory
             if not path.exists():
@@ -133,6 +128,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     settings=settings,
                     exclude_patterns=exclude_patterns,
                     current_depth=0,
+                    total_words_read=total_words_read,
                 )
 
                 # Generate tree diagram if requested
@@ -153,7 +149,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     file_types=stats["file_types"],
                     errors=stats["errors"],
                     gitignore_patterns=gitignore_patterns if settings.respect_gitignore else None,
-                    total_words_read=self._total_words_read if settings.read_content else None,
+                    total_words_read=total_words_read if settings.read_content else None,
                 )
 
                 # Avoid duplicated large analysis data on output and outcome
@@ -182,7 +178,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                         "total_size": stats["total_size"],
                         "file_types_count": len(stats["file_types"]),
                         "errors_count": len(stats["errors"]),
-                        "total_words_read": self._total_words_read if settings.read_content else 0,
+                        "total_words_read": total_words_read if settings.read_content else 0,
                     },
                     TracingDataCategory.primary,
                 )
@@ -261,6 +257,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         settings: FolderAnalyzerSettings,
         exclude_patterns: list[str],
         current_depth: int,
+        total_words_read: int,
     ) -> tuple[DirectoryInfo, dict[str, Any]]:
         """
         Recursively analyze a folder structure with enhanced options.
@@ -340,12 +337,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     stats["total_files"] += 1
 
                     # Check if we've reached the word limit
-                    if settings.max_total_words and self._total_words_read >= settings.max_total_words:
+                    if settings.max_total_words and total_words_read >= settings.max_total_words:
                         # Skip reading content if we've reached the total word limit
-                        file_result = self._analyze_file(item, root_path, settings, skip_content=True)
+                        file_result = self._analyze_file(item, root_path, settings, total_words_read, skip_content=True)
                     else:
                         # Analyze file with regular settings
-                        file_result = self._analyze_file(item, root_path, settings)
+                        file_result = self._analyze_file(item, root_path, settings, total_words_read)
 
                     # Update file type stats
                     ext = file_result.extension.lower()
@@ -379,6 +376,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         path: Path,
         root_path: Path,
         settings: FolderAnalyzerSettings,
+        total_words_read: int,
         skip_content: bool = False,
     ) -> FAFileInfo:
         """Analyze a single file with enhanced options."""
@@ -445,7 +443,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
 
                                     # Track total words read
                                     word_count = len(content.split())
-                                    self._total_words_read += word_count
+                                    total_words_read += word_count
 
                                     # Add content to result
                                     result.content = content

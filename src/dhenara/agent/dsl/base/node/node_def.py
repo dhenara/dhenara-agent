@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import Field
 
@@ -17,11 +17,14 @@ from dhenara.ai.types.resource import ResourceConfigItem
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
 
+node_executor_registry = None
+
 
 class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Class
     """Base class for all node definitions."""
 
     node_type: str
+    component_type: Literal["flow", "agent"]
 
     pre_events: list[EventType | str] = Field(
         default_factory=list,
@@ -70,9 +73,32 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         )
         return result
 
+    def get_node_executor(self):
+        """Get the node_executor for this node definition. This internally handles executor registry"""
+        global node_executor_registry
+
+        if node_executor_registry is None:
+            from ._executor_registry import NodeExecutorRegistry
+
+            node_executor_registry = NodeExecutorRegistry()
+
+        executor = node_executor_registry.get_executor(
+            component_type=self.component_type,
+            node_type=self.node_type,
+        )
+
+        if executor is None:
+            executor = node_executor_registry.register(
+                component_type=self.component_type,
+                node_type=self.node_type,
+                executor_class=self.get_executor_class(),
+            )
+
+        return executor
+
     @abstractmethod
-    def get_node_executor(self):  # NodeExecutor:
-        """Get the node_executor for this node definition."""
+    def get_executor_class(self):
+        """Get the node_executor class for this node definition."""
         pass
 
     # -------------------------------------------------------------------------

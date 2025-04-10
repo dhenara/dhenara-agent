@@ -24,8 +24,8 @@ class AIModelNode(FlowNodeDefinition):
         description="Tools",
     )
 
-    def get_node_executor(self):
-        return AIModelNodeExecutor()
+    def get_executor_class(self):
+        return AIModelNodeExecutor
 
     @field_validator("resources")
     @classmethod

@@ -10,14 +10,14 @@ from .settings import FileOperationNodeSettings
 class FileOperationNode(FlowNodeDefinition):
     """File operation node."""
 
-    node_type: str = FlowNodeTypeEnum.file_operation
+    node_type: str = FlowNodeTypeEnum.file_operation.value
     settings: FileOperationNodeSettings = Field(
         default=None,
         description="File operation settings",
     )
 
-    def get_node_executor(self):
-        return FileOperationNodeExecutor()
+    def get_executor_class(self):
+        return FileOperationNodeExecutor
 
     @model_validator(mode="after")
     def validate_node_settings(self):

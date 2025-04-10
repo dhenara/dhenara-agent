@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
@@ -19,7 +21,7 @@ class AgentElement(ExecutableElement):
 
 
 class AgentNodeDefinition(ExecutableNodeDefinition[AgentExecutionContext]):
-    """Node Denition"""
+    component_type: Literal["flow", "agent"] = "agent"
 
     flow: Flow = Field(
         ...,
@@ -28,7 +30,7 @@ class AgentNodeDefinition(ExecutableNodeDefinition[AgentExecutionContext]):
 
 
 class AgentNodeExecutor(NodeExecutor):
-    pass
+    component_type: Literal["flow", "agent"] = "agent"
 
 
 class AgentNode(ExecutableNode[AgentElement, AgentNodeDefinition, AgentExecutionContext]):

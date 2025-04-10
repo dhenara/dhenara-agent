@@ -3,7 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
@@ -27,17 +27,20 @@ class NodeExecutor(ABC):
     """Base handler for executing flow nodes.
     All node type handlers should inherit from this class and implement
     the handle method to process their specific node type.
+
+    **** NOTE ****
+    Implementation should be stateless,
+    as only a single instance will be created for the entire run.
+
     """
 
+    node_type: str
+    component_type: Literal["flow", "agent"]
     input_model: type[NodeInput] | None
     setting_model: type[NodeSettings]
 
-    def __init__(
-        self,
-        identifier: str,
-    ):
-        self.identifier = identifier
-        self.logger = logging.getLogger(f"dhenara.agent.executor.{identifier}")
+    def __init__(self):
+        self.logger = logging.getLogger(f"dhenara.dad.dsl.node_executor.{self.node_type}")
 
     @abstractmethod
     def get_result_class(self):

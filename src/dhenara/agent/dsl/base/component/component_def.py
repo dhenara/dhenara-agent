@@ -10,9 +10,8 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
 )
+from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
 from dhenara.agent.types.base import BaseModelABC
-
-from ..id_mixin import IdentifierValidationMixin, NavigationMixin
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 NodeT = TypeVar("NodeT", bound=ExecutableNode)  # Fixed name

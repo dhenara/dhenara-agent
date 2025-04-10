@@ -40,14 +40,10 @@ FileOperationNodeExecutionResult = NodeExecutionResult[
 
 
 class FileOperationNodeExecutor(FlowNodeExecutor):
-    """Executor for file system operations with enhanced capabilities."""
-
+    node_type = FlowNodeTypeEnum.file_operation.value
     input_model = FileOperationNodeInput
     setting_model = FileOperationNodeSettings
     _tracing_profile = file_operation_node_tracing_profile
-
-    def __init__(self):
-        super().__init__(identifier="file_operation_executor")
 
     def get_result_class(self):
         return FileOperationNodeExecutionResult
