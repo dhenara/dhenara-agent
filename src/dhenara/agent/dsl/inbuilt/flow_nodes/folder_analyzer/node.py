@@ -1,9 +1,7 @@
-# dhenara/agent/nodes/base.py
-
-
 from pydantic import Field, model_validator
 
-from dhenara.agent.dsl.flow import FlowNodeDefinition, FlowNodeTypeEnum
+from dhenara.agent.dsl.components.flow import FlowNodeDefinition
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 
 from .executor import FolderAnalyzerNodeExecutor
 from .settings import FolderAnalyzerSettings

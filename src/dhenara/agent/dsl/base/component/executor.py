@@ -9,7 +9,6 @@ from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
-from dhenara.ai.types.resource import ResourceConfig
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 BlockT = TypeVar("BlockT", bound=ExecutableBlock)
@@ -26,9 +25,11 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     # Concrete classes to use
     context_class: ClassVar[type[ContextT]]
     block_class: ClassVar[type[BlockT]]
-    logger_path: str = "dhenara.dad.dsl.comp_executor"
 
     run_context: RunContext
+
+    logger_path: str = "dhenara.dad.dsl.comp"
+    logger: logging.Logger | None = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,7 +37,6 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
     # async def execute(
     #    self,
-    #    resource_config: ResourceConfig = None,
     # ) -> dict[str, Any]:
     #    """Execute a flow with the given initial data."""
     #    # Create the execution context
@@ -44,7 +44,6 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     #    execution_context = self.context_class(
     #        component_id=self.id,
     #        component_definition=self.definition,
-    #        resource_config=resource_config,
     #        created_at=datetime.now(),
     #        run_context=self.run_context,
     #        artifact_manager=self.run_context.artifact_manager,
@@ -60,13 +59,11 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     @trace_method("execute_flow")
     async def execute(
         self,
-        resource_config: ResourceConfig = None,
         start_node_id: str | None = None,
     ) -> dict[str, Any]:
         """Execute a flow with the given initial data, optionally starting from a specific node.
 
         Args:
-            resource_config: Configuration for resources
             start_node_id: Optional node ID to start execution from
         """
         # Record flow execution start
@@ -82,7 +79,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
         execution_context = self.context_class(
             component_id=self.id,
             component_definition=self.definition,
-            resource_config=resource_config,
+            resource_config=self.run_context.resource_config,
             created_at=datetime.now(),
             run_context=self.run_context,
             artifact_manager=self.run_context.artifact_manager,

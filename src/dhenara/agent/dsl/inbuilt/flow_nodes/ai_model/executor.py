@@ -15,7 +15,7 @@ from dhenara.agent.dsl.base import (
     SpecialNodeIDEnum,
     StreamingStatusEnum,
 )
-from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
+from dhenara.agent.dsl.components.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
     AIModelNodeOutcome,
@@ -24,6 +24,7 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeSettings,
     ai_model_node_tracing_profile,
 )
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute, trace_collect
 from dhenara.ai import AIModelClient
@@ -67,11 +68,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         self,
         node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        execution_context: ExecutionContext,
         node_input: NodeInput,
-        resource_config: ResourceConfig,
+        execution_context: ExecutionContext,
     ) -> AIModelNodeExecutionResult:
-        self.resource_config = resource_config
+        self.resource_config = execution_context.resource_config
 
         if not self.resource_config:
             raise ValueError("resource_config must be set for ai_model_call")

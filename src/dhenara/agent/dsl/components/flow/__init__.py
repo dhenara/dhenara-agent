@@ -20,6 +20,5 @@ __all__ = [
     "FlowNode",
     "FlowNodeDefinition",
     "FlowNodeExecutor",
-    "FlowNodeTypeEnum",
     "FlowReference",
 ]

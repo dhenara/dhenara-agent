@@ -30,6 +30,13 @@ class ComponentDefinition(
 
     elements: list[ElementT] = Field(default_factory=list)
     node_class: ClassVar[type[NodeT]]
+    root_id: str | None = Field(
+        default=None,
+        description=(
+            "Id if this is a root component. "
+            "Do not set ID for any other componets, as id should be assigned when added to a node"
+        ),
+    )
 
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins

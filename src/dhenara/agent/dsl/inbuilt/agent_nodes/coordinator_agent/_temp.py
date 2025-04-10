@@ -40,7 +40,6 @@ class CoordinatorAgentNode(AgentNodeDefinition):
 
         # Execute the agent flow
         results = await agent_flow_executor.execute(
-            resource_config=execution_context.resource_config,
             start_node_id=self.settings.agent_flow_start_node,
         )
 

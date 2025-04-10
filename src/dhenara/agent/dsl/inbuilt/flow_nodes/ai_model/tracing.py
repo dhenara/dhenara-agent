@@ -1,4 +1,4 @@
-from dhenara.agent.dsl.flow import FlowNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import truncate_string
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,

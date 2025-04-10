@@ -8,18 +8,17 @@ this module rather than creating their own.
 
 from typing import Any
 
-from dhenara.agent.dsl import AgentNode, Flow
 from dhenara.agent.resource import ResourceRegistry
 from dhenara.ai.types import AIModel, ResourceConfig
 
 # Standard registries
 model_registry = ResourceRegistry[AIModel](AIModel, name="AIModel")
 resource_config_registry = ResourceRegistry[ResourceConfig](ResourceConfig, name="ResourceConfig")
-flow_registry = ResourceRegistry[Flow](Flow, name="Flow")
-agent_node_registry = ResourceRegistry[AgentNode](AgentNode, name="AgentNode")
 
 # Initialize with empty values - applications will populate these
 _registries_initialized = False
+
+# TODO: Cleanup registries spread across multiple files
 
 
 def initialize_registries(resources: dict[str, Any] | None = None) -> None:
@@ -54,11 +53,5 @@ def initialize_registries(resources: dict[str, Any] | None = None) -> None:
             elif registry_name == "ResourceConfig":
                 for name, resource in items.items():
                     resource_config_registry.register(name, resource)
-            elif registry_name == "Flow":
-                for name, resource in items.items():
-                    flow_registry.register(name, resource)
-            elif registry_name == "AgentNode":
-                for name, resource in items.items():
-                    agent_node_registry.register(name, resource)
 
     _registries_initialized = True

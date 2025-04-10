@@ -1,6 +1,4 @@
-# dhenara/agent/dsl/inbuilt/flow_nodes/command/tracing.py
-
-from dhenara.agent.dsl.flow import FlowNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
     TracingDataCategory,

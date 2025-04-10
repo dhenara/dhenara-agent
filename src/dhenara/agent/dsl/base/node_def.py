@@ -57,12 +57,8 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         self,
         node_id: NodeID,
         execution_context: ContextT,
-        # resource_config: ResourceConfig,
     ) -> Any:
-        # self.resource_config = resource_config
-
         execution_context.set_current_node(node_id)
-        # initial_input= execution_context.get_initial_inputs()
 
         node_executor = self.get_node_executor()
 

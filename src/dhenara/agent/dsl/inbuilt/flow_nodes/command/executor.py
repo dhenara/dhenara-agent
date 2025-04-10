@@ -14,10 +14,10 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeOutput,
 )
-from dhenara.agent.dsl.flow import FlowNodeExecutor, FlowNodeTypeEnum
+from dhenara.agent.dsl.components.flow import FlowNodeExecutor
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
-from dhenara.ai.types.resource import ResourceConfig
 
 from .input import CommandNodeInput
 from .output import CommandNodeOutcome, CommandNodeOutput, CommandNodeOutputData, CommandResult
@@ -50,9 +50,8 @@ class CommandNodeExecutor(FlowNodeExecutor):
         self,
         node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        execution_context: ExecutionContext,
         node_input: NodeInput,
-        resource_config: ResourceConfig,
+        execution_context: ExecutionContext,
     ) -> CommandNodeExecutionResult | None:
         try:
             # Get settings from node definition or input override

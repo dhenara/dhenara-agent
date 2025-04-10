@@ -17,7 +17,6 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.events import NodeInputRequiredEvent
 from dhenara.agent.observability import log_with_context, record_metric
-from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -97,8 +96,6 @@ class NodeExecutor(ABC):
         node_definition: ExecutableNodeDefinition,
         execution_context: ExecutionContext,
     ) -> Any:
-        resource_config: ResourceConfig = execution_context.resource_config
-
         log_with_context(
             self.logger,
             logging.DEBUG,
@@ -159,7 +156,6 @@ class NodeExecutor(ABC):
         #        flow_node=flow_node,
         #        flow_node_input=flow_node_input,
         #        execution_context=execution_context,
-        #        resource_config=self.resource_config,
         #    )
         #    if not isinstance(result, AsyncGenerator):
         #        execution_context.logger.warning(
@@ -172,9 +168,8 @@ class NodeExecutor(ABC):
         result = await self.execute_node(
             node_id=node_id,
             node_definition=node_definition,
-            execution_context=execution_context,
             node_input=node_input,
-            resource_config=resource_config,
+            execution_context=execution_context,
         )
 
         # Set the result in the execution context
@@ -239,9 +234,8 @@ class NodeExecutor(ABC):
         self,
         node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        execution_context: ExecutionContext,
         node_input: NodeInput,
-        resource_config: ResourceConfig,
+        execution_context: ExecutionContext,
     ) -> Any:
         """
         Handle the execution of a flow node.

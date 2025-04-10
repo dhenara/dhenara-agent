@@ -17,10 +17,9 @@ from dhenara.agent.dsl.inbuilt.agent_nodes.basic_agent import (
     BasicAgentNodeOutput,
     basic_agent_node_tracing_profile,
 )
-from dhenara.agent.dsl.inbuilt.defs.enums import AgentNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.agent_nodes.defs import AgentNodeTypeEnum
 from dhenara.agent.observability import log_with_context
 from dhenara.agent.observability.tracing import trace_node
-from dhenara.ai.types.resource import ResourceConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 logger = logging.getLogger(__name__)
@@ -50,13 +49,7 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
         node_definition: ExecutableNodeDefinition,
         execution_context: AgentExecutionContext,
         node_input: NodeInput,
-        resource_config: ResourceConfig,
     ) -> BasicAgentNodeExecutionResult:
-        self.resource_config = resource_config
-
-        if not self.resource_config:
-            raise ValueError("resource_config must be set for ai_model_call")
-
         result = await self._execute_flow_def(
             node_id=node_id,
             node_definition=node_definition,
@@ -69,9 +62,8 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
         self,
         node_id: NodeID,
         node_definition: ExecutableNodeDefinition,
-        execution_context: AgentExecutionContext,
         node_input: NodeInput,
-        resource_config: ResourceConfig,
+        execution_context: AgentExecutionContext,
     ) -> Any:
         """
         Handle the execution of a flow node.
@@ -90,7 +82,6 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
 
             # Execute the flow, potentially starting from a specific node
             results = await executor.execute(
-                resource_config=self.get_resource_config(),
                 start_node_id=run_context.flow_start_node_id,
             )
 

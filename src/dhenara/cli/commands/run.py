@@ -5,7 +5,8 @@ from pathlib import Path
 
 import click
 
-from dhenara.agent.run import AgentRunner, IsolatedExecution
+from dhenara.agent.run import IsolatedExecution
+from dhenara.agent.runner import AgentRunner
 from dhenara.agent.shared.utils import find_project_root
 
 from ._print_utils import print_error_summary, print_run_summary
@@ -26,12 +27,6 @@ def run():
 @run.command("agent")
 @click.argument("identifier")
 @click.option("--project-root", default=None, help="Project repo root")
-@click.option("--run-root", default=None, help="Run dir root. Default is `runs`")
-@click.option(
-    "--run-id",
-    default=None,
-    help="Custom run ID . Defaults is <agent_identifier>_<timestamp>_<uid>",
-)
 @click.option(
     "--previous-run-id",
     default=None,
@@ -91,12 +86,15 @@ async def _run_agent(
         return
 
     # Load agent
-    runner = load_runner_module(project_root, f"runner/{identifier}")
+    runner = load_runner_module(project_root, identifier)
+
+    # if not (agent and isinstance(agent, Agent)):
+    #    raise ValueError(f"Failed to get agent module inside project. agent={agent}")
     if not (runner and isinstance(runner, AgentRunner)):
         raise ValueError(f"Failed to get runner module inside project. runner={runner}")
 
     # Update run context with rerun parameters if provided
-    runner.set_previous_run_in_run_ctx(
+    runner.setup_run(
         previous_run_id=previous_run_id,
         agent_start_node_id=agent_start_node_id,
         flow_start_node_id=flow_start_node_id,
@@ -133,31 +131,38 @@ async def _run_agent(
         print()
 
     except Exception as e:
-        logger.exception(f"Error running agent {identifier}: {e}")
-        runner.run_context.metadata["error"] = str(e)
-        runner.run_context.complete_run(status="failed")
+        error_msg = f"Error running agent {identifier}: {e}"
+        logger.exception(error_msg)
+        runner.run_context.complete_run(status="failed", error_msg=error_msg)
         print_error_summary(str(e))
 
 
-def load_runner_module(project_root: Path, agent_dir_path: str):
+def load_runner_module(project_root: Path, identifier: str):
     """Load agent module from the specified path."""
+    # agent_path = f"src/agents/{identifier}/agent"
+    runner_path = f"src/runners/{identifier}"
+
     try:
         # Add current directory to path
         import sys
 
         sys.path.append(str(project_root))
 
-        # Convert file path notation to module notation
-        _path = f"{agent_dir_path}/agent_run"
-        module_path = _path.replace("/", ".")
+        ## Agent
+        # agent_module_path = agent_path.replace("/", ".")
+        # agent_module = importlib.import_module(agent_module_path)
 
+        # Runner
+        # Convert file path notation to module notation
+        runner_module_path = runner_path.replace("/", ".")
         # Import agent from path
-        run_module = importlib.import_module(module_path)
-        return run_module.runner
+        runner_module = importlib.import_module(runner_module_path)
+
+        return runner_module.runner
 
     except ImportError as e:
-        logger.error(f"Failed to import agent from project_root {project_root} path {agent_dir_path}: {e}")
+        raise ValueError(f"Failed to import runner from project_root {project_root}  runner_path:{runner_path}: {e}")
     except AttributeError as e:
-        logger.error(
-            f"Failed to find agent definition in module project_root {project_root} path {agent_dir_path}: {e}"
+        raise ValueError(
+            f"Failed to find runner definition in module project_root {project_root}  runner_path:{runner_path}: {e}"
         )

@@ -1,4 +1,4 @@
-from dhenara.agent.dsl.inbuilt.agent_nodes.defs.enums import AgentNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.agent_nodes.defs import AgentNodeTypeEnum
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
 )

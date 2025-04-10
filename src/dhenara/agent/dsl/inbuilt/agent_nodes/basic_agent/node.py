@@ -1,7 +1,7 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.components.agent import AgentNodeDefinition
-from dhenara.agent.dsl.inbuilt.agent_nodes.defs.enums import AgentNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.agent_nodes.defs import AgentNodeTypeEnum
 
 from .executor import BasicAgentNodeExecutor
 from .settings import BasicAgentNodeSettings
@@ -10,7 +10,7 @@ from .settings import BasicAgentNodeSettings
 class BasicAgentNode(AgentNodeDefinition):
     """A basic agent that runs a single flow."""
 
-    node_type: str = AgentNodeTypeEnum.ai_model_call
+    node_type: str = AgentNodeTypeEnum.basic_agent.value
 
     settings: BasicAgentNodeSettings | None = Field(
         default=None,

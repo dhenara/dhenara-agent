@@ -10,10 +10,12 @@ from pathlib import Path
 from dhenara.agent.dsl.base import NodeID, NodeInput
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
+from dhenara.agent.resource.registry import resource_config_registry
 from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
+from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,8 @@ class RunContext:
         self.flow_start_node_id = flow_start_node_id
 
         self.event_bus = EventBus()
+        self.setup_completed = False
+        self.created_at = datetime.now()
 
     def set_previous_run(
         self,
@@ -139,11 +143,16 @@ class RunContext:
             run_env_params=self.run_env_params,
             outcome_repo=self.outcome_repo,
         )
+        # Intit resource config
+        self.resource_config: ResourceConfig = self.get_resource_config()
 
         self.static_inputs = {}
 
         # Save initial metadata
         self._save_metadata()
+
+        # mark setup completed
+        self.setup_completed = True
 
     def register_node_static_input(self, node_id: str, input_data: NodeInput):
         """Register static input for a node."""
@@ -158,7 +167,7 @@ class RunContext:
         """Save metadata about this run."""
         metadata = {
             "run_id": self.run_id,
-            "created_at": self.start_time.isoformat(),
+            "created_at": self.created_at.isoformat(),
             "status": "initialized",
             **self.metadata,
         }
@@ -173,7 +182,7 @@ class RunContext:
         """Prepare input data and files for the run."""
         input_source_path = source or self.input_source
 
-        if not input_source_path.exists():
+        if not (input_source_path and input_source_path.exists()):
             logger.warning(f"input_source_path {input_source_path} does not exists. No static input files copied")
             return
 
@@ -211,20 +220,29 @@ class RunContext:
         else:
             logger.info(f"Staic inputs are not initalized as no file exists in {_input_file}")
 
-    def complete_run(self, status="completed"):
+    def complete_run(
+        self,
+        status="completed",
+        error_msg: str | None = None,
+    ):
         """Mark the run as complete and save final metadata."""
-        self.end_time = datetime.now()
-        self.metadata["status"] = status
-        self.metadata["completed_at"] = self.end_time.isoformat()
-        self.metadata["duration_seconds"] = (self.end_time - self.start_time).total_seconds()
-        self._save_metadata()
+        if self.setup_completed:  # Failed after setup_run()
+            self.end_time = datetime.now()
+            self.metadata["status"] = status
 
-        # Complete run in git repository
-        self.outcome_repo.complete_run(
-            run_id=self.run_id,
-            status=status,
-            commit_outcome=True,
-        )
+            self.metadata["completed_at"] = self.end_time.isoformat()
+            self.metadata["duration_seconds"] = (self.end_time - self.start_time).total_seconds()
+            self._save_metadata()
+
+            # Complete run in git repository
+            self.outcome_repo.complete_run(
+                run_id=self.run_id,
+                status=status,
+                commit_outcome=True,
+            )
+        else:
+            # TODO_FUTURE: Record to a global recording system?
+            logger.error(f"Completed run even before run_context setup. Error: {error_msg}")
 
     async def load_node_from_previous_run(self, node_id: NodeID, copy_artifacts: bool = True) -> dict | None:
         """Copy artifacts from previous run up to the start node."""
@@ -392,3 +410,28 @@ class RunContext:
 
         # Replace the event bus publish method
         self.event_bus.publish = instrumented_publish
+
+    def get_resource_config(
+        self,
+        resource_profile="default",
+    ):
+        try:
+            # Get resource configuration from registry
+            resource_config = resource_config_registry.get(resource_profile)
+            if not resource_config:
+                # Fall back to creating a new one
+                resource_config = self.load_default_resource_config()
+                resource_config_registry.register(resource_profile, resource_config)
+
+            print(f"AJJ: TOP: resouce config = {resource_config}")
+            return resource_config
+        except Exception as e:
+            raise ValueError(f"Error in resource setup: {e}")
+
+    def load_default_resource_config(self):
+        resource_config = ResourceConfig()
+        resource_config.load_from_file(
+            credentials_file="~/.env_keys/.dhenara_credentials.yaml",
+            init_endpoints=True,
+        )
+        return resource_config
