@@ -7,14 +7,14 @@ def link_related_runs(trace_data):
     agent_runs = {}
     for trace in trace_data:
         # Extract agent ID from trace
-        agent_id = trace.get("agent_id")
-        if not agent_id:
+        root_id = trace.get("root_id")
+        if not root_id:
             continue
 
-        if agent_id not in agent_runs:
-            agent_runs[agent_id] = []
+        if root_id not in agent_runs:
+            agent_runs[root_id] = []
 
-        agent_runs[agent_id].append(trace)
+        agent_runs[root_id].append(trace)
 
     # Find reruns by looking for previous_run_id attribute
     for _agent_id, traces in agent_runs.items():  # noqa: PERF102

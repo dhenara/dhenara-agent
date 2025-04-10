@@ -46,8 +46,9 @@ class ExecutionContext(BaseModelABC):
     """A generic execution context for any DSL execution."""
 
     # INFO: Cannot add typehint as its hard to resolve import erros
-    # Its OK, as the execution context is used at runtime
-    component_id: NodeID  # Type of ComponentDefinition
+    # It is not necessary to fix this soon as the execution context is used at runtime
+
+    component_id: NodeID
     component_definition: Any  # Type of ComponentDefinition
 
     # Core data structures
@@ -255,7 +256,10 @@ class ExecutionContext(BaseModelABC):
         if not self.current_node_identifier:
             return ""
 
-        return NodeHierarchyHelper.get_node_hierarchy_path(execution_context=self, node_id=self.current_node_identifier)
+        return NodeHierarchyHelper.get_node_hierarchy_path(
+            execution_context=self,
+            node_id=self.current_node_identifier,
+        )
 
     def get_dad_dynamic_variables(self) -> dict:
         return {

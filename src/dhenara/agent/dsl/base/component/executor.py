@@ -60,6 +60,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     async def execute(
         self,
         start_node_id: str | None = None,
+        parent_execution_context=None,
     ) -> dict[str, Any]:
         """Execute a flow with the given initial data, optionally starting from a specific node.
 
@@ -84,6 +85,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             run_context=self.run_context,
             artifact_manager=self.run_context.artifact_manager,
             start_node_id=start_node_id,
+            parent=parent_execution_context,
         )
 
         try:

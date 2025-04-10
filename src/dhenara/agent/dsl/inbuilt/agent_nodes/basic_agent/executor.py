@@ -73,7 +73,7 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
         try:
             # Create orchestrator with resolved resources
             executor = FlowExecutor(
-                id=node_id,
+                id=node_id,  # By doing this, agent node_id will becombe flow's component id
                 definition=flow_definition,
                 run_context=run_context,
             )
@@ -81,6 +81,7 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
             # Execute the flow, potentially starting from a specific node
             results = await executor.execute(
                 start_node_id=run_context.flow_start_node_id,
+                parent_execution_context=execution_context,  # NOTE: pass parent
             )
 
             return results
@@ -90,6 +91,6 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
                 self.logger,
                 logging.ERROR,
                 f"Invalid inputs: {e!s}",
-                {"agent_id": str(self.agent_id), "error": str(e)},
+                {"root_id": str(run_context.root_component_id), "error": str(e)},
             )
             raise DhenaraAPIError(f"Invalid Inputs {e}")

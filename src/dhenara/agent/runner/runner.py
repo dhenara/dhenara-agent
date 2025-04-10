@@ -36,7 +36,7 @@ class ComponentRunner(ABC):
 
     def setup_run(
         self,
-        previous_run_id: str,
+        previous_run_id: str | None = None,
         agent_start_node_id: str | None = None,
         flow_start_node_id: str | None = None,
         run_id_prefix: str | None = None,
@@ -87,7 +87,7 @@ class ComponentRunner(ABC):
                 self.logger,
                 logging.INFO,
                 f"Agent {self.root_id} completed successfully",
-                {"agent_id": str(self.root_id)},
+                {"root_id": str(self.root_id)},
             )
 
             return True
@@ -96,7 +96,7 @@ class ComponentRunner(ABC):
                 self.logger,
                 logging.ERROR,
                 f"Agent {self.root_id} failed: {e!s}",
-                {"agent_id": str(self.root_id), "error": str(e)},
+                {"root_id": str(self.root_id), "error": str(e)},
             )
             self.run_context.complete_run(status="failed")
             raise
@@ -119,7 +119,7 @@ class FlowRunner(ComponentRunner):  # TODO: Not tested
         try:
             # Create orchestrator with resolved resources
             executor = FlowExecutor(
-                id=self.agent_id,  # TODO_FUTURE: Might need cleanup on multi agent flows
+                id=self.root_id,  # TODO_FUTURE: Might need cleanup on multi agent flows
                 definition=flow_definition,
                 run_context=run_context,
             )
@@ -135,7 +135,7 @@ class FlowRunner(ComponentRunner):  # TODO: Not tested
                 self.logger,
                 logging.ERROR,
                 f"Invalid inputs: {e!s}",
-                {"agent_id": str(self.agent_id), "error": str(e)},
+                {"root_id": str(self.root_id), "error": str(e)},
             )
             raise DhenaraAPIError(f"Invalid Inputs {e}")
 
@@ -171,6 +171,6 @@ class AgentRunner(ComponentRunner):
                 self.logger,
                 logging.ERROR,
                 f"Invalid inputs: {e!s}",
-                {"agent_id": str(self.root_id), "error": str(e)},
+                {"root_id": str(self.root_id), "error": str(e)},
             )
             raise DhenaraAPIError(f"Invalid Inputs {e}")

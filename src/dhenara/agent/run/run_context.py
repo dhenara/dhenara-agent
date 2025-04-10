@@ -25,6 +25,7 @@ class RunContext:
 
     def __init__(
         self,
+        root_component_id: str,
         project_root: Path,
         run_root: Path | None = None,
         run_id: str | None = None,
@@ -36,6 +37,8 @@ class RunContext:
         # Static inputs
         input_source: Path | None = None,
     ):
+        self.root_component_id = root_component_id
+
         if not observability_settings:
             observability_settings = ObservabilitySettings()
 

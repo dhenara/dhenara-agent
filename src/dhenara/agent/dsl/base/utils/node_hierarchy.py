@@ -30,10 +30,10 @@ class NodeHierarchyHelper:
         if not execution_context.component_definition:
             return node_id
 
-        component_id = execution_context.component_id  # TODO:FUTURE: Would need cleanup on multi agent defs
+        component_path_parts = NodeHierarchyHelper._find_parent_component_ids(execution_context)
 
-        # Initialize with the current node ID
-        path_parts = [component_id, node_id]
+        # Add current node id
+        path_parts = [node_id]
 
         try:
             # Get component definition
@@ -45,20 +45,21 @@ class NodeHierarchyHelper:
                 return node_id
 
             # Check if this node is part of a subflow or nested component
-            parent_id = NodeHierarchyHelper._find_parent_component_id(component_def, node_id)
+            parent_element_id = NodeHierarchyHelper._find_parent_element_id(component_def, node_id)
 
             # If we found a parent, add it to the path
-            if parent_id:
-                path_parts.insert(0, parent_id)
+            if parent_element_id:
+                path_parts.insert(0, parent_element_id)
 
                 # Continue looking for higher-level parents
-                parent_of_parent = NodeHierarchyHelper._find_parent_component_id(component_def, parent_id)
+                parent_of_parent = NodeHierarchyHelper._find_parent_element_id(component_def, parent_element_id)
                 while parent_of_parent:
                     path_parts.insert(0, parent_of_parent)
-                    parent_of_parent = NodeHierarchyHelper._find_parent_component_id(component_def, parent_of_parent)
+                    parent_of_parent = NodeHierarchyHelper._find_parent_element_id(component_def, parent_of_parent)
 
+            final_path_parts = [*component_path_parts, *path_parts]
             # Join path parts with forward slashes
-            return "/".join(path_parts)
+            return "/".join(final_path_parts)
 
         except Exception as e:
             # Log error but don't fail - fall back to just the node ID
@@ -66,7 +67,19 @@ class NodeHierarchyHelper:
             return node_id
 
     @staticmethod
-    def _find_parent_component_id(component_def: Any, node_id: str) -> str | None:
+    def _find_parent_component_ids(execution_context) -> list[str]:
+        comp_path_parts = [execution_context.component_id]
+
+        parent_ctx = execution_context.parent
+        while parent_ctx is not None:
+            comp_path_parts.append(parent_ctx.component_id)
+            parent_ctx = parent_ctx.parent
+
+        comp_path_parts.reverse()  # Reverse the order
+        return comp_path_parts
+
+    @staticmethod
+    def _find_parent_element_id(component_def: Any, node_id: str) -> str | None:
         """
         Find the ID of the parent component containing the specified node.
 
