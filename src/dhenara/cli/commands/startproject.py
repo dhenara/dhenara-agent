@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -49,8 +50,9 @@ def startproject(name, description, git):
     dirs = [
         ".dhenara",
         ".dhenara/credentials",
-        "agents",
-        "common/prompts",
+        "src/agents",
+        "src/common/prompts",
+        "src/runners",
         # "common/tools",
         # "data",
         # "experiments",
@@ -132,6 +134,10 @@ runs/
 .vscode/
 """)
 
+    # Copy initial files in runners dir
+    runnner_template_dirs = Path(__file__).parent.parent / "templates" / "runner"
+    shutil.copy(runnner_template_dirs / "__init__.py", project_dir / "src" / "runners")
+    shutil.copy(runnner_template_dirs / "defs.py", project_dir / "src" / "runners")
     # Change to the project directory to create an initial agent
     os.chdir(project_dir)
 

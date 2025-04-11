@@ -50,7 +50,8 @@ def _create_agent(name, description):
     current_dir = Path(os.getcwd())
 
     # Create agents directory if it doesn't exist
-    agents_dir = current_dir / "agents"
+    agents_dir = current_dir / "src" / "agents"
+    runners_dir = current_dir / "src" / "runners"
     if not agents_dir.exists():
         agents_dir.mkdir()
         with open(agents_dir / "__init__.py", "w") as f:
@@ -66,24 +67,29 @@ def _create_agent(name, description):
 
     # Create agent __init__.py
     with open(agent_dir / "__init__.py", "w") as f:
-        f.write(f'"""Dhenara agent: {name}"""\n\nfrom .agent import Agent\n')
+        f.write("")
+        # f.write(f'"""Dhenara agent: {name}"""\n\nfrom .agent import Agent\n')
 
     # Get template directory path
-    possible_template_dirs = [
-        Path(__file__).parent.parent / "templates" / "agent",
-    ]
-
-    template_dir = None
-    for path in possible_template_dirs:
-        if path.exists():
-            template_dir = path
-            break
+    template_dir = Path(__file__).parent.parent / "templates" / "agent"
+    runner_template_dir = Path(__file__).parent.parent / "templates" / "runner"
 
     if not template_dir:
         click.echo(click.style("Error: Could not find template directory.", fg="red", bold=True))
         return False
 
     try:
+        # Runner file
+        runner_src = runner_template_dir / "runner.py"
+        runner_dest = runners_dir / f"{agent_identifier}.py"
+        with open(runner_src) as src, open(runner_dest, "w") as dst:
+            content = src.read()
+            # Replace placeholders
+            content = content.replace("from src.agents.chatbot.", f"from src.agents.{agent_identifier}.")
+            content = content.replace("chatbot", agent_identifier)
+            dst.write(content)
+
+        # Agent dir
         for template_file in template_dir.glob("*"):
             if template_file.is_file():
                 target_file = agent_dir / template_file.name

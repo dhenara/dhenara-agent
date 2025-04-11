@@ -10,7 +10,7 @@ async def async_input(prompt: str) -> str:
     return await loop.run_in_executor(None, lambda: input(prompt))
 
 
-async def ai_model_input_handler(event: NodeInputRequiredEvent):
+async def ai_model_node_input_handler(event: NodeInputRequiredEvent):
     if event.node_type == FlowNodeTypeEnum.ai_model_call:
         if event.node_id == "ai_model_call_1":
             user_query = await async_input("Enter your query: ")

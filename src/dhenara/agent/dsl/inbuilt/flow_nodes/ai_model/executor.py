@@ -144,8 +144,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # 3. Fix AI Model endpoint
         # -------------------
         ai_model_ep = execution_context.resource_config.get_resource(node_resource)
-        add_trace_attribute("model_endpoint_id", getattr(ai_model_ep, "id", "unknown"), TracingDataCategory.primary)
-        add_trace_attribute("model_name", getattr(ai_model_ep, "model_name", "unknown"), TracingDataCategory.primary)
+        add_trace_attribute("ai_model_name", ai_model_ep.ai_model.model_name, TracingDataCategory.primary)
+        add_trace_attribute("ai_model_provider", ai_model_ep.ai_model.provider, TracingDataCategory.primary)
+        add_trace_attribute("ai_model_api_provider", ai_model_ep.api.provider, TracingDataCategory.primary)
 
         # 4. Fix Prompt and system instruction
         # -------------------

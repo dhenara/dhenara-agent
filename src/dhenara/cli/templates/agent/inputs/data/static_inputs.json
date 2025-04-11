@@ -1,7 +1,7 @@
 {
   "create_plan": {
     "prompt_variables": {
-      "requested_plan": "A new standlone nextjs projct structure for reusability and scalability"
+      "user_query": "What is Dhenara?"
     }
   }
 }
