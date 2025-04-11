@@ -21,6 +21,7 @@ class FAFileInfo(BaseModel):
     is_text: bool | None = None
     content_preview: str | None = None
     content: str | None = None  # full content
+    content_structure: str | None = None  # structure of content. Curretnly only supported for python
     word_count: int | None = None  # word counts
     summary: str | None = None  # file summary
     error: str | None = None

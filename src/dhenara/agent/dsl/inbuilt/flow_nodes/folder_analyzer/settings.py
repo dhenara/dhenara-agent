@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
@@ -24,10 +26,7 @@ class FolderAnalyzerSettings(NodeSettings):
         default=False,
         description="Whether to include file/dir stats",
     )
-    include_content_preview: bool = Field(
-        default=False,
-        description="Whether to include file content previews",
-    )
+
     respect_gitignore: bool = Field(
         default=True,
         description="Whether to respect .gitignore patterns",
@@ -36,10 +35,24 @@ class FolderAnalyzerSettings(NodeSettings):
         default=1024 * 1024,  # 1MB default max for content preview
         description="Maximum file size to analyze content",
     )
-    # New fields
+
+    # Content Read related
     read_content: bool = Field(
         default=False,
         description="Whether to read and include full file content",
+    )
+    include_content_preview: bool = Field(
+        default=False,
+        description="Whether to include file content previews",
+    )
+    # Content optimization options
+    content_read_mode: Literal["full", "structure"] = Field(  # "smart_chunks", # TODO_FUTURE
+        default="full",
+        description="How to process file content",
+    )
+    content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
+        default="basic",
+        description="DetailLevel if content_read_mode is `structure`",
     )
     max_words_per_file: int | None = Field(
         default=None,

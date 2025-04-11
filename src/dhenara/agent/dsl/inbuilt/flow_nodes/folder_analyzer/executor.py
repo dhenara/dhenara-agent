@@ -88,6 +88,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 TracingDataCategory.secondary,
             )
             add_trace_attribute("read_content", settings.read_content, TracingDataCategory.secondary)
+            add_trace_attribute("content_read_mode", settings.content_read_mode, TracingDataCategory.secondary)
             add_trace_attribute("respect_gitignore", settings.respect_gitignore, TracingDataCategory.secondary)
             add_trace_attribute("use_relative_paths", settings.use_relative_paths, TracingDataCategory.secondary)
             add_trace_attribute("include_root_in_path", settings.include_root_in_path, TracingDataCategory.secondary)
@@ -314,6 +315,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                         settings=settings,
                         exclude_patterns=exclude_patterns,
                         current_depth=current_depth + 1,
+                        total_words_read=total_words_read,
                     )
 
                     # Merge stats
@@ -407,6 +409,36 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         # Analyze content if requested
         should_read_content = settings.include_content_preview or settings.read_content
         if should_read_content:
+            if settings.content_read_mode == "structure" and path.suffix.lower() == ".py":
+                from .helpers.python_extractor import PythonStructureExtractor
+
+                try:
+                    # Use Python's built-in ast module
+                    extractor = PythonStructureExtractor(path)
+                    structure = extractor.extract(detail_level=settings.content_structure_detail_level)
+
+                    formatted_structure = [f"{key}: {value}" for key, value in structure.items()]
+                    result.content_structure = "\n\n".join(formatted_structure)
+
+                    result.word_count = len(result.content_structure.split())
+                    total_words_read += result.word_count
+
+                except Exception as e:
+                    # Fallback to regular content processing
+                    result.error = f"Failed to extract structure: {e}"
+
+            elif settings.content_read_mode == "smart_chunks" and settings.use_langchain_splitter:
+                from .helpers.helper_fns import optimize_for_llm_context  # TODO_FUTURE: Not functional
+
+                try:
+                    result.content = optimize_for_llm_context(path, settings)
+                    result.word_count = len(result.content.split())
+                    total_words_read += result.word_count
+                except Exception as e:
+                    result.error = f"Smart chunking failed: {e}"
+
+        # Fallback to original method for other modes or when other methods fail
+        if should_read_content and (settings.content_read_mode == "full" or not result.content_structure):
             # Check file size limit
             file_size = result.size or 0
             if settings.max_file_size is None or file_size <= settings.max_file_size:
