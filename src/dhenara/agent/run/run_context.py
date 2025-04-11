@@ -386,7 +386,7 @@ class RunContext:
             # Get tracer
             from dhenara.agent.observability.tracing import get_tracer
 
-            tracer = get_tracer("dhenara.agent.events")
+            tracer = get_tracer("dhenara.dad.events")
 
             # Create span
             with tracer.start_as_current_span(

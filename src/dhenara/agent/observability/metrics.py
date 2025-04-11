@@ -81,7 +81,7 @@ def get_meter(name: str) -> metrics.Meter:
     """
     # We should check if setup has been done, but don't initialize here
     if _meter_provider is None:
-        logging.getLogger("dhenara.agent.observability").warning(
+        logging.getLogger("dhenara.dad.observability").warning(
             "Attempting to get meter before metrics initialization. "
             "Metrics will not be recorded until setup_metrics() is called."
         )
@@ -109,7 +109,7 @@ def record_metric(
     """
 
     if _meter_provider is None:
-        logging.getLogger("dhenara.agent.observability").debug(
+        logging.getLogger("dhenara.dad.observability").debug(
             f"Skipping metric recording for {metric_name}: metrics not initialized"
         )
         return
@@ -133,9 +133,9 @@ def record_metric(
             histogram = meter.create_histogram(name=metric_name)
             histogram.record(value, attributes)
         else:
-            logging.getLogger("dhenara.agent.observability").warning(f"Unknown metric type: {metric_type}")
+            logging.getLogger("dhenara.dad.observability").warning(f"Unknown metric type: {metric_type}")
     except Exception as e:
-        logging.getLogger("dhenara.agent.observability").error(
+        logging.getLogger("dhenara.dad.observability").error(
             f"Error recording metric {metric_name}: {e}", exc_info=True
         )
 

@@ -1,6 +1,6 @@
-from typing import Literal
 
 from dhenara.agent.dsl.base import (
+    ComponentTypeEnum,
     ExecutableBlock,
     ExecutableElement,
     ExecutableNode,
@@ -18,11 +18,11 @@ class FlowElement(ExecutableElement):
 
 
 class FlowNodeDefinition(ExecutableNodeDefinition[FlowExecutionContext]):
-    component_type: Literal["flow", "agent"] = "flow"
+    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
 
 
 class FlowNodeExecutor(NodeExecutor):
-    component_type: Literal["flow", "agent"] = "flow"
+    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
 
 
 class FlowNode(ExecutableNode[FlowElement, FlowNodeDefinition, FlowExecutionContext]):

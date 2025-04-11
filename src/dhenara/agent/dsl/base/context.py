@@ -53,9 +53,7 @@ class ExecutionContext(BaseModelABC):
 
     # Core data structures
     resource_config: ResourceConfig | None = Field(default=None)
-    data: dict[str, Any] = Field(default_factory=dict)
     parent: Optional["ExecutionContext"] = Field(default=None)
-    results: dict[str, Any] = Field(default_factory=dict)
 
     # Flow-specific tracking
     current_node_identifier: NodeID | None = Field(default=None)
@@ -91,7 +89,7 @@ class ExecutionContext(BaseModelABC):
     # Environment
     run_context: RunContext
     # Logging
-    logger: ClassVar = logging.getLogger("dhenara.agent.execution_ctx")
+    logger: ClassVar = logging.getLogger("dhenara.dad.execution_ctx")
 
     # TODO: Enable event bus
     # event_bus: EventBus = Field(default_factory=EventBus)

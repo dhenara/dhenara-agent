@@ -1,9 +1,10 @@
 from abc import abstractmethod
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
+    ComponentTypeEnum,
     ExecutionContext,
     NodeGitSettings,
     NodeID,
@@ -24,7 +25,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     """Base class for all node definitions."""
 
     node_type: str
-    component_type: Literal["flow", "agent"]
+    component_type: ComponentTypeEnum
 
     pre_events: list[EventType | str] = Field(
         default_factory=list,

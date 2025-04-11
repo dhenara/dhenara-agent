@@ -1,23 +1,45 @@
 import logging
+from abc import abstractmethod
 from datetime import datetime
 from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ComponentDefinition, ExecutableBlock, ExecutableElement, ExecutionContext, NodeID
+from dhenara.agent.dsl.base import (
+    ComponentDefinition,
+    ComponentExecutionResult,
+    ComponentTypeEnum,
+    ExecutableBlock,
+    ExecutableElement,
+    ExecutionContext,
+    ExecutionStatusEnum,
+    NodeID,
+)
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.run.run_context import RunContext
-from dhenara.agent.types.base import BaseModel
+from dhenara.agent.types.base import BaseModelABC
 
 ElementT = TypeVar("ElementT", bound=ExecutableElement)
 BlockT = TypeVar("BlockT", bound=ExecutableBlock)
 ContextT = TypeVar("ContextT", bound=ExecutionContext)
 ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)
+ComponentExeResultT = TypeVar("ComponentDefT", bound=ComponentExecutionResult)
 
 
-class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, ComponentDefT]):
+class ComponentExecutor(
+    BaseModelABC,
+    Generic[
+        ElementT,
+        BlockT,
+        ContextT,
+        ComponentDefT,
+        ComponentExeResultT,
+    ],
+):
     """Executor for Flow definitions."""
+
+    component_type: ComponentTypeEnum
 
     id: NodeID = Field(...)
     definition: ComponentDefT = Field(...)
@@ -25,6 +47,7 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     # Concrete classes to use
     context_class: ClassVar[type[ContextT]]
     block_class: ClassVar[type[BlockT]]
+    result_class: ClassVar[type[ComponentExeResultT]]
 
     run_context: RunContext
 
@@ -56,8 +79,21 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
     #    )
     #    return execution_context.results
 
-    @trace_method("execute_flow")
+    # NOTE: Defining exeute as an abstract class for imposing proper trace names in derived class
+    @abstractmethod
+    @trace_method("execute_{component_type}")
     async def execute(
+        self,
+        start_node_id: str | None = None,
+        parent_execution_context=None,
+    ) -> dict[str, Any]:
+        _result = await self._execute(
+            start_node_id=start_node_id,
+            parent_execution_context=parent_execution_context,
+        )
+        return _result
+
+    async def _execute(
         self,
         start_node_id: str | None = None,
         parent_execution_context=None,
@@ -94,13 +130,30 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             await block.execute(
                 execution_context=execution_context,
             )
+            execution_context.execution_status = ExecutionStatusEnum.COMPLETED
+
+            execution_result = self.result_class(
+                component_id=str(self.id),
+                is_rerun=self.run_context.is_rerun,
+                start_node_id=start_node_id,
+                execution_status=execution_context.execution_status,
+                execution_results=execution_context.execution_results,
+                error=execution_context.execution_failed_message,
+                metadata=execution_context.metadata,
+                created_at=execution_context.created_at,
+                updated_at=execution_context.updated_at,
+                completed_at=execution_context.completed_at,
+            )
+
+            # TODO: Record with artifact manager
+            # Do no duplicate execution results as they are already available in nodes
 
             # Record metrics
             end_time = datetime.now()
             duration_sec = (end_time - start_time).total_seconds()
             record_metric(
-                meter_name="dhenara.agent.flow",
-                metric_name="flow_execution_duration",
+                meter_name=f"dhenara.dad.{self.definition.component_type}",
+                metric_name=f"{self.definition.component_type}_execution_duration",
                 value=duration_sec,
                 metric_type="histogram",
                 attributes={
@@ -112,11 +165,11 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
 
             # Record success
             record_metric(
-                meter_name="dhenara.agent.flow",
-                metric_name="flow_execution_success",
+                meter_name=f"dhenara.dad.{self.definition.component_type}",
+                metric_name=f"{self.definition.component_type}_execution_duration",
                 value=1,
                 attributes={
-                    "flow_id": str(self.id),
+                    f"{self.definition.component_type}_id": str(self.id),
                     "is_rerun": str(self.run_context.is_rerun),
                 },
             )
@@ -124,24 +177,36 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             log_with_context(
                 self.logger,
                 logging.INFO,
-                f"Flow execution completed in {duration_sec:.2f}s",
+                f"{self.definition.component_type.title()} execution completed in {duration_sec:.2f}s",
                 {
-                    "flow_id": str(self.id),
+                    f"{self.definition.component_type}_id": str(self.id),
                     "duration_sec": duration_sec,
                     "is_rerun": str(self.run_context.is_rerun),
                     "start_node_id": start_node_id or "none",
                 },
             )
 
-            return execution_context.results
         except Exception as e:
+            execution_result = self.result_class(
+                component_id=str(self.id),
+                is_rerun=self.run_context.is_rerun,
+                start_node_id=start_node_id,
+                execution_status=ExecutionStatusEnum.FAILED,
+                execution_results={},
+                error=f"Error while executing {self.definition.component_type}: {e}",
+                metadata={},
+                created_at=datetime.now(),
+                updated_at=None,
+                completed_at=None,
+            )
+
             # Record failure
             record_metric(
-                meter_name="dhenara.agent.flow",
-                metric_name="flow_execution_failure",
+                meter_name=f"dhenara.dad.{self.definition.component_type}",
+                metric_name=f"{self.definition.component_type}_execution_duration",
                 value=1,
                 attributes={
-                    "flow_id": str(self.id),
+                    f"{self.definition.component_type}_id": str(self.id),
                     "is_rerun": str(self.run_context.is_rerun),
                     "error": str(e),
                 },
@@ -150,15 +215,17 @@ class ComponentExecutor(BaseModel, Generic[ElementT, BlockT, ContextT, Component
             log_with_context(
                 self.logger,
                 logging.ERROR,
-                f"Flow execution failed: {e!s}",
+                f"{self.definition.component_type.title()} execution failed: {e!s}",
                 {
-                    "flow_id": str(self.id),
+                    f"{self.definition.component_type}_id": str(self.id),
                     "error": str(e),
                     "is_rerun": str(self.run_context.is_rerun),
                     "start_node_id": start_node_id or "none",
                 },
             )
-            raise
+
+        # Return the component level result
+        return execution_result
 
     def get_ordered_node_ids(self) -> list[str]:
         """Get all node IDs in execution order."""

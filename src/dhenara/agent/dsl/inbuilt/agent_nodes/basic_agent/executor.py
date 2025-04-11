@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
@@ -15,6 +16,7 @@ from dhenara.agent.dsl.inbuilt.agent_nodes.basic_agent import (
     BasicAgentNodeInput,
     BasicAgentNodeOutcome,
     BasicAgentNodeOutput,
+    BasicAgentNodeOutputData,
     basic_agent_node_tracing_profile,
 )
 from dhenara.agent.dsl.inbuilt.agent_nodes.defs import AgentNodeTypeEnum
@@ -79,12 +81,25 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
             )
 
             # Execute the flow, potentially starting from a specific node
-            results = await executor.execute(
+            flow_result = await executor.execute(
                 start_node_id=run_context.flow_start_node_id,
                 parent_execution_context=execution_context,  # NOTE: pass parent
             )
 
-            return results
+            output_data = BasicAgentNodeOutputData(
+                flow_execution_result=flow_result,
+            )
+            node_output = BasicAgentNodeOutput(data=output_data)
+            node_outcome = BasicAgentNodeOutcome()
+
+            return BasicAgentNodeExecutionResult(
+                node_identifier=node_id,
+                status=flow_result.execution_status,
+                input=node_input,
+                output=node_output,
+                outcome=node_outcome,
+                created_at=datetime.now(),
+            )
 
         except PydanticValidationError as e:
             log_with_context(

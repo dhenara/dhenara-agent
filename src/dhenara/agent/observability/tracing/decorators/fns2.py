@@ -131,7 +131,7 @@ def trace_method(
                 parent_attributes["parent.span_id"] = format(current_span_context.span_id, "016x")
 
             # Create tracer
-            tracer = get_tracer(f"dhenara.agent.{class_name.lower()}")
+            tracer = get_tracer(f"dhenara.dad.{class_name.lower()}")
 
             # Start a span
             with tracer.start_as_current_span(
@@ -201,7 +201,7 @@ def trace_method(
                 parent_attributes["parent.span_id"] = format(current_span_context.span_id, "016x")
 
             # Create tracer
-            tracer = get_tracer(f"dhenara.agent.{class_name.lower()}")
+            tracer = get_tracer(f"dhenara.dad.{class_name.lower()}")
 
             # Start a span
             with tracer.start_as_current_span(

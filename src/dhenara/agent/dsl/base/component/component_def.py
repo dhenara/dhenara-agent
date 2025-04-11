@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Generic, TypeVar, Union
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
+    ComponentTypeEnum,
     ExecutableBlock,
     ExecutableElement,
     ExecutableNode,
@@ -27,6 +28,7 @@ class ComponentDefinition(
 ):
     """Base class for Executable definitions."""
 
+    component_type: ComponentTypeEnum
     elements: list[ElementT] = Field(default_factory=list)
     node_class: ClassVar[type[NodeT]]
     root_id: str | None = Field(

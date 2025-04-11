@@ -1,5 +1,5 @@
 # Base Element
-from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, NodeTypeEnum
+from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, ComponentTypeEnum
 from .defs import NodeID
 
 from .data.template_engine import TemplateEngine
@@ -31,12 +31,15 @@ from .node.node_block_ref import (
 from .control import Conditional, ForEach
 
 # Component
+from .component.comp_exe_result import ComponentExecutionResult
 from .component.component_def import ComponentDefinition
 from .component.executor import ComponentExecutor
 
 __all__ = [
     "ComponentDefinition",
+    "ComponentExecutionResult",
     "ComponentExecutor",
+    "ComponentTypeEnum",
     "Conditional",
     "DADTemplateEngine",
     "ExecutableBlock",
@@ -61,7 +64,6 @@ __all__ = [
     "NodeOutput",
     "NodeRecordSettings",
     "NodeSettings",
-    "NodeTypeEnum",
     "RecordFileFormatEnum",
     "RecordSettingsItem",
     "SpecialNodeIDEnum",

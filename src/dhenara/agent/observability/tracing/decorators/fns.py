@@ -176,7 +176,7 @@ def trace_node(node_type: str | None = None):
                 tracing_profile = TracingProfileRegistry.get_or_default(detected_node_type)
 
             # Create tracer and start timing
-            tracer = get_tracer(f"dhenara.agent.node.{detected_node_type}")
+            tracer = get_tracer(f"dhenara.dad.node.{detected_node_type}")
             start_time = time.time()
 
             # Get tracing context for linking spans

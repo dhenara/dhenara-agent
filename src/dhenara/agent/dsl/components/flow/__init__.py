@@ -9,13 +9,14 @@ from .node import (
     FlowNodeExecutor,
 )
 
-from .component import Flow, FlowExecutor
+from .component import Flow, FlowExecutor, FlowExecutionResult
 
 __all__ = [
     "Flow",
     "FlowBlock",
     "FlowElement",
     "FlowExecutionContext",
+    "FlowExecutionResult",
     "FlowExecutor",
     "FlowNode",
     "FlowNodeDefinition",

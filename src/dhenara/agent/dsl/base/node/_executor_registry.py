@@ -1,7 +1,7 @@
 import threading
 from typing import Literal
 
-from dhenara.agent.dsl.base.node.node_executor import NodeExecutor
+from dhenara.agent.dsl.base import ComponentTypeEnum, NodeExecutor
 
 
 class NodeExecutorRegistry:
@@ -32,7 +32,7 @@ class NodeExecutorRegistry:
 
     def register(
         self,
-        component_type: Literal["flow", "agent"],
+        component_type: ComponentTypeEnum,
         node_type: str,
         executor_class: type[NodeExecutor],
     ) -> NodeExecutor:
@@ -46,12 +46,12 @@ class NodeExecutorRegistry:
 
         with self._lock:
             executor = executor_class()
-            self._executors[component_type][node_type] = executor
+            self._executors[component_type.value][node_type] = executor
             return executor
 
     def get_executor(
         self,
-        component_type: Literal["flow", "agent"],
+        component_type: ComponentTypeEnum,
         node_type: str,
     ) -> NodeExecutor | None:
         """
@@ -66,5 +66,5 @@ class NodeExecutorRegistry:
         Raises:
             ValueError: If no executor is registered for the given node type
         """
-        executor_class = self._executors.get(component_type).get(node_type, None)
+        executor_class = self._executors.get(component_type.value).get(node_type, None)
         return executor_class

@@ -3,9 +3,10 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, Literal, TypeVar
+from typing import Any, TypeVar
 
 from dhenara.agent.dsl.base import (
+    ComponentTypeEnum,
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
@@ -35,7 +36,7 @@ class NodeExecutor(ABC):
     """
 
     node_type: str
-    component_type: Literal["flow", "agent"]
+    component_type: ComponentTypeEnum
     input_model: type[NodeInput] | None
     setting_model: type[NodeSettings]
 
@@ -186,7 +187,7 @@ class NodeExecutor(ABC):
         end_time = datetime.now()
         duration_ms = (end_time - start_time).total_seconds() * 1000
         record_metric(
-            meter_name="dhenara.agent.node",
+            meter_name="dhenara.dad.node",
             metric_name="node_execution_duration",
             value=duration_ms,
             metric_type="histogram",
@@ -199,7 +200,7 @@ class NodeExecutor(ABC):
         # Record success/failure metrics
         if result is not None:
             record_metric(
-                meter_name="dhenara.agent.node",
+                meter_name="dhenara.dad.node",
                 metric_name="node_execution_success",
                 value=1,
                 attributes={
@@ -209,7 +210,7 @@ class NodeExecutor(ABC):
             )
         else:
             record_metric(
-                meter_name="dhenara.agent.node",
+                meter_name="dhenara.dad.node",
                 metric_name="node_execution_failure",
                 value=1,
                 attributes={

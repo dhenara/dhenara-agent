@@ -9,13 +9,14 @@ from .node import (
     AgentNodeExecutor,
 )
 
-from .component import Agent, AgentExecutor
+from .component import Agent, AgentExecutor, AgentExecutionResult
 
 __all__ = [
     "Agent",
     "AgentBlock",
     "AgentElement",
     "AgentExecutionContext",
+    "AgentExecutionResult",
     "AgentExecutor",
     "AgentNode",
     "AgentNodeDefinition",
