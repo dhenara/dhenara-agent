@@ -1,4 +1,5 @@
 import fnmatch
+import json
 import logging
 import mimetypes
 from datetime import datetime
@@ -18,12 +19,19 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.components.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
-from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import DirectoryInfo, FileInfo, FileMetadata
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.mixin.operations_mixin import FileSytemOperationsMixin
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import (
+    DirectoryInfo,
+    FileInfo,
+    FileMetadata,
+    FolderAnalysisOperation,
+)
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 
 from .input import FolderAnalyzerNodeInput
 from .output import (
+    FolderAnalysisOperationResult,
     FolderAnalyzerNodeOutcome,
     FolderAnalyzerNodeOutput,
     FolderAnalyzerNodeOutputData,
@@ -40,7 +48,7 @@ FolderAnalyzerNodeExecutionResult = NodeExecutionResult[
 ]
 
 
-class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
+class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
     node_type = FlowNodeTypeEnum.folder_analyzer.value
     input_model = FolderAnalyzerNodeInput
     setting_model = FolderAnalyzerSettings
@@ -60,134 +68,73 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         try:
             # Get settings from node definition or input override
             settings = node_definition.select_settings(node_input=node_input)
-            if not isinstance(settings, FolderAnalyzerSettings):
-                raise ValueError(f"Invalid settings type: {type(settings)}")
 
-            # Override path if provided in input
-            path = self.resolve_dad_template_path(
-                node_id=node_id,
+            # Override base directory if provided in input
+            base_directory = self.get_formatted_base_directory(
                 node_input=node_input,
-                execution_context=execution_context,
                 settings=settings,
+                execution_context=execution_context,
+            )
+            add_trace_attribute("base_directory", str(base_directory), TracingDataCategory.primary)
+
+            # Get allowed directories
+            allowed_directories = self._get_allowed_directories(node_input, settings)
+
+            # Extract operations to perform
+            operations = self._extract_operations(node_input, settings, execution_context)
+
+            if not operations:
+                raise ValueError("No file operations specified")
+
+            # Validate all paths for security
+            self._validate_paths(base_directory, operations, allowed_directories)
+
+            # Execute operations
+            results, successful_operations, failed_operations, errors, meta = await self._execute_operations(
+                base_directory, operations, settings
             )
 
-            # Convert path to Path object and resolve
-            path = Path(path).expanduser().resolve()
+            # Create output data
+            all_succeeded = failed_operations == 0
 
-            # Store the root path for relative path calculations
-            root_path = path
+            output_data = FolderAnalyzerNodeOutputData(
+                base_directory=str(base_directory),
+                success=all_succeeded,
+                errors=errors,
+                operations_count=len(operations),
+                successful_operations=successful_operations,
+                failed_operations=failed_operations,
+                total_files=meta["total_files"],
+                total_directories=meta["total_directories"],
+                total_size=meta["total_size"],
+                file_types=meta["file_types"],
+                total_words_read=meta["total_words_read"],
+            )
 
-            # Add trace attributes for better visibility
-            add_trace_attribute("path", str(path), TracingDataCategory.primary)
-            add_trace_attribute("max_depth", settings.max_depth, TracingDataCategory.secondary)
-            add_trace_attribute("include_hidden", settings.include_hidden, TracingDataCategory.secondary)
-            add_trace_attribute("include_stats", settings.include_stats, TracingDataCategory.secondary)
+            # Create outcome
+            outcome = FolderAnalyzerNodeOutcome(
+                base_directory=str(base_directory),
+                results=results,
+            )
+
             add_trace_attribute(
-                "include_content_preview",
-                settings.include_content_preview,
-                TracingDataCategory.secondary,
+                "operations_summary",
+                {
+                    "total": len(operations),
+                    "successful": successful_operations,
+                    "failed": failed_operations,
+                    "all_succeeded": all_succeeded,
+                },
+                TracingDataCategory.primary,
             )
-            add_trace_attribute("read_content", settings.read_content, TracingDataCategory.secondary)
-            add_trace_attribute("content_read_mode", settings.content_read_mode, TracingDataCategory.secondary)
-            add_trace_attribute("respect_gitignore", settings.respect_gitignore, TracingDataCategory.secondary)
-            add_trace_attribute("use_relative_paths", settings.use_relative_paths, TracingDataCategory.secondary)
-            add_trace_attribute("include_root_in_path", settings.include_root_in_path, TracingDataCategory.secondary)
-            add_trace_attribute("generate_tree_diagram", settings.generate_tree_diagram, TracingDataCategory.secondary)
-
-            # Reset total words counter
-            total_words_read = 0
-
-            # Verify path exists and is a directory
-            if not path.exists():
-                add_trace_attribute("error", f"Path does not exist: {path}", TracingDataCategory.primary)
-                output_data = FolderAnalyzerNodeOutputData(
-                    success=False, path=str(path), error=f"Path does not exist: {path}"
-                )
-                outcome = FolderAnalyzerNodeOutcome(success=False, errors=[f"Path does not exist: {path}"])
-            elif not path.is_dir():
-                add_trace_attribute("error", f"Path is not a directory: {path}", TracingDataCategory.primary)
-                output_data = FolderAnalyzerNodeOutputData(
-                    success=False, path=str(path), error=f"Path is not a directory: {path}"
-                )
-                outcome = FolderAnalyzerNodeOutcome(success=False, errors=[f"Path is not a directory: {path}"])
-            else:
-                # Merge exclude patterns from settings and input
-                exclude_patterns = list(settings.exclude_patterns)
-                if hasattr(node_input, "exclude_patterns") and node_input.exclude_patterns:
-                    exclude_patterns.extend(node_input.exclude_patterns)
-
-                # Parse gitignore if needed
-                gitignore_patterns = []
-                if settings.respect_gitignore:
-                    gitignore_patterns = self._parse_gitignore(path)
-                    exclude_patterns.extend(gitignore_patterns)
-
-                # Analyze folder
-                analysis, stats = self._analyze_folder(
-                    path=path,
-                    root_path=root_path,
-                    settings=settings,
-                    exclude_patterns=exclude_patterns,
-                    current_depth=0,
-                    total_words_read=total_words_read,
-                )
-
-                # Generate tree diagram if requested
-                if settings.generate_tree_diagram:
-                    tree_diagram = self._generate_tree_diagram(
-                        path=path,
-                        settings=settings,
-                        exclude_patterns=exclude_patterns,
-                    )
-
-                outcome = FolderAnalyzerNodeOutcome(
-                    success=True,
-                    tree_diagram=tree_diagram,
-                    analysis=analysis,
-                    total_files=stats["total_files"],
-                    total_directories=stats["total_dirs"],
-                    total_size=stats["total_size"],
-                    file_types=stats["file_types"],
-                    errors=stats["errors"],
-                    gitignore_patterns=gitignore_patterns if settings.respect_gitignore else None,
-                    total_words_read=total_words_read if settings.read_content else None,
-                )
-
-                # Avoid duplicated large analysis data on output and outcome
-                analysis_for_output = (
-                    None
-                    if node_definition.record_settings.outcome and node_definition.record_settings.outcome.enabled
-                    else analysis
-                )
-
-                output_data = FolderAnalyzerNodeOutputData(
-                    success=True,
-                    path=str(path),
-                    analysis=analysis_for_output,
-                )
 
             # Create node output
             node_output = NodeOutput[FolderAnalyzerNodeOutputData](data=output_data)
 
-            # After analysis is complete
-            if "analysis" in locals() and analysis:
-                add_trace_attribute(
-                    "stats_summary",
-                    {
-                        "total_files": stats["total_files"],
-                        "total_dirs": stats["total_dirs"],
-                        "total_size": stats["total_size"],
-                        "file_types_count": len(stats["file_types"]),
-                        "errors_count": len(stats["errors"]),
-                        "total_words_read": total_words_read if settings.read_content else 0,
-                    },
-                    TracingDataCategory.primary,
-                )
-
             # Create execution result
             result = FolderAnalyzerNodeExecutionResult(
                 node_identifier=node_id,
-                status=ExecutionStatusEnum.COMPLETED if output_data.success else ExecutionStatusEnum.FAILED,
+                status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
                 input=node_input,
                 output=node_output,
                 outcome=outcome,
@@ -203,6 +150,446 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 node_definition=node_definition,
                 execution_context=execution_context,
                 message=f"Folder analysis failed: {e}",
+            )
+
+    def _extract_operations(
+        self,
+        node_input: FolderAnalyzerNodeInput,
+        settings: FolderAnalyzerSettings,
+        execution_context: ExecutionContext,
+    ) -> list[FolderAnalysisOperation]:
+        """Extract folder analysis operations from various sources."""
+        operations: list[FolderAnalysisOperation] = []
+
+        # Extract operations from operations_template if provided
+        if hasattr(settings, "operations_template") and settings.operations_template is not None:
+            template_result = DADTemplateEngine.render_dad_template(
+                template=settings.operations_template,
+                variables={},
+                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
+                run_env_params=execution_context.run_context.run_env_params,
+                node_execution_results=execution_context.execution_results,
+            )
+
+            # Process operations based on the actual type returned
+            if template_result:
+                try:
+                    # Handle list of operations
+                    if isinstance(template_result, list):
+                        operations = []
+                        for op in template_result:
+                            if isinstance(op, dict):
+                                operations.append(FolderAnalysisOperation(**op))
+                            elif isinstance(op, FolderAnalysisOperation):
+                                operations.append(op)
+                            else:
+                                logger.warning(f"Unexpected operation type in list: {type(op)}")
+                    # Handle single operation as dict
+                    elif isinstance(template_result, dict):
+                        operations = [FolderAnalysisOperation(**template_result)]
+                    # Handle JSON string
+                    elif isinstance(template_result, str):
+                        try:
+                            # Try parsing as JSON
+                            parsed_ops = json.loads(template_result)
+                            if isinstance(parsed_ops, list):
+                                operations = [FolderAnalysisOperation(**op) for op in parsed_ops]
+                            elif isinstance(parsed_ops, dict):
+                                operations = [FolderAnalysisOperation(**parsed_ops)]
+                            else:
+                                logger.error(f"Unexpected structure in JSON string: {type(parsed_ops)}")
+                        except json.JSONDecodeError:
+                            logger.error(f"Unable to parse operations from template string: {template_result}")
+                    # Handle other unexpected types
+                    else:
+                        logger.error(f"Unsupported template result type: {type(template_result)}")
+                except Exception as e:
+                    logger.error(f"Error processing operations from template: {e}", exc_info=True)
+
+        # If no operations from template, try other sources
+        if not operations:
+            # Get operations from different possible sources
+            if hasattr(node_input, "json_operations") and node_input.json_operations:
+                # Parse JSON operations
+                try:
+                    ops_data = json.loads(node_input.json_operations)
+                    if isinstance(ops_data, dict) and "operations" in ops_data:
+                        operations = [FolderAnalysisOperation(**op) for op in ops_data["operations"]]
+                    elif isinstance(ops_data, list):
+                        operations = [FolderAnalysisOperation(**op) for op in ops_data]
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON in operations: {e}")
+            elif hasattr(node_input, "operations") and node_input.operations:
+                operations = node_input.operations
+            elif hasattr(settings, "operations") and settings.operations:
+                operations = settings.operations
+
+        return operations
+
+    async def _execute_operations(
+        self,
+        base_directory: str,
+        operations: list[FolderAnalysisOperation],
+        settings: FolderAnalyzerSettings,
+    ) -> tuple[list[FolderAnalysisOperationResult], int, int, list[str]]:
+        """
+        Execute all file operations and return results.
+
+        Returns:
+            tuple containing:
+            - list of OperationResult objects
+            - count of successful operations
+            - count of failed operations
+            - list of error messages
+        """
+
+        # Process all operations
+        results = [FolderAnalysisOperationResult]
+        successful_operations = 0
+        failed_operations = 0
+        errors = []
+        total_files = 0
+        total_directories = 0
+        total_size = 0
+        file_types = {}
+        total_words_read = 0
+
+        # Parse gitignore if needed
+        exclude_patterns = []
+        if settings.respect_gitignore:
+            exclude_patterns = self._parse_gitignore(Path(base_directory))
+
+        add_trace_attribute("operations_count", len(operations), TracingDataCategory.primary)
+
+        for i, operation in enumerate(operations):
+            add_trace_attribute(
+                f"operation_{i}",
+                {
+                    "type": operation.type,
+                    "path": operation.path,
+                },
+                TracingDataCategory.primary,
+            )
+            try:
+                # Validate the operation
+                if not operation.validate_content_type():
+                    error_msg = f"Invalid parameters for operation {operation.type}"
+                    results.append(
+                        FolderAnalysisOperationResult(
+                            type=operation.type, path=operation.path, success=False, error=error_msg
+                        )
+                    )
+                    errors.append(error_msg)
+                    failed_operations += 1
+                    if settings.fail_fast:
+                        break
+                    continue
+
+                # Process operation based on type
+                if operation.operation_type == "analyze_folder":
+                    result = self._process_analyze_folder_operation(
+                        base_directory=base_directory,
+                        operation=operation,
+                        exclude_patterns=exclude_patterns,
+                        total_words_read=total_words_read,
+                    )
+                elif operation.operation_type == "analyze_file":
+                    result = self._process_analyze_file_operation(
+                        base_directory=base_directory, operation=operation, total_words_read=total_words_read
+                    )
+                elif operation.operation_type == "find_files":
+                    result = self._process_find_files_operation(base_directory=base_directory, operation=operation)
+                elif operation.operation_type == "get_structure":
+                    result = self._process_get_structure_operation(base_directory=base_directory, operation=operation)
+
+                else:
+                    result = FolderAnalysisOperationResult(
+                        operation_type=operation.operation_type,
+                        path=operation.path,
+                        success=False,
+                        error=f"Unsupported operation type: {operation.operation_type}",
+                    )
+
+                # Add result to list
+                results.append(result)
+
+                # Update counters
+                if result.success:
+                    successful_operations += 1
+                    if result.total_files:
+                        total_files += result.total_files
+                    if result.total_directories:
+                        total_directories += result.total_directories
+                    if result.total_size:
+                        total_size += result.total_size
+                else:
+                    failed_operations += 1
+                    if result.error:
+                        errors.append(result.error)
+                    if settings.fail_fast:
+                        break
+
+            except Exception as e:
+                # Handle exceptions for each operation
+                error_msg = f"Error performing {operation.operation_type} on {operation.path}: {e}"
+                results.append(
+                    FolderAnalysisOperationResult(
+                        operation_type=operation.operation_type,
+                        path=operation.path,
+                        success=False,
+                        error=error_msg,
+                    )
+                )
+                errors.append(error_msg)
+                failed_operations += 1
+                logger.error(error_msg, exc_info=True)
+                if settings.fail_fast:
+                    break
+
+            # Add operation result to trace
+            op_idx = operations.index(operation)
+            if op_idx < len(results):
+                result = results[op_idx]
+                add_trace_attribute(
+                    f"operation_result_{op_idx}",
+                    {
+                        "type": result.type,
+                        "path": result.path,
+                        "success": result.success,
+                        "error": result.error,
+                    },
+                    TracingDataCategory.primary,
+                )
+
+        meta = {
+            "total_files": total_files,
+            "total_directories": total_directories,
+            "total_size": total_size,
+            "file_types": file_types,
+            "total_words_read": total_words_read,
+        }
+        return results, successful_operations, failed_operations, errors, meta
+
+    def _process_analyze_folder_operation(
+        self,
+        base_directory: Path,
+        operation: FolderAnalysisOperation,
+        exclude_patterns: list[str],
+        total_words_read: int,
+    ) -> FolderAnalysisOperationResult:
+        """Process an analyze_folder operation"""
+        # Convert path to Path object and resolve
+        path = Path(base_directory) / operation.path
+
+        # Verify path exists and is a directory
+        if not path.exists():
+            return FolderAnalysisOperationResult(
+                operation_type="analyze_folder", path=str(path), success=False, error=f"Path does not exist: {path}"
+            )
+        elif not path.is_dir():
+            return FolderAnalysisOperationResult(
+                operation_type="analyze_folder", path=str(path), success=False, error=f"Path is not a directory: {path}"
+            )
+
+        # Analyze folder
+        analysis, stats = self._analyze_folder(
+            path=path,
+            root_path=path,
+            settings=self._operation_to_settings(operation, base_directory),
+            exclude_patterns=exclude_patterns + operation.exclude_patterns,
+            current_depth=0,
+            total_words_read=total_words_read,
+        )
+
+        # Generate tree diagram if requested
+        tree_diagram = None
+        if operation.generate_tree_diagram:
+            tree_diagram = self._generate_tree_diagram(
+                path=path,
+                settings=self._operation_to_settings(operation, base_directory),
+                exclude_patterns=exclude_patterns + operation.exclude_patterns,
+            )
+
+        # Return result
+        return FolderAnalysisOperationResult(
+            operation_type="analyze_folder",
+            path=str(path),
+            success=True,
+            analysis=analysis,
+            tree_diagram=tree_diagram,
+            total_files=stats["total_files"],
+            total_directories=stats["total_dirs"],
+            total_size=stats["total_size"],
+        )
+
+    def _process_analyze_file_operation(
+        self, base_directory: Path, operation: FolderAnalysisOperation, total_words_read: int
+    ) -> FolderAnalysisOperationResult:
+        """Process an analyze_file operation"""
+        # Convert path to Path object and resolve
+        path = Path(base_directory) / operation.path
+
+        # Verify path exists and is a file
+        if not path.exists():
+            return FolderAnalysisOperationResult(
+                operation_type="analyze_file", path=str(path), success=False, error=f"Path does not exist: {path}"
+            )
+        elif not path.is_file():
+            return FolderAnalysisOperationResult(
+                operation_type="analyze_file", path=str(path), success=False, error=f"Path is not a file: {path}"
+            )
+
+        # Analyze file
+        file_info = self._analyze_file(
+            path=path,
+            root_path=base_directory,
+            settings=self._operation_to_settings(operation, base_directory),
+            total_words_read=total_words_read,
+            skip_content=not operation.read_content,
+        )
+
+        # Return result
+        return FolderAnalysisOperationResult(
+            operation_type="analyze_file",
+            path=str(path),
+            success=True,
+            file_info=file_info,
+            total_files=1,
+            total_directories=0,
+            total_size=file_info.metadata.size if file_info.metadata else 0,
+        )
+
+    def _process_find_files_operation(
+        self, base_directory: Path, operation: FolderAnalysisOperation
+    ) -> FolderAnalysisOperationResult:
+        """Process a find_files operation"""
+        # Convert path to Path object and resolve
+        path = Path(base_directory) / operation.path
+
+        # Verify path exists and is a directory
+        if not path.exists():
+            return FolderAnalysisOperationResult(
+                operation_type="find_files", path=str(path), success=False, error=f"Path does not exist: {path}"
+            )
+        elif not path.is_dir():
+            return FolderAnalysisOperationResult(
+                operation_type="find_files", path=str(path), success=False, error=f"Path is not a directory: {path}"
+            )
+
+        # Find files matching patterns
+        found_files = []
+        exclude_patterns = operation.exclude_patterns
+
+        # Recursive function to find files
+        def find_files_recursive(current_path, current_depth=0):
+            if operation.max_depth is not None and current_depth > operation.max_depth:
+                return
+
+            try:
+                for item in current_path.iterdir():
+                    # Skip hidden files/dirs if not included
+                    if not operation.include_hidden and item.name.startswith("."):
+                        continue
+
+                    # Skip excluded patterns
+                    if any(fnmatch.fnmatch(item.name, pattern) for pattern in exclude_patterns):
+                        continue
+
+                    # Process files
+                    if item.is_file():
+                        found_files.append(str(item.relative_to(base_directory)))
+
+                    # Process directories recursively
+                    elif item.is_dir():
+                        find_files_recursive(item, current_depth + 1)
+
+            except (PermissionError, OSError) as e:
+                logger.warning(f"Error accessing {current_path}: {e}")
+
+        # Start recursive search
+        find_files_recursive(path)
+
+        # Return result
+        return FolderAnalysisOperationResult(
+            operation_type="find_files",
+            path=str(path),
+            success=True,
+            files_found=found_files,
+            total_files=len(found_files),
+            total_directories=0,
+        )
+
+    def _process_get_structure_operation(
+        self, base_directory: Path, operation: FolderAnalysisOperation
+    ) -> FolderAnalysisOperationResult:
+        """Process a get_structure operation - returns directory structure without file contents"""
+        # Create a settings object with read_content set to False
+        non_content_settings = self._operation_to_settings(operation, base_directory)
+        non_content_settings.read_content = False
+        non_content_settings.include_content_preview = False
+
+        # Convert path to Path object and resolve
+        path = Path(base_directory) / operation.path
+
+        # Verify path exists
+        if not path.exists():
+            return FolderAnalysisOperationResult(
+                operation_type="get_structure", path=str(path), success=False, error=f"Path does not exist: {path}"
+            )
+
+        # Generate tree diagram
+        tree_diagram = self._generate_tree_diagram(
+            path=path,
+            settings=non_content_settings,
+            exclude_patterns=operation.exclude_patterns,
+        )
+
+        # If it's a directory, get the structure
+        if path.is_dir():
+            analysis, stats = self._analyze_folder(
+                path=path,
+                root_path=path,
+                settings=non_content_settings,
+                exclude_patterns=operation.exclude_patterns,
+                current_depth=0,
+                total_words_read=0,
+            )
+
+            return FolderAnalysisOperationResult(
+                operation_type="get_structure",
+                path=str(path),
+                success=True,
+                analysis=analysis,
+                tree_diagram=tree_diagram,
+                total_files=stats["total_files"],
+                total_directories=stats["total_dirs"],
+                total_size=stats["total_size"],
+            )
+        # If it's a file, return file info
+        elif path.is_file():
+            file_info = self._analyze_file(
+                path=path,
+                root_path=base_directory,
+                settings=non_content_settings,
+                total_words_read=0,
+                skip_content=True,
+            )
+
+            return FolderAnalysisOperationResult(
+                operation_type="get_structure",
+                path=str(path),
+                success=True,
+                file_info=file_info,
+                total_files=1,
+                total_directories=0,
+                total_size=file_info.metadata.size if file_info.metadata else 0,
+            )
+        else:
+            return FolderAnalysisOperationResult(
+                operation_type="get_structure",
+                path=str(path),
+                success=False,
+                error=f"Path is neither a file nor a directory: {path}",
             )
 
     def _parse_gitignore(self, path: Path) -> list[str]:

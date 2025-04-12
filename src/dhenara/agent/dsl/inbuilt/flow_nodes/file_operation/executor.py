@@ -39,7 +39,7 @@ FileOperationNodeExecutionResult = NodeExecutionResult[
 ]
 
 
-class FileOperationNodeExecutor(FlowNodeExecutor):
+class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperationsMixin
     node_type = FlowNodeTypeEnum.file_operation.value
     input_model = FileOperationNodeInput
     setting_model = FileOperationNodeSettings
@@ -88,19 +88,18 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             # Create output data
             all_succeeded = failed_ops == 0
             output_data = FileOperationNodeOutputData(
-                success=all_succeeded,
-                operations_count=len(operations),
-                results=results,
-                error=errors[0] if errors else None,
-            )
-
-            # Create outcome
-            outcome = FileOperationNodeOutcome(
+                base_directory=str(base_directory),
                 success=all_succeeded,
                 operations_count=len(operations),
                 successful_operations=successful_ops,
                 failed_operations=failed_ops,
                 errors=errors,
+            )
+
+            # Create outcome
+            outcome = FileOperationNodeOutcome(
+                base_directory=str(base_directory),
+                results=results,
             )
 
             add_trace_attribute(

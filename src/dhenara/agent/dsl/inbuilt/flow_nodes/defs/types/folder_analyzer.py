@@ -56,3 +56,59 @@ class DirectoryInfo(BaseModel):
     accessed: str | None = Field(default=None, description="Last accessed timestamp")
     permissions: str | None = Field(default=None, description="File permissions in octal format")
     error: str | None = Field(default=None, description="Error message, if any")
+
+
+class FolderAnalysisOperation(BaseModel):
+    """Defines a folder analysis operation"""
+
+    operation_type: Literal[
+        "analyze_folder",
+        "analyze_file",
+        "find_files",
+        "get_structure",
+    ] = Field(..., description="Type of folder analysis operation to perform")
+
+    # Common fields
+    path: str = Field(..., description="Path to the folder or file to analyze")
+
+    # Options for reading content
+    read_content: bool = Field(default=False, description="Whether to read file content")
+    content_read_mode: Literal["full", "structure"] = Field(default="full", description="How to process file content")
+    content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
+        default="basic", description="Detail level if content_read_mode is `structure`"
+    )
+
+    # Filtering options
+    max_depth: int | None = Field(default=None, description="Maximum depth to traverse for folder analysis", ge=0)
+    include_hidden: bool = Field(default=False, description="Whether to include hidden files/folders")
+    exclude_patterns: list[str] = Field(
+        default_factory=list,
+        description="Patterns of files/dirs to exclude (glob format)",
+    )
+
+    # Size limits
+    max_file_size: int | None = Field(
+        default=1024 * 1024,  # 1MB default
+        description="Maximum file size to analyze content",
+    )
+    max_words_per_file: int | None = Field(
+        default=None, description="Maximum number of words per file when reading content"
+    )
+
+    # Display options
+    generate_tree_diagram: bool = Field(
+        default=False, description="Whether to generate a tree diagram of the directory structure"
+    )
+    include_stats: bool = Field(default=False, description="Whether to include file/dir stats")
+
+    def validate_content_type(self) -> bool:
+        """Validates that the parameters are valid for this operation type"""
+        if self.operation_type == "analyze_folder" and not self.path:
+            return False
+        if self.operation_type == "analyze_file" and not self.path:
+            return False
+        if self.operation_type == "find_files" and not self.path:
+            return False
+        if self.operation_type == "get_structure" and not self.path:
+            return False
+        return True

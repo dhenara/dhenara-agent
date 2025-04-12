@@ -1,94 +1,39 @@
-from typing import Literal
-
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FolderAnalysisOperation
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
 class FolderAnalyzerSettings(NodeSettings):
     """Configuration for folder analyzer options."""
 
-    path: str = Field(..., description="Path to analyze")
-    max_depth: int | None = Field(
-        default=None,
-        description="Maximum depth to traverse",
-        ge=0,
+    # Directory settings
+    base_directory: str = Field(
+        default=".",
+        description="Base directory for file operations",
     )
-    exclude_patterns: list[str] = Field(
+    allowed_directories: list[str] = Field(
         default_factory=list,
-        description="Patterns of files/dirs to exclude (glob format)",
+        description=(
+            "List of directories (inside base_directory) that are allowed to be accessed (for security). "
+            "Leave empty for allowing all inside base_directoryr"
+        ),
     )
-    include_hidden: bool = Field(
-        default=False,
-        description="Whether to include hidden files/dirs",
+    operations: list[FolderAnalysisOperation] = Field(
+        default_factory=list,
+        description="List of folder analysis operations to perform",
     )
-    include_stats: bool = Field(
-        default=False,
-        description="Whether to include file/dir stats",
-    )
-
-    respect_gitignore: bool = Field(
-        default=True,
-        description="Whether to respect .gitignore patterns",
-    )
-    max_file_size: int | None = Field(
-        default=1024 * 1024,  # 1MB default max for content preview
-        description="Maximum file size to analyze content",
-    )
-
-    # Content Read related
-    read_content: bool = Field(
-        default=False,
-        description="Whether to read and include the file content.",
-    )
-    include_content_preview: bool = Field(
-        default=False,
-        description="Whether to include file content previews",
-    )
-    # Content optimization options
-    content_read_mode: Literal["full", "structure"] = Field(  # "smart_chunks", # TODO_FUTURE
-        default="full",
-        description="How to process file content",
-    )
-    content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
-        default="basic",
-        description="DetailLevel if content_read_mode is `structure`",
-    )
-    max_words_per_file: int | None = Field(
+    operations_template: ObjectTemplate | None = Field(
         default=None,
-        description="Maximum number of words to include per file when reading content.Set None for unlimitted words",
-        ge=0,
-    )
-    max_total_words: int | None = Field(
-        default=None,
-        description="Maximum total number of words to include across all files.Set None for unlimitted words",
-        ge=0,
-    )
-    generate_file_summary: bool = Field(
-        default=False,
-        description="Whether to generate a summary for each file",
+        description=(
+            "Template to extract folder analysis operations from previous node results. "
+            "This should resolve to a list of FolderAnalysisOperation objects."
+        ),
     )
 
-    # Path format options
-    use_relative_paths: bool = Field(
-        default=True,
-        description="Whether to use paths relative to the root directory",
-    )
-    include_root_in_path: bool = Field(
+    # Processing options
+    fail_fast: bool = Field(
         default=False,
-        description="Whether to include the root directory in paths",
-    )
-
-    # Tree diagram options
-    generate_tree_diagram: bool = Field(
-        default=False,
-        description="Whether to generate a tree diagram of the directory structure",
-    )
-    tree_diagram_max_depth: int | None = Field(
-        default=None,
-        description="Maximum depth for the tree diagram",
-    )
-    tree_diagram_include_files: bool = Field(
-        default=True,
-        description="Whether to include files in the tree diagram",
+        description="Stop processing on first failure if True, otherwise continue with remaining operations",
     )

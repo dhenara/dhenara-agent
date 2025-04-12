@@ -6,15 +6,23 @@ from dhenara.agent.observability.tracing.data import (
 )
 
 # Define Folder Analyzer Node tracing profile
+# Modify folder_analyzer/tracing.py
 folder_analyzer_node_tracing_profile = NodeTracingProfile(
     node_type=FlowNodeTypeEnum.folder_analyzer.value,
     # Primary input data
     input_fields=[
         TracingDataField(
-            name="path",
-            source_path="path",
+            name="base_directory",
+            source_path="base_directory",
             category=TracingDataCategory.primary,
-            description="Path to analyze",
+            description="Base directory for operations",
+        ),
+        TracingDataField(
+            name="operations_count",
+            source_path="operations",
+            category=TracingDataCategory.primary,
+            transform=lambda x: len(x) if x else 0,
+            description="Number of operations to perform",
         ),
         TracingDataField(
             name="exclude_patterns",
@@ -32,16 +40,34 @@ folder_analyzer_node_tracing_profile = NodeTracingProfile(
             description="Whether analysis was successful",
         ),
         TracingDataField(
-            name="path",
-            source_path="data.path",
+            name="base_directory",
+            source_path="data.base_directory",
             category=TracingDataCategory.primary,
-            description="Path analyzed",
+            description="Base directory for operations",
         ),
         TracingDataField(
-            name="error",
-            source_path="data.error",
+            name="operations_count",
+            source_path="data.operations_count",
             category=TracingDataCategory.primary,
-            description="Error message if analysis failed",
+            description="Number of operations performed",
+        ),
+        TracingDataField(
+            name="successful_operations",
+            source_path="data.successful_operations",
+            category=TracingDataCategory.primary,
+            description="Number of successful operations",
+        ),
+        TracingDataField(
+            name="failed_operations",
+            source_path="data.failed_operations",
+            category=TracingDataCategory.primary,
+            description="Number of failed operations",
+        ),
+        TracingDataField(
+            name="errors",
+            source_path="data.errors",
+            category=TracingDataCategory.primary,
+            description="List of errors encountered",
         ),
     ],
     # Result data
@@ -50,7 +76,13 @@ folder_analyzer_node_tracing_profile = NodeTracingProfile(
             name="success",
             source_path="outcome.success",
             category=TracingDataCategory.primary,
-            description="Whether analysis was successful",
+            description="Whether all operations were successful",
+        ),
+        TracingDataField(
+            name="operations_count",
+            source_path="outcome.operations_count",
+            category=TracingDataCategory.primary,
+            description="Total number of operations performed",
         ),
         TracingDataField(
             name="total_files",
