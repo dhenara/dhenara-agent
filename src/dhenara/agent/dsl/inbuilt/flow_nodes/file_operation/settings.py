@@ -1,7 +1,7 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
-from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types.file_operation import FileOperation
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FileOperation
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 

@@ -7,8 +7,9 @@ from pydantic import BaseModel, Field
 class FileOperationType(Enum):
     # File operations
     create_file = "create_file"
-    read_file = "read_file"
-    read_multiple_files = "read_multiple_files"
+    # For reads, use FolderAnalysizNode with more controls and options
+    # read_file = "read_file"
+    # read_multiple_files = "read_multiple_files"
     edit_file = "edit_file"
     delete_file = "delete_file"
 
@@ -20,7 +21,7 @@ class FileOperationType(Enum):
     # Navigation operations
     move_file = "move_file"
     search_files = "search_files"
-    get_file_info = "get_file_info"
+    get_file_metadata = "get_file_metadata"
     list_allowed_directories = "list_allowed_directories"
 
 
@@ -50,7 +51,7 @@ class SearchConfig(BaseModel):
     )
 
 
-class FileInfo(BaseModel):
+class FileMetadata(BaseModel):
     """Information about a file or directory"""
 
     size: int = Field(..., description="Size in bytes")
@@ -68,8 +69,6 @@ class FileOperation(BaseModel):
     # Using Literal instead of Enum for better compatibility with structured output
     type: Literal[
         "create_file",
-        "read_file",
-        "read_multiple_files",
         "edit_file",
         "delete_file",
         "create_directory",

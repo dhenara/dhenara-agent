@@ -3,6 +3,7 @@ import logging
 import mimetypes
 from datetime import datetime
 from pathlib import Path
+from stat import filemode
 from typing import Any
 
 from dhenara.agent.dsl.base import (
@@ -17,13 +18,12 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.components.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import DirectoryInfo, FileInfo, FileMetadata
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 
 from .input import FolderAnalyzerNodeInput
 from .output import (
-    DirectoryInfo,
-    FAFileInfo,
     FolderAnalyzerNodeOutcome,
     FolderAnalyzerNodeOutput,
     FolderAnalyzerNodeOutputData,
@@ -265,7 +265,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         Returns DirectoryInfo and stats.
         """
         # Initialize stats
-        stats = {"total_files": 0, "total_dirs": 0, "total_size": 0, "file_types": {}, "errors": []}
+        stats = {
+            "total_files": 0,
+            "total_dirs": 0,
+            "total_size": 0,
+            "file_types": {},
+            "errors": [],
+        }
 
         # Check max depth
         if settings.max_depth is not None and current_depth > settings.max_depth:
@@ -288,6 +294,8 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                 result.size = stat.st_size
                 result.created = datetime.fromtimestamp(stat.st_ctime).isoformat()
                 result.modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
+                result.accessed = datetime.fromtimestamp(stat.st_atime).isoformat()
+                result.permissions = filemode(stat.st_mode)
                 stats["total_size"] += stat.st_size
             except (PermissionError, OSError) as e:
                 error_msg = f"Failed to get stats for {path}: {e}"
@@ -341,7 +349,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     # Check if we've reached the word limit
                     if settings.max_total_words and total_words_read >= settings.max_total_words:
                         # Skip reading content if we've reached the total word limit
-                        file_result = self._analyze_file(item, root_path, settings, total_words_read, skip_content=True)
+                        file_result = self._analyze_file(
+                            item,
+                            root_path,
+                            settings,
+                            total_words_read,
+                            skip_content=True,
+                        )
                     else:
                         # Analyze file with regular settings
                         file_result = self._analyze_file(item, root_path, settings, total_words_read)
@@ -353,8 +367,8 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     else:
                         stats["file_types"][ext] = 1
 
-                    if file_result.size:
-                        stats["total_size"] += file_result.size
+                    if file_result.metadata and file_result.metadata.size:
+                        stats["total_size"] += file_result.metadata.size
 
                     if file_result.error:
                         stats["errors"].append(file_result.error)
@@ -380,12 +394,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         settings: FolderAnalyzerSettings,
         total_words_read: int,
         skip_content: bool = False,
-    ) -> FAFileInfo:
+    ) -> FileInfo:
         """Analyze a single file with enhanced options."""
         # Format the path according to settings
         formatted_path = self._format_path(path, root_path, settings)
 
-        result = FAFileInfo(
+        result = FileInfo(
             type="file",
             name=path.name,
             path=formatted_path,
@@ -396,9 +410,15 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
         if settings.include_stats:
             try:
                 stat = path.stat()
-                result.size = stat.st_size
-                result.created = datetime.fromtimestamp(stat.st_ctime).isoformat()
-                result.modified = datetime.fromtimestamp(stat.st_mtime).isoformat()
+                result.metadata = FileMetadata(
+                    size=stat.st_size,
+                    created=datetime.fromtimestamp(stat.st_ctime).isoformat(),
+                    modified=datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                    accessed=datetime.fromtimestamp(stat.st_atime).isoformat(),
+                    is_directory=path.is_dir(),
+                    is_file=path.is_file(),
+                    permissions=filemode(stat.st_mode),
+                )
             except (PermissionError, OSError) as e:
                 result.error = f"Failed to get stats: {e}"
 
@@ -407,6 +427,10 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
             return result
 
         # Analyze content if requested
+
+        # Use unix cmds to get wordcount irrespective of the content_read_mode
+        result.word_count = self.word_count(path)
+
         should_read_content = settings.include_content_preview or settings.read_content
         if should_read_content:
             if settings.content_read_mode == "structure" and path.suffix.lower() == ".py":
@@ -420,32 +444,34 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                     formatted_structure = [f"{key}: {value}" for key, value in structure.items()]
                     result.content_structure = "\n\n".join(formatted_structure)
 
-                    result.word_count = len(result.content_structure.split())
-                    total_words_read += result.word_count
+                    word_count = len(result.content_structure.split())
+                    total_words_read += word_count
 
                 except Exception as e:
                     # Fallback to regular content processing
                     result.error = f"Failed to extract structure: {e}"
 
             elif settings.content_read_mode == "smart_chunks" and settings.use_langchain_splitter:
-                from .helpers.helper_fns import optimize_for_llm_context  # TODO_FUTURE: Not functional
+                # TODO_FUTURE: Not functional
+                from .helpers.helper_fns import optimize_for_llm_context
 
                 try:
                     result.content = optimize_for_llm_context(path, settings)
-                    result.word_count = len(result.content.split())
-                    total_words_read += result.word_count
+                    word_count = len(result.content.split())
+                    total_words_read += word_count
                 except Exception as e:
                     result.error = f"Smart chunking failed: {e}"
 
         # Fallback to original method for other modes or when other methods fail
         if should_read_content and (settings.content_read_mode == "full" or not result.content_structure):
             # Check file size limit
-            file_size = result.size or 0
+            file_size = result.metadata.size if result.metadata else 0
             if settings.max_file_size is None or file_size <= settings.max_file_size:
+                mime_type = None
+                is_text = None
                 try:
                     # Get mime type
                     mime_type, _ = mimetypes.guess_type(str(path))
-                    result.mime_type = mime_type or "application/octet-stream"
 
                     # For text files, try to determine encoding and sample content
                     is_likely_text = mime_type and (
@@ -479,7 +505,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
 
                                     # Add content to result
                                     result.content = content
-                                    result.word_count = word_count
+                                    # result.word_count = word_count
 
                                 elif settings.include_content_preview:
                                     # Just read first few lines for preview
@@ -493,15 +519,24 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor):
                                     )
                                     result.summary = summary
 
-                                result.is_text = True
+                                is_text = True
                         except UnicodeDecodeError:
-                            result.is_text = False
+                            is_text = False
                     else:
-                        result.is_text = False
+                        is_text = False
                 except Exception as e:
                     result.error = f"Error analyzing content: {e}"
 
+                result.mime_type = mime_type or "application/octet-stream"
+                result.is_text = is_text
+
         return result
+
+    def word_count(self, filepath):
+        import subprocess
+
+        result = subprocess.run(["wc", "-w", filepath], capture_output=True, text=True)
+        return int(result.stdout.split()[0])
 
     def resolve_dad_template_path(
         self,

@@ -39,7 +39,7 @@ class FolderAnalyzerSettings(NodeSettings):
     # Content Read related
     read_content: bool = Field(
         default=False,
-        description="Whether to read and include full file content",
+        description="Whether to read and include the file content.",
     )
     include_content_preview: bool = Field(
         default=False,

@@ -22,10 +22,7 @@ class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
         max_length=150,
         pattern="^[a-zA-Z0-9_]+$",
     )
-    info: str | None = Field(
-        default=None,
-        description="General purpose string for user display",
-    )
+
     definition: NodeDefT = Field(...)
 
     @field_validator("id")

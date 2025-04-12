@@ -38,6 +38,17 @@ class ComponentDefinition(
             "Do not set ID for any other componets, as id should be assigned when added to a node"
         ),
     )
+    description: str | None = Field(
+        default=None,
+        description="Detailed Description about this component",
+    )
+    io_description: str | None = Field(
+        default=None,
+        description=(
+            "Description about the input and output of this agent. "
+            "Useful in multli-agent system to know more about an agent"
+        ),
+    )
 
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins

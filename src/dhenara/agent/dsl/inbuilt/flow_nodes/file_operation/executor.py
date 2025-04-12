@@ -21,6 +21,7 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.components.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import EditOperation, FileMetadata, FileOperation
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
 
@@ -28,7 +29,6 @@ from .input import FileOperationNodeInput
 from .output import FileOperationNodeOutcome, FileOperationNodeOutput, FileOperationNodeOutputData, OperationResult
 from .settings import FileOperationNodeSettings
 from .tracing import file_operation_node_tracing_profile
-from .types.file_operation import EditOperation, FileInfo, FileOperation
 
 logger = logging.getLogger(__name__)
 
@@ -370,8 +370,8 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                     result = await self._move_file(base_directory, operation)
                 elif operation.type == "search_files":
                     result = await self._search_files(base_directory, operation)
-                elif operation.type == "get_file_info":
-                    result = await self._get_file_info(base_directory, operation)
+                elif operation.type == "get_file_metadata":
+                    result = await self._get_file_metadata(base_directory, operation)
                 elif operation.type == "list_allowed_directories":
                     result = OperationResult(
                         type="list_allowed_directories",
@@ -858,16 +858,16 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
                 type="search_files", path=operation.path, success=False, error=f"Error searching files: {e}"
             )
 
-    async def _get_file_info(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _get_file_metadata(self, base_directory: str, operation: FileOperation) -> OperationResult:
         """Get detailed information about a file or directory."""
         if not operation.path:
-            return OperationResult(type="get_file_info", success=False, error="Path not specified")
+            return OperationResult(type="get_file_metadata", success=False, error="Path not specified")
 
         try:
             full_path = Path(base_directory) / operation.path
             if not full_path.exists():
                 return OperationResult(
-                    type="get_file_info",
+                    type="get_file_metadata",
                     path=operation.path,
                     success=False,
                     error=f"Path does not exist: {operation.path}",
@@ -876,8 +876,8 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             # Get file stats
             stats = full_path.stat()
 
-            # Create FileInfo object
-            file_info = FileInfo(
+            # Create FileMetadata object
+            file_metadata = FileMetadata(
                 size=stats.st_size,
                 created=datetime.fromtimestamp(stats.st_ctime).isoformat(),
                 modified=datetime.fromtimestamp(stats.st_mtime).isoformat(),
@@ -890,22 +890,26 @@ class FileOperationNodeExecutor(FlowNodeExecutor):
             # Format as text
             info_text = "\n".join(
                 [
-                    f"size: {file_info.size}",
-                    f"created: {file_info.created}",
-                    f"modified: {file_info.modified}",
-                    f"accessed: {file_info.accessed}",
-                    f"is_directory: {file_info.is_directory}",
-                    f"is_file: {file_info.is_file}",
-                    f"permissions: {file_info.permissions}",
+                    f"size: {file_metadata.size}",
+                    f"created: {file_metadata.created}",
+                    f"modified: {file_metadata.modified}",
+                    f"accessed: {file_metadata.accessed}",
+                    f"is_directory: {file_metadata.is_directory}",
+                    f"is_file: {file_metadata.is_file}",
+                    f"permissions: {file_metadata.permissions}",
                 ]
             )
 
             return OperationResult(
-                type="get_file_info", path=operation.path, success=True, file_info=file_info, content=info_text
+                type="get_file_metadata",
+                path=operation.path,
+                success=True,
+                file_metadata=file_metadata,
+                content=info_text,
             )
         except Exception as e:
             return OperationResult(
-                type="get_file_info", path=operation.path, success=False, error=f"Error getting file info: {e}"
+                type="get_file_metadata", path=operation.path, success=False, error=f"Error getting file info: {e}"
             )
 
     def _normalize_line_endings(self, text: str) -> str:

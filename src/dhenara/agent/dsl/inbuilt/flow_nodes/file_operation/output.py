@@ -3,9 +3,8 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FileMetadata
 from dhenara.ai.types.shared.base import BaseModel
-
-from .types.file_operation import FileInfo
 
 
 class OperationResult(BaseModel):
@@ -16,7 +15,7 @@ class OperationResult(BaseModel):
     success: bool = Field(..., description="Whether the operation succeeded")
     error: str | None = Field(None, description="Error message if operation failed")
     content: str | None = Field(None, description="Content of file for read operations")
-    file_info: FileInfo | None = Field(None, description="File metadata for info operations")
+    file_metadata: FileMetadata | None = Field(None, description="File metadata for info operations")
     diff: str | None = Field(None, description="Git-style diff showing changes made")
     files: list[str] | None = Field(None, description="List of files for directory operations")
 
