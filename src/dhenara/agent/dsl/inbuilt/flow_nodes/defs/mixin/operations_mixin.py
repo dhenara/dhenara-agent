@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 
 from dhenara.agent.dsl.base import ExecutionContext
@@ -15,7 +14,7 @@ class FileSytemOperationsMixin:
         node_input,
         settings,
         execution_context: ExecutionContext,
-    ) -> str:
+    ) -> Path:
         """Format path with variables."""
         variables = {}
         dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
@@ -28,13 +27,15 @@ class FileSytemOperationsMixin:
             base_directory = settings.base_directory
 
         # Resolve base directory with variables
-        return DADTemplateEngine.render_dad_template(
+        path_str = DADTemplateEngine.render_dad_template(
             template=base_directory,
             variables=variables,
             dad_dynamic_variables=dad_dynamic_variables,
             run_env_params=execution_context.run_context.run_env_params,
             node_execution_results=None,
         )
+
+        return Path(path_str).expanduser().resolve()
 
     def _get_allowed_directories(self, node_input, settings) -> list[str]:
         """Get the list of allowed directories."""
@@ -46,12 +47,13 @@ class FileSytemOperationsMixin:
         elif hasattr(settings, "allowed_directories") and settings.allowed_directories:
             allowed_dirs = settings.allowed_directories
 
-        # If no directories specified, use the base directory
+        # If no directories specified, return empty list
         if not allowed_dirs:
             return []
 
         # Normalize paths
-        return [os.path.normpath(os.path.abspath(d)) for d in allowed_dirs]
+        return [str(Path(d).expanduser().resolve()) for d in allowed_dirs]
+        # return [os.path.normpath(os.path.abspath(d)) for d in allowed_dirs]
 
     def _extract_operations(
         self,
@@ -130,9 +132,10 @@ class FileSytemOperationsMixin:
 
     def _validate_paths(
         self,
-        base_dir: str,
+        base_directory: Path,
         operations: list,
         allowed_dirs: list[str],
+        use_relative_paths: bool,
     ) -> None:
         """
         Validate paths for security concerns.
@@ -141,27 +144,28 @@ class FileSytemOperationsMixin:
         if not allowed_dirs:
             return  # No restrictions if no allowed directories specified
 
-        base_path = Path(base_dir).resolve()
-
         for op in operations:
             # Check relevant paths based on operation type
             paths_to_check = []
 
-            if op.path:
+            if hasattr(op, "path") and op.path:
                 paths_to_check.append(op.path)
-            if op.paths:
+            if hasattr(op, "paths") and op.paths:
                 paths_to_check.extend(op.paths)
-            if op.source:
+            if hasattr(op, "source") and op.source:
                 paths_to_check.append(op.source)
-            if op.destination:
+            if hasattr(op, "destination") and op.destination:
                 paths_to_check.append(op.destination)
 
             for path_str in paths_to_check:
                 # Get absolute path
-                if os.path.isabs(path_str):
-                    full_path = Path(path_str).resolve()
+                if Path(path_str).is_absolute():
+                    if use_relative_paths:
+                        raise ValueError(f"Absolute path is given when use_relative_paths is set for path {path_str}")
+
+                    full_path = Path(op.path).resolve()
                 else:
-                    full_path = (base_path / path_str).resolve()
+                    full_path = (base_directory / path_str).resolve()
 
                 # Check if path is within allowed directories
                 path_allowed = False

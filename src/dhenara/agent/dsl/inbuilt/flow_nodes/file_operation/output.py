@@ -1,5 +1,3 @@
-# dhenara/agent/dsl/inbuilt/flow_nodes/file_operation/output.py
-
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeOutcome, NodeOutput

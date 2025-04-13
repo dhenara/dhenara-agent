@@ -13,6 +13,10 @@ class FolderAnalyzerSettings(NodeSettings):
         default=".",
         description="Base directory for file operations",
     )
+    use_relative_paths: bool = Field(
+        default=True,
+        description="Whether to use paths relative to the base directory",
+    )
     allowed_directories: list[str] = Field(
         default_factory=list,
         description=(
@@ -20,6 +24,7 @@ class FolderAnalyzerSettings(NodeSettings):
             "Leave empty for allowing all inside base_directoryr"
         ),
     )
+    # Operations
     operations: list[FolderAnalysisOperation] = Field(
         default_factory=list,
         description="List of folder analysis operations to perform",
@@ -31,7 +36,6 @@ class FolderAnalyzerSettings(NodeSettings):
             "This should resolve to a list of FolderAnalysisOperation objects."
         ),
     )
-
     # Processing options
     fail_fast: bool = Field(
         default=False,

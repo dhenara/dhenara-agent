@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from dhenara.agent.dsl.base import NodeOutcome
+from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import DirectoryInfo, FileInfo
 from dhenara.ai.types.shared.base import BaseModel
 
@@ -11,7 +11,7 @@ class FolderAnalysisOperationResult(BaseModel):
     operation_type: str = Field(..., description="Type of operation performed")
     path: str = Field(..., description="Path of the folder/file analyzed")
     success: bool = Field(..., description="Whether the operation succeeded")
-    error: str | None = Field(None, description="Error message if operation failed")
+    errors: list[str] = Field(default_factory=list)
 
     # Different result fields based on operation type
     analysis: DirectoryInfo | None = Field(None, description="Analysis results for folder analysis")
@@ -20,9 +20,7 @@ class FolderAnalysisOperationResult(BaseModel):
     tree_diagram: str | None = Field(None, description="Tree diagram of folder structure")
 
     # Stats
-    total_files: int | None = Field(None, description="Total files analyzed")
-    total_directories: int | None = Field(None, description="Total directories analyzed")
-    total_size: int | None = Field(None, description="Total size of analyzed items")
+    words_read: int | None = Field(default=None, description="Total words read from the file/dir")
 
     def __str__(self):
         """String representation of the result"""
@@ -47,14 +45,6 @@ class FolderAnalyzerNodeOutputData(BaseModel):
     base_directory: str | None = Field(None, description="base directory operated on")
     success: bool = Field(default=False)
     errors: list[str] = Field(default_factory=list)
-    # analysis: DirectoryInfo | None = None
-    # tree_diagram: str | None = Field(default=None, description="ASCII tree diagram of the directory structure")
-    total_files: int = Field(default=0)
-    total_directories: int = Field(default=0)
-    total_size: int = Field(default=0)
-    file_types: dict[str, int] = Field(default_factory=dict)
-    gitignore_patterns: list[str] | None = Field(default=None)
-    total_words_read: int | None = Field(default=None)
 
     # New fields for multi-operation support
     operations_count: int = Field(default=0, description="Number of operations executed")
@@ -63,6 +53,23 @@ class FolderAnalyzerNodeOutputData(BaseModel):
     operation_results: list[FolderAnalysisOperationResult] = Field(
         default_factory=list, description="Results of individual operations"
     )
+
+    # Stats
+    total_files: int | None = Field(None, description="Total files analyzed in base_directory")
+    total_directories: int | None = Field(None, description="Total directories analyzed in base_directory")
+    total_size: int | None = Field(None, description="Total size of analyzed items in base_directory")
+    word_count: int | None = Field(default=None, description="Total words in the file/dir in base_directory")
+    words_read: int | None = Field(default=None, description="Total words read from the base_directory")
+    file_types: dict[str, int] = Field(
+        default_factory=dict, description="Type of files and their count in base_directory"
+    )
+    gitignore_patterns: list[str] | None = Field(default=None, description="gitignore patterns in base_directory")
+
+
+class FolderAnalyzerNodeOutput(NodeOutput[FolderAnalyzerNodeOutputData]):
+    """Node output wrapper class."""
+
+    pass
 
 
 class FolderAnalyzerNodeOutcome(NodeOutcome):

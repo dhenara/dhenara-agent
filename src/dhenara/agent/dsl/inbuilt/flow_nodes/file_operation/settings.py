@@ -13,6 +13,11 @@ class FileOperationNodeSettings(NodeSettings):
         default=".",
         description="Base directory for file operations",
     )
+    # TODO_FUTURE
+    # use_relative_paths: bool = Field(
+    #    default=True,
+    #    description="Whether to use paths relative to the root directory",
+    # )
     allowed_directories: list[str] = Field(
         default_factory=list,
         description=(
@@ -20,7 +25,6 @@ class FileOperationNodeSettings(NodeSettings):
             "Leave empty for allowing all inside base_directoryr"
         ),
     )
-
     # Operations
     operations: list[FileOperation] = Field(
         default_factory=list,
@@ -33,13 +37,11 @@ class FileOperationNodeSettings(NodeSettings):
             "This should resolve to a list of FileOperation objects."
         ),
     )
-
     # Processing options
     fail_fast: bool = Field(
         default=False,
         description="Stop processing on first failure if True, otherwise continue with remaining operations",
     )
-
     # Output formatting
     return_diff_format: bool = Field(
         default=True,
