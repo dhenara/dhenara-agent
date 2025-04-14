@@ -60,7 +60,6 @@ flow.node(
             ),
         ),
         record_settings=NodeRecordSettings.with_outcome_format("text"),  # Enforce test as default is json
-        git_settings=None,
     ),
 )
 flow.node(
@@ -94,6 +93,5 @@ flow.node(
             ),
         ),
         record_settings=NodeRecordSettings.with_outcome_format("text"),  # Enforce test as default is json
-        git_settings=None,
     ),
 )

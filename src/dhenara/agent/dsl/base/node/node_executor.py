@@ -134,9 +134,7 @@ class NodeExecutor(ABC):
         # TODO_FUTURE: Remove, as we record the result with input
         # Record input if configured
         # input_record_settings = node_definition.record_settings.input if node_definition.record_settings else None
-        # input_git_settings = node_definition.git_settings.input if node_definition.git_settings else None
         input_record_settings = None
-        input_git_settings = None
 
         if input_record_settings and input_record_settings.enabled:
             input_data = node_input.model_dump() if hasattr(node_input, "model_dump") else node_input
@@ -145,7 +143,6 @@ class NodeExecutor(ABC):
                 dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=input_data,
                 record_settings=input_record_settings,
-                git_settings=input_git_settings,
             )
 
         # if self.is_streaming:
@@ -263,15 +260,10 @@ class NodeExecutor(ABC):
             # Get record settings from the node if available
             result_record_settings = None
             result_record_settings = None
-            result_git_record_settings = None
-            outcome_git_record_settings = None
 
             if node_definition.record_settings:
                 result_record_settings = node_definition.record_settings.result
                 outcome_record_settings = node_definition.record_settings.outcome
-            if node_definition.git_settings:
-                result_git_record_settings = node_definition.git_settings.result
-                outcome_git_record_settings = node_definition.git_settings.outcome
 
             # NOTE:
             # When output is set in record settings, use it for recoring result which has
@@ -295,7 +287,6 @@ class NodeExecutor(ABC):
                 dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=result_data,
                 record_settings=result_record_settings,
-                git_settings=result_git_record_settings,
             )
 
             # Record the node outcome
@@ -304,7 +295,6 @@ class NodeExecutor(ABC):
                 dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=outcome_data,
                 record_settings=outcome_record_settings,
-                git_settings=outcome_git_record_settings,
             )
 
         return None

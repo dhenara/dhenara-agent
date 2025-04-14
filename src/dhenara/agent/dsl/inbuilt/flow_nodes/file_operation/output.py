@@ -23,10 +23,10 @@ class FileOperationNodeOutputData(BaseModel):
 
     base_directory: str | None = Field(None, description="base directory operated on")
     success: bool = Field(..., description="Whether all operations succeeded")
+    errors: list[str] = Field(default_factory=list)
     operations_count: int = Field(..., description="Number of operations attempted")
     successful_operations: int = Field(default=0, description="Number of successful operations")
     failed_operations: int = Field(default=0, description="Number of failed operations")
-    error: str | None = Field(None, description="Overall error message if any")
 
 
 class FileOperationNodeOutput(NodeOutput[FileOperationNodeOutputData]):

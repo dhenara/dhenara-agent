@@ -264,6 +264,6 @@ class FolderAnalysisOperation(BaseModel):
 
     def validate_content_type(self) -> bool:
         """Validates that the parameters are valid for this operation type"""
-        if self.operation_type in ["analyze_folder", "analyze_file", "find_files", "get_structure"] and not self.path:
-            return False
+        # if self.operation_type in ["analyze_folder", "analyze_file", "find_files", "get_structure"] and not self.path:
+        #    return False
         return True

@@ -50,9 +50,6 @@ class FolderAnalyzerNodeOutputData(BaseModel):
     operations_count: int = Field(default=0, description="Number of operations executed")
     successful_operations: int = Field(default=0, description="Number of successful operations")
     failed_operations: int = Field(default=0, description="Number of failed operations")
-    operation_results: list[FolderAnalysisOperationResult] = Field(
-        default_factory=list, description="Results of individual operations"
-    )
 
     # Stats
     total_files: int | None = Field(None, description="Total files analyzed in base_directory")

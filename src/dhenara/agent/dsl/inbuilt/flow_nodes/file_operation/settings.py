@@ -2,7 +2,7 @@ from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeSettings
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FileOperation
-from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate, TextTemplate
 
 
 class FileOperationNodeSettings(NodeSettings):
@@ -13,11 +13,10 @@ class FileOperationNodeSettings(NodeSettings):
         default=".",
         description="Base directory for file operations",
     )
-    # TODO_FUTURE
-    # use_relative_paths: bool = Field(
-    #    default=True,
-    #    description="Whether to use paths relative to the root directory",
-    # )
+    use_relative_paths: bool = Field(
+        default=True,
+        description="Whether to use paths relative to the base directory",
+    )
     allowed_directories: list[str] = Field(
         default_factory=list,
         description=(
@@ -51,3 +50,17 @@ class FileOperationNodeSettings(NodeSettings):
         default=True,
         description="Preserve existing code indentation when making modifications",
     )
+    # Git settings
+    stage: bool = Field(
+        default=False,
+        description="Stage the operation results or not. The result path should be a git repo.",
+    )
+    commit: bool = Field(
+        default=False,
+        description="Commit the operation results or not.The result path should be a git repo.",
+    )
+    commit_message: str | TextTemplate | None = Field(
+        default=None,
+        description="Commot messag",
+    )
+    # TODO: branch name

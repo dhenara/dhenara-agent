@@ -6,12 +6,10 @@ from .data.template_engine import TemplateEngine
 from .data.dad_template_engine import DADTemplateEngine
 
 from .node.node_settings import (
-    GitSettingsItem,
     NodeSettings,
     RecordFileFormatEnum,
     RecordSettingsItem,
     NodeRecordSettings,
-    NodeGitSettings,
 )
 from .node.node_io import NodeInput, NodeInputs, NodeOutput, NodeOutcome
 from .node.node_exe_result import NodeExecutionResult
@@ -51,10 +49,8 @@ __all__ = [
     "ExecutionStatusEnum",
     "ExecutionStrategyEnum",
     "ForEach",
-    "GitSettingsItem",
     "NodeExecutionResult",
     "NodeExecutor",
-    "NodeGitSettings",
     "NodeHierarchyHelper",
     "NodeID",
     "NodeID",

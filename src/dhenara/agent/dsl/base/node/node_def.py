@@ -6,7 +6,6 @@ from pydantic import Field
 from dhenara.agent.dsl.base import (
     ComponentTypeEnum,
     ExecutionContext,
-    NodeGitSettings,
     NodeID,
     NodeInput,
     NodeRecordSettings,
@@ -43,11 +42,6 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     record_settings: NodeRecordSettings | None = Field(
         default_factory=NodeRecordSettings,
         description="Record settings. Do not override if not sure what you are doing.",
-    )
-
-    git_settings: NodeGitSettings | None = Field(
-        default=None,
-        description="Node Git Settings.",
     )
 
     streaming: bool = False  # TODO: Remove

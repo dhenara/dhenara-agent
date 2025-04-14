@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from dhenara.agent.dsl.base import DADTemplateEngine, GitSettingsItem, RecordFileFormatEnum, RecordSettingsItem
+from dhenara.agent.dsl.base import DADTemplateEngine, RecordFileFormatEnum, RecordSettingsItem
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 
@@ -43,7 +43,7 @@ class ArtifactManager:
         data: dict | str | bytes,
         record_type: Literal["outcome", "result"],
         record_settings: RecordSettingsItem = None,
-        git_settings: GitSettingsItem = None,
+        git_settings=None,  # TODO: Remove this legacy settings
     ) -> bool:
         """Common implementation for recording node data."""
         if record_settings is None or not record_settings.enabled:
@@ -83,38 +83,6 @@ class ArtifactManager:
             # Save data in the specified format
             output_file = full_path / file_name
             _save_file(output_file)
-
-            # Handle git operations if git settings are provided
-            if git_settings:
-                # Resolve path and filename from templates
-                path_str = self._resolve_template(git_settings.path, variables, dad_dynamic_variables)
-                file_name = self._resolve_template(git_settings.filename, variables, dad_dynamic_variables)
-
-                # For outcomes with git settings, use the outcome repo directory
-                base_dir = Path(self.run_env_params.outcome_repo_dir)
-
-                full_path = base_dir / path_str
-                full_path.mkdir(parents=True, exist_ok=True)
-
-                # Save data in the specified format
-                output_file = full_path / file_name
-                _save_file(output_file)
-
-                if git_settings.commit:
-                    commit_msg = f"{record_type.capitalize()} data recorded"
-                    if git_settings.commit_message:
-                        commit_msg = self._resolve_template(
-                            git_settings.commit_message,
-                            variables,
-                            dad_dynamic_variables,
-                        )
-                    self.outcome_repo.commit_run_outcomes(
-                        run_id=self.run_env_params.run_id,
-                        message=commit_msg,
-                        files=[output_file],
-                    )
-                elif git_settings.stage:
-                    self.outcome_repo.add(output_file)
 
             return True
         except Exception as e:

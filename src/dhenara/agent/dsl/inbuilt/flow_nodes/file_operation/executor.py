@@ -1,6 +1,4 @@
-import json
 import logging
-import os
 import re
 import shutil
 from datetime import datetime
@@ -21,9 +19,11 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.components.flow import FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.mixin.operations_mixin import FileSytemOperationsMixin
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import EditOperation, FileMetadata, FileOperation
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
+from dhenara.agent.utils.git import GitBase
 
 from .input import FileOperationNodeInput
 from .output import FileOperationNodeOutcome, FileOperationNodeOutput, FileOperationNodeOutputData, OperationResult
@@ -39,7 +39,7 @@ FileOperationNodeExecutionResult = NodeExecutionResult[
 ]
 
 
-class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperationsMixin
+class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
     node_type = FlowNodeTypeEnum.file_operation.value
     input_model = FileOperationNodeInput
     setting_model = FileOperationNodeSettings
@@ -72,18 +72,34 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             allowed_directories = self._get_allowed_directories(node_input, settings)
 
             # Extract operations to perform
-            operations = self._extract_operations(node_input, settings, execution_context)
+            operations = self._extract_operations(
+                node_input=node_input,
+                settings=settings,
+                execution_context=execution_context,
+                operation_class=FileOperation,
+            )
 
             if not operations:
                 raise ValueError("No file operations specified")
 
             # Validate all paths for security
-            self._validate_paths(base_directory, operations, allowed_directories)
+            self._validate_paths(base_directory, operations, allowed_directories, settings.use_relative_paths)
 
             # Execute operations
-            results, successful_ops, failed_ops, errors = await self._execute_operations(
+            file_ops_results, successful_ops, failed_ops, errors = await self._execute_operations(
                 base_directory, operations, settings
             )
+
+            # Take care of git operations
+            _git_error = self._git_ops(
+                base_directory=base_directory,
+                settings=settings,
+                execution_context=execution_context,
+                results=file_ops_results,
+            )
+            if _git_error is not None:
+                failed_ops += 1
+                errors.append(_git_error)
 
             # Create output data
             all_succeeded = failed_ops == 0
@@ -99,7 +115,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             # Create outcome
             outcome = FileOperationNodeOutcome(
                 base_directory=str(base_directory),
-                results=results,
+                results=file_ops_results,
             )
 
             add_trace_attribute(
@@ -137,174 +153,54 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 message=f"File operation failed: {e!s}",
             )
 
-    def get_formatted_base_directory(
+    def _git_ops(
         self,
-        node_input: FileOperationNodeInput,
+        base_directory: Path,
         settings: FileOperationNodeSettings,
         execution_context: ExecutionContext,
-    ) -> str:
-        """Format path with variables."""
-        variables = {}
-        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
+        results: list[OperationResult],
+    ) -> str | None:
+        if not (settings.commit or settings.stage):
+            return None
 
-        # Determine base directory from input or settings
-        base_directory = "."
-        if hasattr(node_input, "base_directory") and node_input.base_directory:
-            base_directory = node_input.base_directory
-        elif hasattr(settings, "base_directory") and settings.base_directory:
-            base_directory = settings.base_directory
+        try:
+            repo = GitBase(base_directory)
 
-        # Resolve base directory with variables
-        return DADTemplateEngine.render_dad_template(
-            template=base_directory,
-            variables=variables,
-            dad_dynamic_variables=dad_dynamic_variables,
-            run_env_params=execution_context.run_context.run_env_params,
-            node_execution_results=None,
-        )
+            git_files = [
+                base_directory / Path(result.path) if settings.use_relative_paths else Path(result.path)
+                for result in results
+            ]
+            if settings.commit:
+                repo.add(git_files)
 
-    def _get_allowed_directories(
-        self, node_input: FileOperationNodeInput, settings: FileOperationNodeSettings
-    ) -> list[str]:
-        """Get the list of allowed directories."""
-        allowed_dirs = []
+                if settings.commit_message:
+                    variables = {}
+                    dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
 
-        # Check input first, then settings
-        if hasattr(node_input, "allowed_directories") and node_input.allowed_directories:
-            allowed_dirs = node_input.allowed_directories
-        elif hasattr(settings, "allowed_directories") and settings.allowed_directories:
-            allowed_dirs = settings.allowed_directories
-
-        # If no directories specified, use the base directory
-        if not allowed_dirs:
-            return []
-
-        # Normalize paths
-        return [os.path.normpath(os.path.abspath(d)) for d in allowed_dirs]
-
-    def _extract_operations(
-        self,
-        node_input: FileOperationNodeInput,
-        settings: FileOperationNodeSettings,
-        execution_context: ExecutionContext,
-    ) -> list[FileOperation]:
-        """Extract file operations from various sources."""
-        operations: list[FileOperation] = []
-
-        # Extract operations from operations_template if provided
-        if settings.operations_template is not None:
-            template_result = DADTemplateEngine.render_dad_template(
-                template=settings.operations_template,
-                variables={},
-                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
-                run_env_params=execution_context.run_context.run_env_params,
-                node_execution_results=execution_context.execution_results,
-            )
-
-            # Process operations based on the actual type returned
-            if template_result:
-                try:
-                    # Handle list of operations
-                    if isinstance(template_result, list):
-                        operations = []
-                        for op in template_result:
-                            if isinstance(op, dict):
-                                operations.append(FileOperation(**op))
-                            elif isinstance(op, FileOperation):
-                                operations.append(op)
-                            else:
-                                logger.warning(f"Unexpected operation type in list: {type(op)}")
-                    # Handle single operation as dict
-                    elif isinstance(template_result, dict):
-                        operations = [FileOperation(**template_result)]
-                    # Handle JSON string
-                    elif isinstance(template_result, str):
-                        try:
-                            # Try parsing as JSON
-                            parsed_ops = json.loads(template_result)
-                            if isinstance(parsed_ops, list):
-                                operations = [FileOperation(**op) for op in parsed_ops]
-                            elif isinstance(parsed_ops, dict):
-                                operations = [FileOperation(**parsed_ops)]
-                            else:
-                                logger.error(f"Unexpected structure in JSON string: {type(parsed_ops)}")
-                        except json.JSONDecodeError:
-                            logger.error(f"Unable to parse operations from template string: {template_result}")
-                    # Handle other unexpected types
-                    else:
-                        logger.error(f"Unsupported template result type: {type(template_result)}")
-                except Exception as e:
-                    logger.error(f"Error processing operations from template: {e}", exc_info=True)
-
-        # If no operations from template, try other sources
-        if not operations:
-            # Get operations from different possible sources
-            if hasattr(node_input, "json_operations") and node_input.json_operations:
-                # Parse JSON operations
-                try:
-                    ops_data = json.loads(node_input.json_operations)
-                    if isinstance(ops_data, dict) and "operations" in ops_data:
-                        operations = [FileOperation(**op) for op in ops_data["operations"]]
-                    elif isinstance(ops_data, list):
-                        operations = [FileOperation(**op) for op in ops_data]
-                except json.JSONDecodeError as e:
-                    raise ValueError(f"Invalid JSON in operations: {e}")
-            elif hasattr(node_input, "operations") and node_input.operations:
-                operations = node_input.operations
-            elif hasattr(settings, "operations") and settings.operations:
-                operations = settings.operations
-
-        return operations
-
-    def _validate_paths(self, base_dir: str, operations: list[FileOperation], allowed_dirs: list[str]) -> None:
-        """
-        Validate paths for security concerns.
-        Ensures all file operations are within allowed directories.
-        """
-        if not allowed_dirs:
-            return  # No restrictions if no allowed directories specified
-
-        base_path = Path(base_dir).resolve()
-
-        for op in operations:
-            # Check relevant paths based on operation type
-            paths_to_check = []
-
-            if op.path:
-                paths_to_check.append(op.path)
-            if op.paths:
-                paths_to_check.extend(op.paths)
-            if op.source:
-                paths_to_check.append(op.source)
-            if op.destination:
-                paths_to_check.append(op.destination)
-
-            for path_str in paths_to_check:
-                # Get absolute path
-                if os.path.isabs(path_str):
-                    full_path = Path(path_str).resolve()
+                    # Resolve base directory with variables
+                    commit_msg = DADTemplateEngine.render_dad_template(
+                        template=settings.commit_message,
+                        variables=variables,
+                        dad_dynamic_variables=dad_dynamic_variables,
+                        run_env_params=execution_context.run_context.run_env_params,
+                        node_execution_results=None,
+                    )
                 else:
-                    full_path = (base_path / path_str).resolve()
+                    commit_msg = f"Commit {datetime.now().strftime()}"
 
-                # Check if path is within allowed directories
-                path_allowed = False
-                for allowed_dir in allowed_dirs:
-                    allowed_path = Path(allowed_dir).resolve()
-                    try:
-                        # Check if path is within allowed directory
-                        if str(full_path).startswith(str(allowed_path)):
-                            path_allowed = True
-                            break
-                    except Exception:
-                        # Skip invalid paths
-                        continue
+                repo.commit(commit_msg)
 
-                if not path_allowed:
-                    raise ValueError(f"Access denied - path outside allowed directories: {full_path}")
+            elif settings.stage:
+                repo.add(git_files)
+
+            return None
+        except Exception as e:
+            error = f"Error performing GIT operation: {e!s}"
+            return error
 
     async def _execute_operations(
         self,
-        base_directory: str,
+        base_directory: Path,
         operations: list[FileOperation],
         settings: FileOperationNodeSettings,
     ) -> tuple[list[OperationResult], int, int, list[str]]:
@@ -425,13 +321,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
 
         return results, successful_operations, failed_operations, errors
 
-    async def _read_file(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _read_file(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Read contents of a file."""
         if not operation.path:
             return OperationResult(type="read_file", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="read_file", path=operation.path, success=False, error=f"File does not exist: {operation.path}"
@@ -449,7 +345,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="read_file", path=operation.path, success=False, error=f"Error reading file: {e}"
             )
 
-    async def _read_multiple_files(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _read_multiple_files(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Read multiple files at once."""
         if not operation.paths:
             return OperationResult(type="read_multiple_files", success=False, error="No paths specified")
@@ -458,7 +354,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             results = []
             for file_path in operation.paths:
                 try:
-                    full_path = Path(base_directory) / file_path
+                    full_path = base_directory / file_path
                     if not full_path.exists():
                         results.append(f"{file_path}: Error - File does not exist")
                     elif not full_path.is_file():
@@ -473,18 +369,18 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
         except Exception as e:
             return OperationResult(type="read_multiple_files", success=False, error=f"Error reading files: {e}")
 
-    async def _write_file(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _write_file(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Create a new file or overwrite existing file."""
         if not operation.path:
             return OperationResult(type="write_file", success=False, error="Path not specified")
 
-        if not operation.content or not isinstance(operation.content, str):
+        if not isinstance(operation.content, str):
             return OperationResult(
                 type="write_file", path=operation.path, success=False, error="Content must be a string"
             )
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_text(operation.content, encoding="utf-8")
             return OperationResult(
@@ -501,7 +397,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             )
 
     async def _edit_file(
-        self, base_directory: str, operation: FileOperation, settings: FileOperationNodeSettings
+        self, base_directory: Path, operation: FileOperation, settings: FileOperationNodeSettings
     ) -> OperationResult:
         """Edit a file using the more advanced edit operations."""
         if not operation.path:
@@ -511,7 +407,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             return OperationResult(type="edit_file", path=operation.path, success=False, error="No edits specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="edit_file", path=operation.path, success=False, error=f"File does not exist: {operation.path}"
@@ -634,13 +530,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
         # If we get here, no match was found
         raise ValueError(f"Could not find match for:\n{old_text}")
 
-    async def _create_directory(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _create_directory(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Create a new directory."""
         if not operation.path:
             return OperationResult(type="create_directory", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             full_path.mkdir(parents=True, exist_ok=True)
             return OperationResult(type="create_directory", path=operation.path, success=True)
         except Exception as e:
@@ -648,13 +544,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="create_directory", path=operation.path, success=False, error=f"Error creating directory: {e}"
             )
 
-    async def _delete_directory(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _delete_directory(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Delete a directory."""
         if not operation.path:
             return OperationResult(type="delete_directory", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="delete_directory",
@@ -678,13 +574,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="delete_directory", path=operation.path, success=False, error=f"Error deleting directory: {e}"
             )
 
-    async def _delete_file(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _delete_file(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Delete a file."""
         if not operation.path:
             return OperationResult(type="delete_file", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="delete_file",
@@ -708,13 +604,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="delete_file", path=operation.path, success=False, error=f"Error deleting file: {e}"
             )
 
-    async def _list_directory(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _list_directory(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """List contents of a directory."""
         if not operation.path:
             return OperationResult(type="list_directory", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="list_directory",
@@ -750,7 +646,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="list_directory", path=operation.path, success=False, error=f"Error listing directory: {e}"
             )
 
-    async def _move_file(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _move_file(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Move or rename a file or directory."""
         source = operation.source
         destination = operation.destination
@@ -759,8 +655,8 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
             return OperationResult(type="move_file", success=False, error="Source and destination must be specified")
 
         try:
-            full_source = Path(base_directory) / source
-            full_destination = Path(base_directory) / destination
+            full_source = base_directory / source
+            full_destination = base_directory / destination
 
             if not full_source.exists():
                 return OperationResult(
@@ -787,7 +683,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="move_file", path=f"{source} -> {destination}", success=False, error=f"Error moving file: {e}"
             )
 
-    async def _search_files(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _search_files(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Search for files matching a pattern."""
         if not operation.path:
             return OperationResult(type="search_files", success=False, error="Base search path not specified")
@@ -799,7 +695,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
         exclude_patterns = operation.search_config.exclude_patterns or []
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="search_files",
@@ -857,13 +753,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor):  # TODO: Use FileSytemOperati
                 type="search_files", path=operation.path, success=False, error=f"Error searching files: {e}"
             )
 
-    async def _get_file_metadata(self, base_directory: str, operation: FileOperation) -> OperationResult:
+    async def _get_file_metadata(self, base_directory: Path, operation: FileOperation) -> OperationResult:
         """Get detailed information about a file or directory."""
         if not operation.path:
             return OperationResult(type="get_file_metadata", success=False, error="Path not specified")
 
         try:
-            full_path = Path(base_directory) / operation.path
+            full_path = base_directory / operation.path
             if not full_path.exists():
                 return OperationResult(
                     type="get_file_metadata",
