@@ -422,7 +422,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             path=path,
             base_directory=base_directory,
             operation=operation,
-            total_words_read=total_words_read,
             force_skip_content=not operation.read_content,
         )
 
@@ -582,7 +581,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 path=path,
                 base_directory=base_directory,
                 operation=non_content_operation,
-                total_words_read=0,
                 force_skip_content=True,
             )
 
@@ -744,7 +742,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         )
 
         # Include stats if requested
-        if operation.include_stats:
+        if operation.include_stats_and_meta:
             try:
                 stat = path.stat()
                 result.size = stat.st_size
@@ -811,7 +809,6 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                             path=item,
                             base_directory=base_directory,
                             operation=operation,
-                            total_words_read=total_words_read,
                             force_skip_content=True,
                         )
                     else:
@@ -877,7 +874,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         )
 
         # Include stats if requested
-        if operation.include_stats:
+        if operation.include_stats_and_meta:
             try:
                 stat = path.stat()
                 result.metadata = FileMetadata(
@@ -986,12 +983,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                                     content_preview = "".join(f.readline() for _ in range(5))
                                     result.content_preview = content_preview
 
-                                # Generate a summary if requested
-                                if operation.generate_file_summary:
-                                    summary = self._generate_file_summary(
-                                        path, result.content or result.content_preview
-                                    )
-                                    result.summary = summary
+                                # TODO_FUTURE
+                                ## Generate a summary if requested
+                                # if operation.generate_file_summary:
+                                #    summary = self._generate_file_summary(
+                                #        path, result.content or result.content_preview
+                                #    )
+                                #    result.summary = summary
 
                                 is_text = True
                         except UnicodeDecodeError:

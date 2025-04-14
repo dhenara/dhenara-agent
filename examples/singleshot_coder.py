@@ -12,7 +12,7 @@ from dhenara.agent.dsl import (
     FolderAnalyzerSettings,
     NodeRecordSettings,
 )
-from dhenara.agent.dsl.inbuilt.flow_nodes.file_operation.types import FileOperation
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FileOperation, FolderAnalysisOperation
 from dhenara.ai.types import (
     AIModelCallConfig,
     ObjectTemplate,
@@ -54,16 +54,25 @@ flow = (
         "repo_analysis",
         FolderAnalyzerNode(
             settings=FolderAnalyzerSettings(
-                path="$expr{run_root}/global_data/repo/src",
-                # path="$expr{run_root}/global_data/repo/src/dhenara/agent/dsl/base/utils",
-                max_depth=20,
-                include_stats=False,
-                respect_gitignore=True,
-                read_content=True,
-                max_words_per_file=None,  # Read all
-                max_total_words=None,
-                generate_tree_diagram=True,
-            )
+                base_directory="$expr{run_root}/global_data/repo",
+                operations=[
+                    FolderAnalysisOperation(
+                        operation_type="analyze_folder",
+                        path="src",
+                        # path="$expr{run_root}/global_data/repo/src/dhenara/agent/dsl/base/utils",
+                        max_depth=100,
+                        include_stats=False,
+                        respect_gitignore=True,
+                        read_content=True,
+                        content_read_mode="structure",
+                        content_structure_detail_level="detailed",
+                        include_content_preview=False,
+                        max_words_per_file=None,  # Read all
+                        max_total_words=None,
+                        generate_tree_diagram=True,
+                    ),
+                ],
+            ),
         ),
     )
     # Single-shot coding solution

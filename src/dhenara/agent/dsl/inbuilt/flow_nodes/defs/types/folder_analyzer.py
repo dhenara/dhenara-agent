@@ -68,7 +68,11 @@ class DirectoryInfo(BaseModel):
 
 
 class FolderAnalysisOperation(BaseModel):
-    """Defines a folder analysis operation"""
+    """
+    Defines a folder analysis operation to examine files and directories in a repository.
+    This is used to gather context about code repositories, documentation, or any file system
+    to help answer user questions about their project.
+    """
 
     # Operation type
     operation_type: Literal[
@@ -76,88 +80,186 @@ class FolderAnalysisOperation(BaseModel):
         "analyze_file",
         "find_files",
         "get_structure",
-    ] = Field(..., description="Type of folder analysis operation to perform")
+    ] = Field(
+        ...,
+        description=(
+            "The type of analysis to perform:\n"
+            "- 'analyze_folder': Recursively examine a directory, retrieving all files info and contents (optional)\n"
+            "- 'analyze_file': Analyze a single file, retrieving its content or structure\n"
+            "- 'find_files': Search for files in a directory that match certain patterns\n"
+            "- 'get_structure': Get only the directory structure without file contents for a quick overview"
+        ),
+    )
 
     # Path specification
     path: str = Field(
         ...,
-        description="Path to the folder or file to analyze",
+        description=(
+            "Path to the folder or file to analyze. Can be relative to the base directory or absolute. "
+            "Examples: 'src', 'src/main.py', './docs', '/absolute/path/to/file.txt'. "
+            "Use this to specify exactly which part of the repository you want to examine."
+            "Usually this will be  relative path for sending content to LLM."
+        ),
     )
 
     include_root_in_path: bool = Field(
         default=False,
-        description="Whether to include the root directory in paths",
+        description=(
+            "Whether to include the root directory name in reported paths. If True, all paths will be prefixed with "
+            "the root directory name, which helps maintain context about where files are located. "
+            "Example: With root dir 'my_project', paths will be 'my_project/src/file.py' instead of 'src/file.py'."
+            "Usually this will be false for sending content to LLM."
+        ),
     )
 
     # Traversal and filtering options
-    max_depth: int | None = Field(default=None, description="Maximum depth to traverse for folder analysis", ge=0)
+    max_depth: int | None = Field(
+        default=None,
+        description=(
+            "Maximum directory depth to traverse when analyzing folders. Use this to limit analysis to "
+            "top-level directories only or include deeper subdirectories. If None, all nested directories "
+            "will be included. Example: 0 means only the specified directory, 1 includes its immediate children, etc."
+        ),
+        ge=0,
+    )
+
+    respect_gitignore: bool = Field(
+        default=True,
+        description=(
+            "Whether to automatically exclude files listed in .gitignore from analysis. "
+            "Set to True (default) to ignore files that are likely not relevant to the codebase. "
+            "Set to False if you specifically need to examine files that are normally ignored by git."
+        ),
+    )
     exclude_patterns: list[str] = Field(
         default_factory=list,
-        description="Patterns of files/dirs to exclude (glob format)",
+        description=(
+            "Patterns of files/directories to exclude from analysis (using glob format). "
+            "Use this to ignore irrelevant files like cache directories, build artifacts, or large data files. "
+            "Examples: ['*.pyc', '__pycache__', 'node_modules', '*.log', 'build/*']. "
+            "Patterns with '/' are path-relative, otherwise they match against filenames only."
+            "Usually this will empty for a git repo with a gitignore, but make sure `respect_gitignore` is set True."
+        ),
     )
     include_hidden: bool = Field(
         default=False,
-        description="Whether to include hidden files/folders",
-    )
-    respect_gitignore: bool = Field(
-        default=True,
-        description="Whether to respect .gitignore patterns",
+        description=(
+            "Whether to include hidden files and directories (those starting with '.') in the analysis. "
+            "Set to True if you need to examine configuration files like '.gitignore' or '.env', "
+            "otherwise these are skipped by default."
+        ),
     )
 
     # Content reading options
     read_content: bool = Field(
         default=False,
-        description="Whether to read file content",
-    )
-    include_content_preview: bool = Field(
-        default=False,
-        description="Whether to include file content previews",
+        description=(
+            "Whether to read and include the actual content of files in the analysis results. "
+            "Set to True when you need to examine the code or text inside files to answer questions. "
+            "Set to False if you only need to understand file structure/organization. "
+            "This significantly affects the amount of text returned, so use selectively."
+            "If reading content, use `content_read_mode` wisely to control the amout of text read."
+        ),
     )
     content_read_mode: Literal["full", "structure"] = Field(
         default="full",
-        description="How to process file content",
+        description=(
+            "How to process and represent file content:\n"
+            "- 'full': Return the raw text content of the file (useful for most code analysis)\n"
+            "- 'structure': For supported file types like Python, extract structural elements like classes, "
+            "functions, and imports instead of raw text (useful for understanding code organization without "
+            "reading all implementation details)"
+        ),
     )
+
     content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
         default="basic",
-        description="Detail level if content_read_mode is `structure`",
+        description=(
+            "When content_read_mode is 'structure', controls how much detail to include:\n"
+            "- 'basic': Just names of classes, functions, and imports\n"
+            "- 'standard': Adds signatures, docstrings, and inheritance information\n"
+            "- 'detailed': Adds type hints, decorators, and nested definitions\n"
+            "- 'full': Includes simplified function bodies and additional context\n"
+            "This is primarily useful for Python files to focus on API structure rather than implementation details."
+        ),
+    )
+    include_content_preview: bool = Field(
+        default=False,
+        description=(
+            "Whether to include a short preview of file contents (first few lines) instead of the full content. "
+            "This is useful for getting a glimpse of what files contain without reading everything. "
+            "Only applies when read_content is False."
+        ),
     )
 
     # Size and content limits
     max_file_size: int | None = Field(
         default=1024 * 1024,  # 1MB default
-        description="Maximum file size to analyze content",
+        description=(
+            "Maximum file size in bytes to consider for content analysis. Files larger than this will have "
+            "their metadata included but content skipped. Default is 1MB. Set to None for no limit, but be "
+            "cautious with very large files. This prevents accidentally trying to process large binary files or "
+            "data files that would overwhelm the context window."
+        ),
     )
+
     max_words_per_file: int | None = Field(
         default=None,
-        description="Maximum number of words per file when reading content",
+        description=(
+            "Maximum number of words to include from each file when reading content. If a file exceeds this limit, "
+            "it will be truncated. Use this to prevent single large files from dominating the context. "
+            "Example: 500 would include only the first 500 words of each file. Set to None for no per-file limit."
+        ),
         ge=0,
     )
+
     max_total_words: int | None = Field(
         default=None,
-        description="Maximum total number of words to include across all files",
+        description=(
+            "Maximum total number of words to include across all files analyzed. Once this limit is reached, "
+            "remaining files will have their content skipped. This helps control the total amount of text "
+            "returned when analyzing large repositories. Set to None for no overall word limit, but be mindful "
+            "of context window limitations."
+        ),
         ge=0,
     )
 
     # Analysis and display options
-    include_stats: bool = Field(
+    include_stats_and_meta: bool = Field(
         default=False,
-        description="Whether to include file/dir stats",
+        description=(
+            "Whether to include detailed file/directory statistics and metadata (size, creation date, "
+            "modification date, access times, permissions, etc.). Enable this when you need to analyze "
+            "file properties beyond content, such as identifying recently modified files or understanding "
+            "file sizes. Typically set to False when sending results to LLMs to save context space."
+        ),
     )
-    generate_file_summary: bool = Field(
-        default=False,
-        description="Whether to generate a summary for each file",
-    )
+
     generate_tree_diagram: bool = Field(
         default=False,
-        description="Whether to generate a tree diagram of the directory structure",
+        description=(
+            "Whether to generate an ASCII tree diagram of the directory structure for easy visualization. "
+            "Example: root/\n  ├── src/\n  │   ├── main.py\n  │   └── utils.py\n  └── tests/\n"
+            "This provides a clear visual representation of the project organization."
+        ),
     )
+
     tree_diagram_max_depth: int | None = Field(
         default=None,
-        description="Maximum depth for the tree diagram",
+        description=(
+            "Maximum depth to include in the tree diagram. Use this to limit the tree diagram to only "
+            "show top-level directories and files when you don't need the complete tree. "
+            "Only applies when generate_tree_diagram is True. If None, uses max_depth or shows the full tree."
+        ),
     )
+
     tree_diagram_include_files: bool = Field(
         default=True,
-        description="Whether to include files in the tree diagram",
+        description=(
+            "Whether to include files in the tree diagram or only show directories. "
+            "Set to False for a cleaner diagram that only shows directory structure in large repositories. "
+            "Only applies when generate_tree_diagram is True."
+        ),
     )
 
     def validate_content_type(self) -> bool:
