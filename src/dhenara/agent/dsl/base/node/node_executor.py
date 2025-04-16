@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import Any, TypeVar
 
 from dhenara.agent.dsl.base import (
-    ComponentTypeEnum,
     ExecutableNodeDefinition,
+    ExecutableTypeEnum,
     ExecutionContext,
     ExecutionStatusEnum,
     ExecutionStrategyEnum,
@@ -36,7 +36,7 @@ class NodeExecutor(ABC):
     """
 
     node_type: str
-    component_type: ComponentTypeEnum
+    executable_type: ExecutableTypeEnum
     input_model: type[NodeInput] | None
     setting_model: type[NodeSettings]
 

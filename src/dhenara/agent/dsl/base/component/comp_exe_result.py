@@ -1,15 +1,22 @@
 from datetime import datetime
-from typing import Any, Generic
+from typing import Any, Generic, TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ComponentTypeEnum, ExecutionStatusEnum, NodeID
-from dhenara.agent.dsl.base.node.node_exe_result import NodeExecutionResult, NodeInputT, NodeOutcomeT, NodeOutputT
+from dhenara.agent.dsl.base import (
+    ExecutableTypeEnum,
+    ExecutionStatusEnum,
+    NodeExecutionResult,
+    NodeID,
+    NodeInputT,
+    NodeOutcomeT,
+    NodeOutputT,
+)
 from dhenara.ai.types.shared.base import BaseModel
 
 
 class ComponentExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeOutcomeT]):
-    component_type: ComponentTypeEnum
+    executable_type: ExecutableTypeEnum
     component_id: str
     is_rerun: bool
     start_node_id: str | None
@@ -33,5 +40,6 @@ class ComponentExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeO
     completed_at: datetime | None = Field(default=None)
 
 
+ComponentExeResultT = TypeVar("ComponentDefT", bound=ComponentExecutionResult)
 # -----------------------------------------------------------------------------
 # NodeExecutionResults = dict[NodeID, NodeExecutionResult[OutputT, OutcomeT]]

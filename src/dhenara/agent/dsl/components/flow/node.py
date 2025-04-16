@@ -1,41 +1,46 @@
+from typing import ClassVar
 
 from dhenara.agent.dsl.base import (
-    ComponentTypeEnum,
+    Executable,
     ExecutableBlock,
-    ExecutableElement,
     ExecutableNode,
     ExecutableNodeDefinition,
     ExecutableReference,
+    ExecutableTypeEnum,
     NodeExecutor,
 )
 from dhenara.agent.dsl.components.flow import FlowExecutionContext
 
 
-class FlowElement(ExecutableElement):
-    """Base class for all elements in a flow."""
-
-    pass
+class FlowExecutable(Executable):
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.flow
 
 
 class FlowNodeDefinition(ExecutableNodeDefinition[FlowExecutionContext]):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
 
 
 class FlowNodeExecutor(NodeExecutor):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
 
 
-class FlowNode(ExecutableNode[FlowElement, FlowNodeDefinition, FlowExecutionContext]):
-    """A single execution node in the flow."""
+class FlowNode(ExecutableNode[FlowExecutable, FlowNodeDefinition, FlowExecutionContext]):
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.flow
 
-    pass
 
+class FlowBlock(ExecutableBlock[FlowExecutable, FlowNode, FlowExecutionContext]):
+    node_class: ClassVar[type[FlowNode]] = FlowNode
 
-class FlowBlock(ExecutableBlock[FlowElement, FlowExecutionContext]):
-    pass
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.flow
 
 
 class FlowReference(ExecutableReference):
-    """A reference to a value in the context."""
-
-    pass
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.flow

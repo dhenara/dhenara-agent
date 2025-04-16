@@ -4,24 +4,24 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
-    ComponentTypeEnum,
+    ExecutableTypeEnum,
 )
-from dhenara.agent.dsl.components.flow import FlowBlock, FlowElement, FlowExecutionContext, FlowNode, FlowNodeDefinition
+from dhenara.agent.dsl.components.flow import FlowBlock, FlowExecutable, FlowExecutionContext, FlowNode
 from dhenara.agent.observability.tracing.decorators.fns2 import trace_method
 
 
 class FlowExecutionResult(ComponentExecutionResult):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
 
 
-class Flow(ComponentDefinition[FlowElement, FlowNode, FlowNodeDefinition, FlowExecutionContext]):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
+class Flow(ComponentDefinition[FlowExecutable, FlowNode, FlowBlock, FlowExecutionContext]):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
     node_class = FlowNode
-
-
-class FlowExecutor(ComponentExecutor[FlowElement, FlowBlock, FlowExecutionContext, Flow, FlowExecutionResult]):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.flow
     block_class = FlowBlock
+
+
+class FlowExecutor(ComponentExecutor[FlowExecutable, FlowBlock, FlowExecutionContext, Flow, FlowExecutionResult]):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
     context_class = FlowExecutionContext
     result_class = FlowExecutionResult
     logger_path: str = "dhenara.dad.flow"

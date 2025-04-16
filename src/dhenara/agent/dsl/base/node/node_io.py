@@ -55,3 +55,8 @@ class NodeOutput(BaseModel, Generic[T]):
 
 class NodeOutcome(BaseModel):
     pass
+
+
+NodeInputT = TypeVar("NodeInputT", bound=BaseModel)
+NodeOutputT = TypeVar("NodeOutputT", bound=BaseModel)
+NodeOutcomeT = TypeVar("NodeOutcomeT", bound=BaseModel)

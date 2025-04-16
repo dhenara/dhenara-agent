@@ -1,7 +1,7 @@
 from dhenara.ai.types.shared.base import BaseEnum
 
 
-class ComponentTypeEnum(BaseEnum):
+class ExecutableTypeEnum(BaseEnum):
     flow = "flow"
     agent = "agent"
 

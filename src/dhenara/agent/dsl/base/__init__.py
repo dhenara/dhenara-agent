@@ -1,5 +1,5 @@
 # Base Element
-from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, ComponentTypeEnum
+from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, ExecutableTypeEnum
 from .defs import NodeID
 
 from .data.template_engine import TemplateEngine
@@ -11,55 +11,68 @@ from .node.node_settings import (
     RecordSettingsItem,
     NodeRecordSettings,
 )
-from .node.node_io import NodeInput, NodeInputs, NodeOutput, NodeOutcome
+from .node.node_io import NodeInput, NodeInputs, NodeOutput, NodeOutcome, NodeOutcomeT, NodeInputT, NodeOutputT
 from .node.node_exe_result import NodeExecutionResult
 
 from .utils.node_hierarchy import NodeHierarchyHelper
 
-from .context import ExecutionContext, StreamingContext, StreamingStatusEnum
-from .element import ExecutableElement
-from .node.node_def import ExecutableNodeDefinition
+# Executable Elements
+from .context import ExecutionContext, StreamingContext, StreamingStatusEnum, ContextT
+from .executable import Executable, ExecutableT
+from .node.node_def import ExecutableNodeDefinition, NodeDefT
 from .node.node_executor import NodeExecutor
 
 from .node.node_block_ref import (
     ExecutableNode,
     ExecutableBlock,
     ExecutableReference,
+    BlockT,
+    NodeT,
 )
-from .control import Conditional, ForEach
+from .node.control import Conditional, ForEach
 
 # Component
-from .component.comp_exe_result import ComponentExecutionResult
-from .component.component_def import ComponentDefinition
+from .component.comp_exe_result import ComponentExecutionResult, ComponentExeResultT
+from .component.component_def import ComponentDefinition, ComponentDefT
 from .component.executor import ComponentExecutor
 
 __all__ = [
+    "BlockT",
+    "ComponentDefT",
     "ComponentDefinition",
+    "ComponentExeResultT",
     "ComponentExecutionResult",
     "ComponentExecutor",
-    "ComponentTypeEnum",
     "Conditional",
+    "ContextT",
     "DADTemplateEngine",
+    "Executable",
     "ExecutableBlock",
-    "ExecutableElement",
     "ExecutableNode",
     "ExecutableNodeDefinition",
     "ExecutableReference",
+    "ExecutableT",
+    "ExecutableTypeEnum",
     "ExecutionContext",
     "ExecutionStatusEnum",
     "ExecutionStrategyEnum",
     "ForEach",
+    "NodeDefT",
     "NodeExecutionResult",
     "NodeExecutor",
     "NodeHierarchyHelper",
     "NodeID",
     "NodeID",
     "NodeInput",
+    "NodeInputT",
     "NodeInputs",
     "NodeOutcome",
+    "NodeOutcomeT",
     "NodeOutput",
+    "NodeOutputT",
     "NodeRecordSettings",
     "NodeSettings",
+    "NodeT",
     "RecordFileFormatEnum",
     "RecordSettingsItem",
     "SpecialNodeIDEnum",

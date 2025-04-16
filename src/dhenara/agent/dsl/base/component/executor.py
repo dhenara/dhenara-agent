@@ -1,36 +1,24 @@
 import logging
 from abc import abstractmethod
 from datetime import datetime
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, ClassVar, Generic
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import (
-    ComponentDefinition,
-    ComponentExecutionResult,
-    ComponentTypeEnum,
-    ExecutableBlock,
-    ExecutableElement,
-    ExecutionContext,
-    ExecutionStatusEnum,
-    NodeID,
-)
+from dhenara.agent.dsl.base import BlockT, ContextT, ExecutableT, ExecutableTypeEnum, ExecutionStatusEnum, NodeID
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 
-ElementT = TypeVar("ElementT", bound=ExecutableElement)
-BlockT = TypeVar("BlockT", bound=ExecutableBlock)
-ContextT = TypeVar("ContextT", bound=ExecutionContext)
-ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)
-ComponentExeResultT = TypeVar("ComponentDefT", bound=ComponentExecutionResult)
+from .comp_exe_result import ComponentExeResultT
+from .component_def import ComponentDefT
 
 
 class ComponentExecutor(
     BaseModelABC,
     Generic[
-        ElementT,
+        ExecutableT,
         BlockT,
         ContextT,
         ComponentDefT,
@@ -39,14 +27,13 @@ class ComponentExecutor(
 ):
     """Executor for Flow definitions."""
 
-    component_type: ComponentTypeEnum
+    executable_type: ExecutableTypeEnum
 
     id: NodeID = Field(...)
     definition: ComponentDefT = Field(...)
 
     # Concrete classes to use
     context_class: ClassVar[type[ContextT]]
-    block_class: ClassVar[type[BlockT]]
     result_class: ClassVar[type[ComponentExeResultT]]
 
     run_context: RunContext
@@ -81,7 +68,7 @@ class ComponentExecutor(
 
     # NOTE: Defining exeute as an abstract class for imposing proper trace names in derived class
     @abstractmethod
-    @trace_method("execute_{component_type}")
+    @trace_method("execute_{executable_type}")
     async def execute(
         self,
         start_node_id: str | None = None,
@@ -125,8 +112,8 @@ class ComponentExecutor(
         )
 
         try:
-            # Execute the flow from the specified node
-            block = self.block_class(self.definition.elements)
+            block = self.definition.as_block(id=self.id)
+
             await block.execute(
                 execution_context=execution_context,
             )
@@ -152,8 +139,8 @@ class ComponentExecutor(
             end_time = datetime.now()
             duration_sec = (end_time - start_time).total_seconds()
             record_metric(
-                meter_name=f"dhenara.dad.{self.definition.component_type}",
-                metric_name=f"{self.definition.component_type}_execution_duration",
+                meter_name=f"dhenara.dad.{self.definition.executable_type}",
+                metric_name=f"{self.definition.executable_type}_execution_duration",
                 value=duration_sec,
                 metric_type="histogram",
                 attributes={
@@ -165,11 +152,11 @@ class ComponentExecutor(
 
             # Record success
             record_metric(
-                meter_name=f"dhenara.dad.{self.definition.component_type}",
-                metric_name=f"{self.definition.component_type}_execution_duration",
+                meter_name=f"dhenara.dad.{self.definition.executable_type}",
+                metric_name=f"{self.definition.executable_type}_execution_duration",
                 value=1,
                 attributes={
-                    f"{self.definition.component_type}_id": str(self.id),
+                    f"{self.definition.executable_type}_id": str(self.id),
                     "is_rerun": str(self.run_context.is_rerun),
                 },
             )
@@ -177,9 +164,9 @@ class ComponentExecutor(
             log_with_context(
                 self.logger,
                 logging.INFO,
-                f"{self.definition.component_type.title()} execution completed in {duration_sec:.2f}s",
+                f"{self.definition.executable_type.title()} execution completed in {duration_sec:.2f}s",
                 {
-                    f"{self.definition.component_type}_id": str(self.id),
+                    f"{self.definition.executable_type}_id": str(self.id),
                     "duration_sec": duration_sec,
                     "is_rerun": str(self.run_context.is_rerun),
                     "start_node_id": start_node_id or "none",
@@ -193,7 +180,7 @@ class ComponentExecutor(
                 start_node_id=start_node_id,
                 execution_status=ExecutionStatusEnum.FAILED,
                 execution_results={},
-                error=f"Error while executing {self.definition.component_type}: {e}",
+                error=f"Error while executing {self.definition.executable_type}: {e}",
                 metadata={},
                 created_at=datetime.now(),
                 updated_at=None,
@@ -202,11 +189,11 @@ class ComponentExecutor(
 
             # Record failure
             record_metric(
-                meter_name=f"dhenara.dad.{self.definition.component_type}",
-                metric_name=f"{self.definition.component_type}_execution_duration",
+                meter_name=f"dhenara.dad.{self.definition.executable_type}",
+                metric_name=f"{self.definition.executable_type}_execution_duration",
                 value=1,
                 attributes={
-                    f"{self.definition.component_type}_id": str(self.id),
+                    f"{self.definition.executable_type}_id": str(self.id),
                     "is_rerun": str(self.run_context.is_rerun),
                     "error": str(e),
                 },
@@ -215,9 +202,9 @@ class ComponentExecutor(
             log_with_context(
                 self.logger,
                 logging.ERROR,
-                f"{self.definition.component_type.title()} execution failed: {e!s}",
+                f"{self.definition.executable_type.title()} execution failed: {e!s}",
                 {
-                    f"{self.definition.component_type}_id": str(self.id),
+                    f"{self.definition.executable_type}_id": str(self.id),
                     "error": str(e),
                     "is_rerun": str(self.run_context.is_rerun),
                     "start_node_id": start_node_id or "none",

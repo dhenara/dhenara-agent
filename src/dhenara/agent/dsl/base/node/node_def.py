@@ -4,8 +4,8 @@ from typing import Any, Generic, TypeVar
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
-    ComponentTypeEnum,
-    ExecutionContext,
+    ContextT,
+    ExecutableTypeEnum,
     NodeID,
     NodeInput,
     NodeRecordSettings,
@@ -15,8 +15,6 @@ from dhenara.agent.dsl.events import EventType
 from dhenara.agent.types.base import BaseModelABC
 from dhenara.ai.types.resource import ResourceConfigItem
 
-ContextT = TypeVar("ContextT", bound=ExecutionContext)
-
 node_executor_registry = None
 
 
@@ -24,7 +22,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     """Base class for all node definitions."""
 
     node_type: str
-    component_type: ComponentTypeEnum
+    executable_type: ExecutableTypeEnum
 
     pre_events: list[EventType | str] = Field(
         default_factory=list,
@@ -78,13 +76,13 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             node_executor_registry = NodeExecutorRegistry()
 
         executor = node_executor_registry.get_executor(
-            component_type=self.component_type,
+            executable_type=self.executable_type,
             node_type=self.node_type,
         )
 
         if executor is None:
             executor = node_executor_registry.register(
-                component_type=self.component_type,
+                executable_type=self.executable_type,
                 node_type=self.node_type,
                 executor_class=self.get_executor_class(),
             )
@@ -152,3 +150,6 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
             return False
 
         return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+
+
+NodeDefT = TypeVar("NodeDefT", bound=ExecutableNodeDefinition)

@@ -1,27 +1,30 @@
+from typing import ClassVar
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
-    ComponentTypeEnum,
+    Executable,
     ExecutableBlock,
-    ExecutableElement,
     ExecutableNode,
     ExecutableNodeDefinition,
     ExecutableReference,
+    ExecutableTypeEnum,
     NodeExecutor,
 )
 from dhenara.agent.dsl.components.agent import AgentExecutionContext
 from dhenara.agent.dsl.components.flow import Flow
 
 
-class AgentElement(ExecutableElement):
+class AgentExecutable(Executable):
     """Base class for all elements in a flow."""
 
-    pass
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.agent
 
 
 class AgentNodeDefinition(ExecutableNodeDefinition[AgentExecutionContext]):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.agent
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
     flow: Flow = Field(
         ...,
@@ -30,20 +33,24 @@ class AgentNodeDefinition(ExecutableNodeDefinition[AgentExecutionContext]):
 
 
 class AgentNodeExecutor(NodeExecutor):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.agent
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
 
-class AgentNode(ExecutableNode[AgentElement, AgentNodeDefinition, AgentExecutionContext]):
-    """A single execution node in the flow."""
+class AgentNode(ExecutableNode[AgentExecutable, AgentNodeDefinition, AgentExecutionContext]):
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.agent
 
-    pass
 
+class AgentBlock(ExecutableBlock[AgentExecutable, AgentNode, AgentExecutionContext]):
+    node_class: ClassVar[type[AgentNode]] = AgentNode
 
-class AgentBlock(ExecutableBlock[AgentElement, AgentExecutionContext]):
-    pass
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.agent
 
 
 class AgentReference(ExecutableReference):
-    """A reference to a value in the context."""
-
-    pass
+    @property
+    def executable_type(self) -> ExecutableTypeEnum:
+        return ExecutableTypeEnum.agent

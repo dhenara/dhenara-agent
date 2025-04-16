@@ -3,7 +3,7 @@ import logging
 from asyncio import Event
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar, Optional, TypeVar
 
 from pydantic import Field
 
@@ -264,3 +264,6 @@ class ExecutionContext(BaseModelABC):
             "node_id": self.current_node_identifier,
             "node_hier": self.get_node_hierarchy_path(),
         }
+
+
+ContextT = TypeVar("ContextT", bound=ExecutionContext)

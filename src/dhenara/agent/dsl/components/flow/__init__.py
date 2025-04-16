@@ -1,7 +1,7 @@
 # -- Flow
 from .context import FlowExecutionContext
 from .node import (
-    FlowElement,
+    FlowExecutable,
     FlowNode,
     FlowBlock,
     FlowReference,
@@ -14,7 +14,7 @@ from .component import Flow, FlowExecutor, FlowExecutionResult
 __all__ = [
     "Flow",
     "FlowBlock",
-    "FlowElement",
+    "FlowExecutable",
     "FlowExecutionContext",
     "FlowExecutionResult",
     "FlowExecutor",

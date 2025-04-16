@@ -4,38 +4,37 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
-    ComponentTypeEnum,
+    ExecutableTypeEnum,
 )
 from dhenara.agent.dsl.components.agent import (
     AgentBlock,
-    AgentElement,
+    AgentExecutable,
     AgentExecutionContext,
     AgentNode,
-    AgentNodeDefinition,
 )
 from dhenara.agent.observability.tracing.decorators.fns2 import trace_method
 
 
 class AgentExecutionResult(ComponentExecutionResult):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.agent
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
 
-class Agent(ComponentDefinition[AgentElement, AgentNode, AgentNodeDefinition, AgentExecutionContext]):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.agent
+class Agent(ComponentDefinition[AgentExecutable, AgentNode, AgentBlock, AgentExecutionContext]):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
     node_class = AgentNode
+    block_class = AgentBlock
 
 
 class AgentExecutor(
     ComponentExecutor[
-        AgentElement,
+        AgentExecutable,
         AgentBlock,
         AgentExecutionContext,
         Agent,
         AgentExecutionResult,
     ]
 ):
-    component_type: ComponentTypeEnum = ComponentTypeEnum.agent
-    block_class = AgentBlock
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
     context_class = AgentExecutionContext
     result_class = AgentExecutionResult
     logger_path: str = "dhenara.dad.agent"

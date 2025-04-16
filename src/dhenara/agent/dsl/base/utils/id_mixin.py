@@ -1,14 +1,14 @@
-from typing import Generic, TypeVar
+from typing import Generic
 
 from pydantic import model_validator
 
-T = TypeVar("T")  # Element type
+from dhenara.agent.dsl.base import ExecutableT
 
 
-class IdentifierValidationMixin(Generic[T]):
+class IdentifierValidationMixin(Generic[ExecutableT]):
     """Mixin providing identifier validation for hierarchical structures."""
 
-    def _collect_all_identifiers(self, element: T, identifiers: set[str]) -> None:
+    def _collect_all_identifiers(self, element: ExecutableT, identifiers: set[str]) -> None:
         """
         Recursively collect all identifiers in a hierarchical structure.
 
@@ -43,15 +43,15 @@ class IdentifierValidationMixin(Generic[T]):
             self._collect_all_identifiers(element, all_identifiers)
 
     # Abstract methods to be implemented by concrete classes
-    def _get_element_identifier(self, element: T) -> str:
+    def _get_element_identifier(self, element: ExecutableT) -> str:
         """Get the unique identifier from an element."""
         raise NotImplementedError
 
-    def _get_element_children(self, element: T) -> list[T]:
+    def _get_element_children(self, element: ExecutableT) -> list[ExecutableT]:
         """Get child elements from an element (if any)."""
         raise NotImplementedError
 
-    def _get_top_level_elements(self) -> list[T]:
+    def _get_top_level_elements(self) -> list[ExecutableT]:
         """Get all top-level elements."""
         raise NotImplementedError
 
@@ -110,10 +110,10 @@ class IdentifierValidationMixin(Generic[T]):
             return None
 
 
-class NavigationMixin(Generic[T]):
+class NavigationMixin(Generic[ExecutableT]):
     """Mixin providing navigation capabilities for hierarchical structures."""
 
-    def get_previous_element(self, identifier: str) -> tuple[T | None, str | None]:
+    def get_previous_element(self, identifier: str) -> tuple[ExecutableT | None, str | None]:
         """
         Returns the element that precedes the specified element and its identifier.
 
@@ -162,7 +162,7 @@ class NavigationMixin(Generic[T]):
         _, prev_id = self.get_previous_element(identifier)
         return prev_id
 
-    def get_element_by_id(self, identifier: str) -> T | None:
+    def get_element_by_id(self, identifier: str) -> ExecutableT | None:
         """
         Find an element by its identifier.
 
@@ -179,7 +179,7 @@ class NavigationMixin(Generic[T]):
         except ValueError:
             return None
 
-    def _get_flattened_elements(self) -> tuple[list[T], list[str]]:
+    def _get_flattened_elements(self) -> tuple[list[ExecutableT], list[str]]:
         """
         Get flattened lists of all elements and their identifiers, in execution order.
 
@@ -206,20 +206,20 @@ class NavigationMixin(Generic[T]):
 
     # These methods should be implemented by the class using this mixin
     # (They're likely already implemented for the IdentifierValidationMixin)
-    def _get_element_identifier(self, element: T) -> str:
+    def _get_element_identifier(self, element: ExecutableT) -> str:
         """Get the unique identifier from an element."""
         raise NotImplementedError
 
-    def _get_element_children(self, element: T) -> list[T]:
+    def _get_element_children(self, element: ExecutableT) -> list[ExecutableT]:
         """Get child elements from an element (if any)."""
         raise NotImplementedError
 
-    def _get_top_level_elements(self) -> list[T]:
+    def _get_top_level_elements(self) -> list[ExecutableT]:
         """Get all top-level elements."""
         raise NotImplementedError
 
     # INFO: Not used currently, may be deleted in the future
-    def _get_flattened_elements(self) -> tuple[list[T], list[str]]:
+    def _get_flattened_elements(self) -> tuple[list[ExecutableT], list[str]]:
         """
         Get flattened lists of all elements and their identifiers, in execution order.
         Returns:

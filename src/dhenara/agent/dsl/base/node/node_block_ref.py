@@ -1,18 +1,13 @@
-from typing import Any, Generic, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ExecutableElement, ExecutableNodeDefinition, ExecutionContext, NodeID
+from dhenara.agent.dsl.base import ContextT, Executable, ExecutableT, NodeDefT, NodeID
 from dhenara.agent.types.base import BaseModel
-
-ElementT = TypeVar("ElementT", bound=ExecutableElement)
-ContextT = TypeVar("ContextT", bound=ExecutionContext)
-
-NodeDefT = TypeVar("NodeDefT", bound=ExecutableNodeDefinition)
 
 
 # A generic node that could later be specialized
-class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
+class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, ContextT]):
     """A single execution node in the DSL."""
 
     id: NodeID = Field(
@@ -53,13 +48,32 @@ class ExecutableNode(BaseModel, Generic[ElementT, NodeDefT, ContextT]):
         return result
 
 
-class ExecutableBlock(Generic[ElementT, ContextT]):
-    elements: list[ElementT] = Field(
-        ...,
-        description="The elements (nodes/sub-blocks) in this block.",
-    )
+NodeT = TypeVar("NodeT", bound=ExecutableNode)
 
-    def __init__(self, elements: list[ElementT]):
+
+# INFO: Not a Pydantic Class as the blocik is instanctiated  insided the component executor, which will casue error like
+#  `not fully defined; you should define all referenced types, then call `Flow.model_rebuild()`.
+class ExecutableBlock(Executable, Generic[ExecutableT, NodeT, ContextT]):
+    id: NodeID
+    elements: list[NodeT | "ExecutableBlock"]
+    node_class: ClassVar[type[NodeT]]
+
+    # INFO: Speial override for pythdatic , as the bloclk is instanctiated  insided the component executor
+    def __init__(
+        self,
+        id,  # noqa: A002
+        elements: list[ExecutableT],
+    ):
+        if not isinstance(elements, list):
+            raise ValueError("elements must be a list")
+        if not all(isinstance(e, (self.node_class, ExecutableBlock)) for e in elements):
+            raise ValueError("elements must be a list of NodeT or ExecutableBlock")
+        if not isinstance(id, str):
+            raise ValueError("id must be a string")
+        if not id.strip():
+            raise ValueError("id cannot be empty or whitespace")
+
+        self.id = id
         self.elements = elements
 
     # Without reruns
@@ -82,7 +96,7 @@ class ExecutableBlock(Generic[ElementT, ContextT]):
 
         for element in self.elements:
             # Check if this is the node we should start from
-            element_id = getattr(element, "id", None)
+            element_id = element.id
 
             if not start_execution and element_id == start_node_id:
                 # Found our starting point, begin execution
@@ -99,7 +113,11 @@ class ExecutableBlock(Generic[ElementT, ContextT]):
         return results
 
 
-class ExecutableReference(Generic[ElementT, ContextT]):
+BlockT = TypeVar("BlockT", bound=ExecutableBlock)
+
+
+# TODO_FUTURE: remove this class?
+class ExecutableReference(Executable, Generic[ExecutableT, ContextT]):
     """A reference to a value in the execution_context."""
 
     def __init__(self, path: str):

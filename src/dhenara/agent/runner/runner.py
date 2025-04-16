@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class ComponentRunner(ABC):
-    component_type: Literal["agent", "flow"] = None
+    executable_type: Literal["agent", "flow"] = None
     component_class = None
 
     def __init__(self, component: ComponentDefinition, run_contex: RunContext):
@@ -31,7 +31,7 @@ class ComponentRunner(ABC):
         self.component = component
         self.root_id = component.root_id
         self.run_context = run_contex
-        self.logger = logging.getLogger(f"dhenara.dad.{self.component_type}.{self.root_id}")
+        self.logger = logging.getLogger(f"dhenara.dad.{self.executable_type}.{self.root_id}")
         logger.info(f"Initialized {self.__class__.__name__} with ID: {self.root_id}")
 
     def setup_run(
@@ -69,9 +69,9 @@ class ComponentRunner(ABC):
             log_with_context(
                 self.logger,
                 logging.INFO,
-                f"{self.component_type.title()} {self.root_id} run begins",
+                f"{self.executable_type.title()} {self.root_id} run begins",
                 {
-                    "component_type": self.component_type,
+                    "executable_type": self.executable_type,
                     "root_id": self.root_id,
                     "agent_start_node_id": self.run_context.agent_start_node_id,
                     "flow_start_node_id": self.run_context.flow_start_node_id,
@@ -108,7 +108,7 @@ class ComponentRunner(ABC):
 
 
 class FlowRunner(ComponentRunner):  # TODO: Not tested
-    component_type = "flow"
+    executable_type = "flow"
     component_class = Flow
 
     @trace_method("run_flow")
@@ -141,7 +141,7 @@ class FlowRunner(ComponentRunner):  # TODO: Not tested
 
 
 class AgentRunner(ComponentRunner):
-    component_type = "agent"
+    executable_type = "agent"
     component_class = Agent
 
     @trace_method("run_agent")
