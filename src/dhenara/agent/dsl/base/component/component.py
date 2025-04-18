@@ -2,17 +2,12 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ContextT, Executable, ExecutableT, NodeDefT, NodeID
+from dhenara.agent.dsl.base import ComponentDefT, ContextT, Executable, ExecutableT, NodeID
 from dhenara.agent.types.base import BaseModel
 
 
 # A generic node that could later be specialized
-class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, ContextT]):
-    """
-    A single execution node in the DSL.
-    Wraps a node definition with a unique identifier so that it becomes executable.
-    """
-
+class ExecutableComponent(Executable, BaseModel, Generic[ExecutableT, ComponentDefT, ContextT]):
     id: NodeID = Field(
         ...,
         description="Unique human readable identifier for the node",
@@ -21,7 +16,7 @@ class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, Conte
         pattern="^[a-zA-Z0-9_]+$",
     )
 
-    definition: NodeDefT = Field(...)
+    definition: ComponentDefT = Field(...)
 
     @field_validator("id")
     @classmethod
@@ -35,7 +30,7 @@ class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, Conte
 
     async def execute(self, execution_context: ContextT) -> Any:
         result = await self.definition.execute(
-            node_id=self.id,
+            component_id=self.id,
             execution_context=execution_context,
         )
 
@@ -45,10 +40,10 @@ class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, Conte
         execution_context.logger.info(f"Loading previous run data for node {self.id} ")
 
         result = await self.definition.load_from_previous_run(
-            node_id=self.id,
+            component_id=self.id,
             execution_context=execution_context,
         )
         return result
 
 
-NodeT = TypeVar("NodeT", bound=ExecutableNode)
+ComponentT = TypeVar("ComponentDeT", bound=ExecutableComponent)

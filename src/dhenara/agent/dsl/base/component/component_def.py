@@ -1,17 +1,17 @@
+import datetime
 from typing import Any, ClassVar, Generic, TypeVar, Union
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
-    BlockT,
     Conditional,
     ContextT,
-    ExecutableBlock,
     ExecutableNodeDefinition,
     ExecutableT,
     ExecutableTypeEnum,
     ForEach,
     NodeDefT,
+    NodeID,
     NodeT,
 )
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
@@ -20,16 +20,17 @@ from dhenara.agent.types.base import BaseModelABC
 
 class ComponentDefinition(
     BaseModelABC,
-    Generic[ExecutableT, NodeT, BlockT, ContextT],
+    Generic[ExecutableT, NodeT, ContextT],
     IdentifierValidationMixin[ExecutableT],
     NavigationMixin,
 ):
     """Base class for Executable definitions."""
 
     executable_type: ExecutableTypeEnum
-    elements: list[NodeT | BlockT | ForEach | Conditional] = Field(default_factory=list)
+    elements: list[NodeT | Any] = Field(default_factory=list)
+    # elements: list[NodeT | "ComponentDefinition"] = Field(default_factory=list)
+
     node_class: ClassVar[type[NodeT]]
-    block_class: ClassVar[type[BlockT]]
 
     root_id: str | None = Field(
         default=None,
@@ -121,48 +122,15 @@ class ComponentDefinition(
     ) -> "ComponentDefinition":
         """Add a node to the flow."""
 
-        if isinstance(definition, type(self)):
-            _elements = self.elements
-        elif isinstance(definition, self.block_class):
-            _elements = definition.elements
-        elif isinstance(definition, ExecutableNodeDefinition):
-            _elements = self.node_class(id=id, definition=definition)
-        else:
+        if not isinstance(definition, ExecutableNodeDefinition) and definition.executable_type == self.executable_type:
             raise ValueError(
-                f"Unsupported type for body: {type(definition)}. "
-                f"Expected {type(self)} or {self.block_class} or definition of {self.node_class}."
+                f"Unsupported type for definition: {type(definition)}. "
+                f"Expected a {self.executable_type}-NodeDefinition."
             )
 
-        self.elements.append(_elements)
+        _node = self.node_class(id=id, definition=definition)
+        self.elements.append(_node)
         return self
-
-    def block(
-        self,
-        id: str,  # noqa: A002
-        elements: Union["ComponentDefinition", list[NodeDefT]],
-    ) -> "ComponentDefinition":
-        """Add a block to the flow."""
-
-        if isinstance(elements, type(self)):
-            _elements = self.elements
-        elif isinstance(elements, self.node_class):
-            _elements = [elements]
-        else:
-            raise ValueError(
-                f"Unsupported type for body: {type(elements)}. Expected {type(self)} or  {self.node_class}."
-            )
-        self.elements.append(self.block_class(id=id, elements=_elements))
-        return self
-
-    def as_block(
-        self,
-        id: str,  # noqa: A002
-    ) -> BlockT:
-        """Convert this component to a block."""
-        return self.block_class(
-            id=id,
-            elements=self.elements,
-        )
 
     # TODO: Cleanup
     def conditional(
@@ -188,7 +156,7 @@ class ComponentDefinition(
     def for_each(
         self,
         id: str,  # noqa: A002
-        body: Union["ComponentDefinition", BlockT, NodeT],
+        body,  #: Union["ComponentDefinition", BlockT, NodeT],
         items: str,
         item_var: str = "item",
         index_var: str = "index",
@@ -210,7 +178,6 @@ class ComponentDefinition(
             )
 
         # Convert ComponentDefinition object to its elements
-
         _foreach = ForEach(
             items=items,
             body=_body_blcok,
@@ -222,11 +189,80 @@ class ComponentDefinition(
         self.elements.append(_foreach)
         return self
 
-    async def execute(self, context: ContextT) -> dict[str, Any]:
-        """Execute the flow in the given context."""
-        block = ExecutableBlock(self.elements)
-        await block.execute(context)
-        return context.results
+    async def execute(
+        self,
+        execution_context: ContextT,
+        component_id: NodeID | None = None,
+    ) -> list[Any]:
+        """Execute all elements in this block sequentially.
+
+        If start_component_id is specified, skip elements until the starting component is found.
+        """
+        results = []
+
+        # NOTE: The component is the `top-level` heirrachy of the element, there won't be an executor for that
+        # Thus the individual elements should be executed here
+        for element in self.elements:
+            if isinstance(element, ComponentDefinition):
+                # There is a child component in elements
+                if component_id is None:
+                    raise ValueError("component_id should be set for child component")
+
+                component = element
+                execution_context.logger.info(f"Found a Child component with ID {component_id}")
+
+                start_component_id = getattr(execution_context, "start_component_id", None)
+                start_execution = start_component_id is None  # Start immediately if no start_component_id
+
+                # If a element a component, an execution context need to be created here
+                component_execution_context = self.context_class(
+                    component_id=self.id,
+                    component_definition=self.definition,
+                    resource_config=self.run_context.resource_config,
+                    created_at=datetime.now(),
+                    run_context=self.run_context,
+                    artifact_manager=self.run_context.artifact_manager,
+                    start_node_id=start_component_id,
+                    parent=execution_context,
+                )
+
+                # Check if this is the component we should start from
+                if not start_execution and component_id == start_component_id:
+                    # Found our starting point, begin execution
+                    start_execution = True
+                    component_execution_context.logger.info(f"Starting execution from compoent {start_component_id}")
+
+                if start_execution:
+                    component_execution_context.set_current_component(component_id)
+                    # compnent_executor = self.get_compnent_executor()
+                    result = await component.execute(
+                        component_id=None,
+                        execution_context=component_execution_context,
+                    )
+                    results.append(result)
+                else:
+                    result = await component.load_from_previous_run(component_execution_context)
+                    results.append(result)
+            else:
+                # For nodes, pass the incoming execution context
+                node = element
+                start_node_id = getattr(execution_context, "start_node_id", None)
+                start_execution = start_node_id is None  # Start immediately if no start_node_id
+
+                # Check if this is the node we should start from
+                if not start_execution and node.id == start_node_id:
+                    # Found our starting point, begin execution
+                    start_execution = True
+                    execution_context.logger.info(f"Starting execution from node {start_node_id}")
+
+                if start_execution:
+                    result = await node.execute(execution_context)
+                    results.append(result)
+                else:
+                    result = await node.load_from_previous_run(execution_context)
+                    results.append(result)
+
+        return results
 
 
 ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)

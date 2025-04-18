@@ -3,17 +3,15 @@ from .context import AgentExecutionContext
 from .node import (
     AgentExecutable,
     AgentNode,
-    AgentBlock,
-    AgentReference,
     AgentNodeDefinition,
     AgentNodeExecutor,
 )
 
-from .component import Agent, AgentExecutor, AgentExecutionResult
+from .component import Agent, AgentDefinition, AgentExecutor, AgentExecutionResult
 
 __all__ = [
     "Agent",
-    "AgentBlock",
+    "AgentDefinition",
     "AgentExecutable",
     "AgentExecutionContext",
     "AgentExecutionResult",
@@ -21,5 +19,4 @@ __all__ = [
     "AgentNode",
     "AgentNodeDefinition",
     "AgentNodeExecutor",
-    "AgentReference",
 ]

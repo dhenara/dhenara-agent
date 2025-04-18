@@ -5,8 +5,8 @@ from typing import Literal
 from pydantic import ValidationError as PydanticValidationError
 
 from dhenara.agent.dsl.base import ComponentDefinition
-from dhenara.agent.dsl.components.agent import Agent, AgentExecutor
-from dhenara.agent.dsl.components.flow import Flow, FlowExecutor
+from dhenara.agent.dsl.components.agent import AgentDefinition, AgentExecutor
+from dhenara.agent.dsl.components.flow import FlowDefinition, FlowExecutor
 from dhenara.agent.dsl.inbuilt.registry import trace_registry  # noqa: F401 : For loading global registers
 from dhenara.agent.observability import log_with_context
 from dhenara.agent.observability.tracing import trace_method
@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 class ComponentRunner(ABC):
     executable_type: Literal["agent", "flow"] = None
-    component_class = None
+    component_def_class = None
 
     def __init__(self, component: ComponentDefinition, run_contex: RunContext):
-        if not isinstance(component, self.component_class):
+        if not isinstance(component, self.component_def_class):
             raise ValueError(
-                f"component should be an instance of {type(self.component_class)}. component type is {type(component)}"
+                f"component should be an instance of {type(self.component_def_class)} not type of {type(component)}"
             )
         if component.root_id is None:
             raise ValueError("root_id should be set on root level ")
@@ -109,7 +109,7 @@ class ComponentRunner(ABC):
 
 class FlowRunner(ComponentRunner):  # TODO: Not tested
     executable_type = "flow"
-    component_class = Flow
+    component_def_class = FlowDefinition
 
     @trace_method("run_flow")
     async def run_component(self):
@@ -142,7 +142,7 @@ class FlowRunner(ComponentRunner):  # TODO: Not tested
 
 class AgentRunner(ComponentRunner):
     executable_type = "agent"
-    component_class = Agent
+    component_def_class = AgentDefinition
 
     @trace_method("run_agent")
     async def run_component(self):

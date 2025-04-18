@@ -69,7 +69,7 @@ class BasicAgentNodeExecutor(AgentNodeExecutor):
         Handle the execution of a flow node.
         """
 
-        flow_definition: Flow = node_definition.flow
+        flow_definition: Flow = node_definition.flow_def
         run_context = execution_context.run_context
 
         try:

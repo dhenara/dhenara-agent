@@ -5,7 +5,7 @@ from typing import Any, ClassVar, Generic
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import BlockT, ContextT, ExecutableT, ExecutableTypeEnum, ExecutionStatusEnum, NodeID
+from dhenara.agent.dsl.base import ContextT, ExecutableT, ExecutableTypeEnum, ExecutionStatusEnum, NodeID
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.run.run_context import RunContext
@@ -19,7 +19,6 @@ class ComponentExecutor(
     BaseModelABC,
     Generic[
         ExecutableT,
-        BlockT,
         ContextT,
         ComponentDefT,
         ComponentExeResultT,
@@ -95,7 +94,8 @@ class ComponentExecutor(
         log_with_context(
             self.logger,
             logging.INFO,
-            f"Starting flow execution {self.id}" + (f" from node {start_node_id}" if start_node_id else ""),
+            f"Starting {self.executable_type.value} execution {self.id}"
+            + (f" from node {start_node_id}" if start_node_id else ""),
             {"flow_id": str(self.id), "start_node_id": start_node_id},
         )
 
@@ -112,9 +112,12 @@ class ComponentExecutor(
         )
 
         try:
-            block = self.definition.as_block(id=self.id)
+            # block = self.definition.as_block(id=self.id)
+            # await block.execute(
+            #    execution_context=execution_context,
+            # )
 
-            await block.execute(
+            await self.definition.execute(
                 execution_context=execution_context,
             )
             execution_context.execution_status = ExecutionStatusEnum.COMPLETED

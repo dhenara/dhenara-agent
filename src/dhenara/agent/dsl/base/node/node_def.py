@@ -19,7 +19,10 @@ node_executor_registry = None
 
 
 class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Class
-    """Base class for all node definitions."""
+    """
+    Base class for node definitions. This ties together the node type,
+    settings, and a lookup for the appropriate executor.
+    """
 
     node_type: str
     executable_type: ExecutableTypeEnum

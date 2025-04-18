@@ -1,18 +1,14 @@
-from typing import ClassVar
-
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
     Executable,
-    ExecutableBlock,
     ExecutableNode,
     ExecutableNodeDefinition,
-    ExecutableReference,
     ExecutableTypeEnum,
     NodeExecutor,
 )
 from dhenara.agent.dsl.components.agent import AgentExecutionContext
-from dhenara.agent.dsl.components.flow import Flow
+from dhenara.agent.dsl.components.flow import FlowDefinition
 
 
 class AgentExecutable(Executable):
@@ -26,7 +22,7 @@ class AgentExecutable(Executable):
 class AgentNodeDefinition(ExecutableNodeDefinition[AgentExecutionContext]):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
-    flow: Flow = Field(
+    flow_def: FlowDefinition = Field(
         ...,
         description="Flow",
     )
@@ -37,20 +33,6 @@ class AgentNodeExecutor(NodeExecutor):
 
 
 class AgentNode(ExecutableNode[AgentExecutable, AgentNodeDefinition, AgentExecutionContext]):
-    @property
-    def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.agent
-
-
-class AgentBlock(ExecutableBlock[AgentExecutable, AgentNode, AgentExecutionContext]):
-    node_class: ClassVar[type[AgentNode]] = AgentNode
-
-    @property
-    def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.agent
-
-
-class AgentReference(ExecutableReference):
     @property
     def executable_type(self) -> ExecutableTypeEnum:
         return ExecutableTypeEnum.agent

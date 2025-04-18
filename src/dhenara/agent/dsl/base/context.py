@@ -202,6 +202,12 @@ class ExecutionContext(BaseModelABC):
             iteration_key = f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
             self.results[iteration_key] = value
 
+    def create_conditional_context(self, condition_data: dict[str, Any]) -> "ExecutionContext":
+        """Create a context for a conditional branch."""
+        conditional_context = self.model_copy(deep=True)
+        conditional_context.metadata.update(condition_data)
+        return conditional_context
+
     async def record_outcome(self, node_def, result: Any) -> None:
         """Record the outcome of a node execution."""
         if not self.artifact_manager or not node_def.outcome_settings:
@@ -264,6 +270,20 @@ class ExecutionContext(BaseModelABC):
             "node_id": self.current_node_identifier,
             "node_hier": self.get_node_hierarchy_path(),
         }
+
+    def evaluate_expression(self, expression: str) -> Any:
+        """Evaluate an expression using the context's state."""
+        from .data.dad_template_engine import DADTemplateEngine
+
+        run_env_params = self.run_context.run_env_params
+        dad_dynamic_variables = self.get_dad_dynamic_variables()
+        return DADTemplateEngine.render_dad_template(
+            template=expression,
+            variables={},
+            dad_dynamic_variables=dad_dynamic_variables,
+            run_env_params=run_env_params,
+            node_execution_results=None,
+        )
 
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)

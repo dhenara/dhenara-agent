@@ -1,11 +1,7 @@
-from typing import ClassVar
-
 from dhenara.agent.dsl.base import (
     Executable,
-    ExecutableBlock,
     ExecutableNode,
     ExecutableNodeDefinition,
-    ExecutableReference,
     ExecutableTypeEnum,
     NodeExecutor,
 )
@@ -27,20 +23,6 @@ class FlowNodeExecutor(NodeExecutor):
 
 
 class FlowNode(ExecutableNode[FlowExecutable, FlowNodeDefinition, FlowExecutionContext]):
-    @property
-    def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.flow
-
-
-class FlowBlock(ExecutableBlock[FlowExecutable, FlowNode, FlowExecutionContext]):
-    node_class: ClassVar[type[FlowNode]] = FlowNode
-
-    @property
-    def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.flow
-
-
-class FlowReference(ExecutableReference):
     @property
     def executable_type(self) -> ExecutableTypeEnum:
         return ExecutableTypeEnum.flow

@@ -8,18 +8,16 @@ from .enums import ExecutableTypeEnum
 
 # INFO: Not a Pydantic Class as the the `ExecutableBlock` cannot a Pydantic class
 class Executable(ABC):
-    """A generic executable element in the DSL."""
+    """Base interface for all executable elements in the DSL."""
 
     @property
     @abstractmethod
     def executable_type(self) -> ExecutableTypeEnum:
+        """Return the type of executable."""
         pass
 
-    # TODO_FUTURE:
-    # system_instructions:list[str] # Useful for flow-block/agent-node type
-
     @abstractmethod
-    async def execute(self, context: "ExecutionContext") -> Any:
+    async def execute(self, execution_context: ExecutionContext) -> Any:
         """Execute the element in the given context."""
         pass
 
