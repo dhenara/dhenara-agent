@@ -1,36 +1,37 @@
-import datetime
+from abc import abstractmethod
 from typing import Any, ClassVar, Generic, TypeVar, Union
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
+    ComponentExeResultT,
     Conditional,
     ContextT,
-    ExecutableNodeDefinition,
-    ExecutableT,
     ExecutableTypeEnum,
     ForEach,
-    NodeDefT,
     NodeID,
-    NodeT,
 )
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
+from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 
 
 class ComponentDefinition(
     BaseModelABC,
-    Generic[ExecutableT, NodeT, ContextT],
-    IdentifierValidationMixin[ExecutableT],
+    # Executable,
+    IdentifierValidationMixin,
     NavigationMixin,
+    Generic[ContextT, ComponentExeResultT],
 ):
     """Base class for Executable definitions."""
 
-    executable_type: ExecutableTypeEnum
-    elements: list[NodeT | Any] = Field(default_factory=list)
+    elements: list[Any] = Field(default_factory=list)
     # elements: list[NodeT | "ComponentDefinition"] = Field(default_factory=list)
 
-    node_class: ClassVar[type[NodeT]]
+    executable_type: ExecutableTypeEnum
+    context_class: ClassVar[type[ContextT]]
+    result_class: ClassVar[type[ComponentExeResultT]]
+    logger_path: str = "dhenara.dad.component"
 
     root_id: str | None = Field(
         default=None,
@@ -114,23 +115,6 @@ class ComponentDefinition(
         return self.elements
 
     # -------------------------------------------------------------------------
-    # Factory methods for creating components
-    def node(
-        self,
-        id: str,  # noqa: A002
-        definition: NodeDefT,
-    ) -> "ComponentDefinition":
-        """Add a node to the flow."""
-
-        if not isinstance(definition, ExecutableNodeDefinition) and definition.executable_type == self.executable_type:
-            raise ValueError(
-                f"Unsupported type for definition: {type(definition)}. "
-                f"Expected a {self.executable_type}-NodeDefinition."
-            )
-
-        _node = self.node_class(id=id, definition=definition)
-        self.elements.append(_node)
-        return self
 
     # TODO: Cleanup
     def conditional(
@@ -191,78 +175,36 @@ class ComponentDefinition(
 
     async def execute(
         self,
+        component_id: NodeID,
         execution_context: ContextT,
-        component_id: NodeID | None = None,
-    ) -> list[Any]:
-        """Execute all elements in this block sequentially.
+        run_context: RunContext | None = None,
+    ) -> Any:
+        return await self._execute(
+            component_id=component_id,
+            execution_context=execution_context,
+            run_context=run_context,
+        )
 
-        If start_component_id is specified, skip elements until the starting component is found.
-        """
-        results = []
+    async def _execute(
+        self,
+        component_id: NodeID,
+        execution_context: ContextT,
+        run_context: RunContext | None = None,
+    ) -> Any:
+        component_executor = self.get_component_executor()
 
-        # NOTE: The component is the `top-level` heirrachy of the element, there won't be an executor for that
-        # Thus the individual elements should be executed here
-        for element in self.elements:
-            if isinstance(element, ComponentDefinition):
-                # There is a child component in elements
-                if component_id is None:
-                    raise ValueError("component_id should be set for child component")
+        result = await component_executor.execute(
+            component_id=component_id,
+            component_definition=self,
+            execution_context=execution_context,
+            run_context=run_context,
+        )
+        return result
 
-                component = element
-                execution_context.logger.info(f"Found a Child component with ID {component_id}")
-
-                start_component_id = getattr(execution_context, "start_component_id", None)
-                start_execution = start_component_id is None  # Start immediately if no start_component_id
-
-                # If a element a component, an execution context need to be created here
-                component_execution_context = self.context_class(
-                    component_id=self.id,
-                    component_definition=self.definition,
-                    resource_config=self.run_context.resource_config,
-                    created_at=datetime.now(),
-                    run_context=self.run_context,
-                    artifact_manager=self.run_context.artifact_manager,
-                    start_node_id=start_component_id,
-                    parent=execution_context,
-                )
-
-                # Check if this is the component we should start from
-                if not start_execution and component_id == start_component_id:
-                    # Found our starting point, begin execution
-                    start_execution = True
-                    component_execution_context.logger.info(f"Starting execution from compoent {start_component_id}")
-
-                if start_execution:
-                    component_execution_context.set_current_component(component_id)
-                    # compnent_executor = self.get_compnent_executor()
-                    result = await component.execute(
-                        component_id=None,
-                        execution_context=component_execution_context,
-                    )
-                    results.append(result)
-                else:
-                    result = await component.load_from_previous_run(component_execution_context)
-                    results.append(result)
-            else:
-                # For nodes, pass the incoming execution context
-                node = element
-                start_node_id = getattr(execution_context, "start_node_id", None)
-                start_execution = start_node_id is None  # Start immediately if no start_node_id
-
-                # Check if this is the node we should start from
-                if not start_execution and node.id == start_node_id:
-                    # Found our starting point, begin execution
-                    start_execution = True
-                    execution_context.logger.info(f"Starting execution from node {start_node_id}")
-
-                if start_execution:
-                    result = await node.execute(execution_context)
-                    results.append(result)
-                else:
-                    result = await node.load_from_previous_run(execution_context)
-                    results.append(result)
-
-        return results
+    @abstractmethod
+    def get_component_executor(self):
+        """Get the component_executor for this component definition. This internally handles executor registry"""
+        pass
 
 
 ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)

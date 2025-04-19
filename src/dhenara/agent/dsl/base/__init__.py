@@ -18,11 +18,10 @@ from .utils.node_hierarchy import NodeHierarchyHelper
 
 # Executable Elements
 from .context import ExecutionContext, StreamingContext, StreamingStatusEnum, ContextT
-from .executable import Executable, ExecutableT
+from .executable import Executable
 from .node.node_def import ExecutableNodeDefinition, NodeDefT
 from .node.node_executor import NodeExecutor
-
-from .node.node_block_ref import ExecutableNode, NodeT
+from .node.node import ExecutableNode, NodeT
 from .node.control import Conditional, ForEach
 
 # Component
@@ -45,7 +44,6 @@ __all__ = [
     "ExecutableComponent",
     "ExecutableNode",
     "ExecutableNodeDefinition",
-    "ExecutableT",
     "ExecutableTypeEnum",
     "ExecutionContext",
     "ExecutionStatusEnum",

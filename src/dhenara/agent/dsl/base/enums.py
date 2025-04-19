@@ -2,6 +2,7 @@ from dhenara.ai.types.shared.base import BaseEnum
 
 
 class ExecutableTypeEnum(BaseEnum):
+    flow_node = "flow_node"
     flow = "flow"
     agent = "agent"
 

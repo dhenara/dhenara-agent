@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar
+from typing import Any
 
 from dhenara.agent.dsl.base import ExecutionContext
 
@@ -20,6 +20,3 @@ class Executable(ABC):
     async def execute(self, execution_context: ExecutionContext) -> Any:
         """Execute the element in the given context."""
         pass
-
-
-ExecutableT = TypeVar("ExecutableT", bound=Executable)

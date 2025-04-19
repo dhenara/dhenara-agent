@@ -1,12 +1,11 @@
-from dhenara.agent.dsl import Agent, BasicAgentNode
+from dhenara.agent.dsl import AgentDefinition
 
 from .flow import flow
 
-agent = Agent()
-agent.node(
+# Main Agent Definition
+agent = AgentDefinition()
+
+agent.flow(
     "agent_1",
-    BasicAgentNode(
-        flow=flow,
-        settings=None,
-    ),
+    flow,
 )

@@ -26,8 +26,7 @@ class NodeExecutorRegistry:
 
     def __init__(self):
         self._executors: dict[Literal["flow", "agent"], dict[str, type[NodeExecutor]]] = {
-            "flow": {},
-            "agent": {},
+            val: {} for val in ExecutableTypeEnum.__members__.values()
         }
 
     def register(
@@ -66,5 +65,12 @@ class NodeExecutorRegistry:
         Raises:
             ValueError: If no executor is registered for the given node type
         """
-        executor_class = self._executors.get(executable_type.value).get(node_type, None)
+        type_executors = self._executors.get(executable_type.value)
+        if type_executors is None:
+            print(self._executors)
+            raise ValueError(
+                f"No executor registered for executable type: {executable_type}. "
+                f" Available types: {self._executors.keys()}"
+            )
+        executor_class = type_executors.get(node_type, None)
         return executor_class

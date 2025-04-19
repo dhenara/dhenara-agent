@@ -1,28 +1,44 @@
-from typing import Any
-
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
     ExecutableComponent,
     ExecutableTypeEnum,
-)
-from dhenara.agent.dsl.components.agent import (
-    AgentExecutable,
-    AgentExecutionContext,
-    AgentNode,
+    ExecutionContext,
 )
 from dhenara.agent.dsl.components.flow.component import Flow, FlowDefinition
-from dhenara.agent.observability.tracing.decorators.fns2 import trace_method
+
+
+class AgentExecutionContext(ExecutionContext):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
 
 class AgentExecutionResult(ComponentExecutionResult):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
 
 
-class AgentDefinition(ComponentDefinition[AgentExecutable, AgentNode, AgentExecutionContext]):
+class AgentExecutor(ComponentExecutor):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
-    node_class = AgentNode
+
+
+class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionResult]):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
+    context_class = AgentExecutionContext
+    result_class = AgentExecutionResult
+    logger_path: str = "dhenara.dad.agent"
+
+    def flow(
+        self,
+        id: str,  # noqa: A002
+        definition: FlowDefinition,
+    ) -> "ComponentDefinition":
+        """Add a component to the flow."""
+
+        if not isinstance(definition, FlowDefinition):
+            raise ValueError(f"Unsupported type for body: {type(definition)}. Expected FlowDefinition")
+
+        self.elements.append(Agent(id=id, definition=definition))
+        return self
 
     def subagent(
         self,
@@ -31,55 +47,19 @@ class AgentDefinition(ComponentDefinition[AgentExecutable, AgentNode, AgentExecu
     ) -> "ComponentDefinition":
         """Add a component to the flow."""
 
-        if not isinstance(definition, type(self)):
-            raise ValueError(f"Unsupported type for body: {type(definition)}. Expected {type(self)}")
+        if not isinstance(definition, AgentDefinition):
+            raise ValueError(f"Unsupported type for body: {type(definition)}. Expected AgentDefinition")
 
         self.elements.append(Flow(id=id, definition=definition))
         return self
 
-    def subflow(
-        self,
-        id: str,  # noqa: A002
-        definition: FlowDefinition,
-    ) -> "ComponentDefinition":
-        """Add a component to the flow."""
-
-        if not isinstance(definition, type(self)):
-            raise ValueError(f"Unsupported type for body: {type(definition)}. Expected {type(self)}")
-
-        self.elements.append(Agent(id=id, definition=definition))
-        return self
-
-
-class AgentExecutor(
-    ComponentExecutor[
-        AgentExecutable,
-        AgentExecutionContext,
-        AgentDefinition,
-        AgentExecutionResult,
-    ]
-):
-    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
-    context_class = AgentExecutionContext
-    result_class = AgentExecutionResult
-    logger_path: str = "dhenara.dad.agent"
-
-    # Deinfe abstractmethod with proper trace name
-    @trace_method("execute_agent")
-    async def execute(
-        self,
-        start_node_id: str | None = None,
-        parent_execution_context=None,
-    ) -> dict[str, Any]:
-        _result = await self._execute(
-            start_node_id=start_node_id,
-            parent_execution_context=parent_execution_context,
-        )
-        return _result
+    # Implementaion of abstractmethod
+    def get_component_executor(self):
+        return AgentExecutor()  # TODO: Implement registry similar to node_executor_registry
 
 
 # ExecutableAgent
-class Agent(ExecutableComponent[AgentExecutable, AgentDefinition, AgentExecutionContext]):
+class Agent(ExecutableComponent[AgentDefinition, AgentExecutionContext]):
     @property
     def executable_type(self) -> ExecutableTypeEnum:
         return ExecutableTypeEnum.flow

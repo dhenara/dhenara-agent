@@ -21,7 +21,7 @@ from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
 
 from .defs import NodeID
-from .enums import ExecutionStatusEnum
+from .enums import ExecutableTypeEnum, ExecutionStatusEnum
 
 
 class StreamingStatusEnum(BaseEnum):
@@ -48,18 +48,15 @@ class ExecutionContext(BaseModelABC):
     # INFO: Cannot add typehint as its hard to resolve import erros
     # It is not necessary to fix this soon as the execution context is used at runtime
 
-    component_id: NodeID
+    executable_type: ExecutableTypeEnum = Field(...)
+    component_id: NodeID  # TODO: Cehck if this is needed
     component_definition: Any  # Type of ComponentDefinition
 
     # Core data structures
-    resource_config: ResourceConfig | None = Field(default=None)
     parent: Optional["ExecutionContext"] = Field(default=None)
 
     # Flow-specific tracking
     current_node_identifier: NodeID | None = Field(default=None)
-
-    # Add start_node_id field
-    start_node_id: NodeID | None = Field(default=None, description="Node ID to start execution from")
 
     # TODO_FUTURE: An option to statically override node settings
     # initial_inputs: NodeInputs = Field(default_factory=dict)
@@ -84,10 +81,9 @@ class ExecutionContext(BaseModelABC):
     streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
     stream_generator: AsyncGenerator | None = Field(default=None)
 
-    # Services and utilities
-    artifact_manager: ArtifactManager | None = Field(default=None)
     # Environment
     run_context: RunContext
+
     # Logging
     logger: ClassVar = logging.getLogger("dhenara.dad.execution_ctx")
 
@@ -98,6 +94,25 @@ class ExecutionContext(BaseModelABC):
     #    await self.event_bus.publish(
     #        event_type, data, self.current_node_identifier
     #    )
+
+    @property
+    def resource_config(self) -> ResourceConfig:
+        return self.run_context.resource_config
+
+    @property
+    def artifact_manager(self) -> ArtifactManager:
+        return self.run_context.artifact_manager
+
+    @property
+    def start_id(self) -> ResourceConfig:
+        if self.executable_type == ExecutableTypeEnum.flow_node:
+            return self.run_context.start_id_flow_node
+        elif self.executable_type == ExecutableTypeEnum.flow:
+            return self.run_context.start_id_flow
+        elif self.executable_type == ExecutableTypeEnum.agent:
+            return self.run_context.start_id_agent
+        else:
+            raise ValueError(f"start_id: Unsupported executable type: {self.executable_type}")
 
     def get_value(self, path: str) -> Any:
         """Get a value from the context by path."""

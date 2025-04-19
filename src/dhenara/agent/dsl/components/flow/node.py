@@ -1,28 +1,31 @@
 from dhenara.agent.dsl.base import (
-    Executable,
     ExecutableNode,
     ExecutableNodeDefinition,
     ExecutableTypeEnum,
+    ExecutionContext,
     NodeExecutor,
 )
-from dhenara.agent.dsl.components.flow import FlowExecutionContext
 
 
-class FlowExecutable(Executable):
-    @property
-    def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.flow
+class FlowNodeExecutionContext(ExecutionContext):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow_node
 
 
-class FlowNodeDefinition(ExecutableNodeDefinition[FlowExecutionContext]):
-    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
+# class FlowExecutable():
+#    @property
+#    def executable_type(self) -> ExecutableTypeEnum:
+#        return ExecutableTypeEnum.flow_node
+
+
+class FlowNodeDefinition(ExecutableNodeDefinition[FlowNodeExecutionContext]):
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow_node
 
 
 class FlowNodeExecutor(NodeExecutor):
-    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
+    executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow_node
 
 
-class FlowNode(ExecutableNode[FlowExecutable, FlowNodeDefinition, FlowExecutionContext]):
+class FlowNode(ExecutableNode[FlowNodeDefinition, FlowNodeExecutionContext]):
     @property
     def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.flow
+        return ExecutableTypeEnum.flow_node

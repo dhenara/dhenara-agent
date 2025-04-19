@@ -2,12 +2,13 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ComponentDefT, ContextT, Executable, ExecutableT, NodeID
+from dhenara.agent.dsl.base import ComponentDefT, ContextT, Executable, NodeID
+from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
 
 
 # A generic node that could later be specialized
-class ExecutableComponent(Executable, BaseModel, Generic[ExecutableT, ComponentDefT, ContextT]):
+class ExecutableComponent(Executable, BaseModel, Generic[ComponentDefT, ContextT]):
     id: NodeID = Field(
         ...,
         description="Unique human readable identifier for the node",
@@ -28,10 +29,15 @@ class ExecutableComponent(Executable, BaseModel, Generic[ExecutableT, ComponentD
             raise ValueError("FlowNode identifier cannot be empty or whitespace")
         return v
 
-    async def execute(self, execution_context: ContextT) -> Any:
+    async def execute(
+        self,
+        execution_context: ContextT | None = None,
+        run_context: RunContext | None = None,
+    ) -> Any:
         result = await self.definition.execute(
             component_id=self.id,
             execution_context=execution_context,
+            run_context=run_context,
         )
 
         return result

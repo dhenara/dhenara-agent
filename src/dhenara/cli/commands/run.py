@@ -33,21 +33,27 @@ def run():
     help="ID of a previous run to use as a base for this run",
 )
 @click.option(
-    "--agent-start-node-id",
+    "--start-id-agent",
     default=None,
-    help="Node ID to start execution from (skips all previous nodes)",
+    help="Agent ID to start execution from (skips all previous nodes)",
 )
 @click.option(
-    "--flow-start-node-id",
+    "--start-id-flow",
     default=None,
-    help="Node ID to start execution from (skips all previous nodes)",
+    help="Flow ID to start execution from (skips all previous nodes)",
+)
+@click.option(
+    "--start-id-flow-node",
+    default=None,
+    help="Flow-Node ID to start execution from (skips all previous nodes)",
 )
 def run_agent(
     identifier,
     project_root,
     previous_run_id,
-    agent_start_node_id,
-    flow_start_node_id,
+    start_id_agent,
+    start_id_flow,
+    start_id_flow_node,
 ):
     """Run an agent with the specified inputs.
 
@@ -61,11 +67,12 @@ def run_agent(
     """
     asyncio.run(
         _run_agent(
-            identifier,
-            project_root,
-            previous_run_id,
-            agent_start_node_id,
-            flow_start_node_id,
+            identifier=identifier,
+            project_root=project_root,
+            previous_run_id=previous_run_id,
+            start_id_agent=start_id_agent,
+            start_id_flow=start_id_flow,
+            start_id_flow_node=start_id_flow_node,
         )
     )
 
@@ -74,8 +81,9 @@ async def _run_agent(
     identifier,
     project_root,
     previous_run_id,
-    agent_start_node_id,
-    flow_start_node_id,
+    start_id_agent,
+    start_id_flow,
+    start_id_flow_node,
 ):
     """Async implementation of run_agent."""
     # Find project root
@@ -88,16 +96,15 @@ async def _run_agent(
     # Load agent
     runner = load_runner_module(project_root, identifier)
 
-    # if not (agent and isinstance(agent, Agent)):
-    #    raise ValueError(f"Failed to get agent module inside project. agent={agent}")
     if not (runner and isinstance(runner, AgentRunner)):
         raise ValueError(f"Failed to get runner module inside project. runner={runner}")
 
     # Update run context with rerun parameters if provided
     runner.setup_run(
         previous_run_id=previous_run_id,
-        agent_start_node_id=agent_start_node_id,
-        flow_start_node_id=flow_start_node_id,
+        start_id_agent=start_id_agent,
+        start_id_flow=start_id_flow,
+        start_id_flow_node=start_id_flow_node,
     )
 
     try:
@@ -109,12 +116,17 @@ async def _run_agent(
 
         # Display rerun information if applicable
         run_type = "rerun" if previous_run_id else "standard run"
-        start_info = (
-            f"from node {agent_start_node_id or ''}:{flow_start_node_id or ''}"
-            if agent_start_node_id or flow_start_node_id
-            else "from beginning"
-        )
-        print(f"Agent {run_type} completed successfully {start_info}. Run ID: {runner.run_context.run_id}")
+        start_info = ""
+        if start_id_agent or start_id_flow or start_id_flow_node:
+            start_info += " from"
+        if start_id_agent:
+            start_info += f" agent {start_id_agent}"
+        if start_id_flow:
+            start_info += f" flow {start_id_flow}"
+        if start_id_flow_node:
+            start_info += f" flow-node {start_id_flow_node}"
+
+        print(f"Agent {run_type} completed successfully{start_info}. Run ID: {runner.run_context.run_id}")
 
         print_run_summary(runner.run_context)
 
@@ -131,6 +143,12 @@ async def _run_agent(
         print()
 
     except Exception as e:
+        # Get the full error hierarchy as a string
+        import traceback
+
+        error_trace = traceback.format_exc()
+        print(error_trace)
+
         error_msg = f"Error running agent {identifier}: {e}"
         logger.exception(error_msg)
         runner.run_context.complete_run(status="failed", error_msg=error_msg)

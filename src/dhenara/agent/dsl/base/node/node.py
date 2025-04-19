@@ -2,12 +2,12 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ContextT, Executable, ExecutableT, NodeDefT, NodeID
+from dhenara.agent.dsl.base import ContextT, Executable, NodeDefT, NodeID
 from dhenara.agent.types.base import BaseModel
 
 
 # A generic node that could later be specialized
-class ExecutableNode(Executable, BaseModel, Generic[ExecutableT, NodeDefT, ContextT]):
+class ExecutableNode(Executable, BaseModel, Generic[NodeDefT, ContextT]):
     """
     A single execution node in the DSL.
     Wraps a node definition with a unique identifier so that it becomes executable.

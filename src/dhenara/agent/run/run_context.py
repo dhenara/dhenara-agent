@@ -32,8 +32,9 @@ class RunContext:
         observability_settings: ObservabilitySettings | None = None,
         #  for re-run functionality
         previous_run_id: str | None = None,
-        agent_start_node_id: str | None = None,
-        flow_start_node_id: str | None = None,
+        start_id_agent: str | None = None,
+        start_id_flow: str | None = None,
+        start_id_flow_node: str | None = None,
         # Static inputs
         input_source: Path | None = None,
     ):
@@ -53,8 +54,9 @@ class RunContext:
         # Store re-run parameters
         self.run_id = run_id
         self.previous_run_id = previous_run_id
-        self.agent_start_node_id = agent_start_node_id
-        self.flow_start_node_id = flow_start_node_id
+        self.start_id_agent = start_id_agent
+        self.start_id_flow = start_id_flow
+        self.start_id_flow_node = start_id_flow_node
 
         self.event_bus = EventBus()
         self.setup_completed = False
@@ -63,12 +65,14 @@ class RunContext:
     def set_previous_run(
         self,
         previous_run_id: str,
-        agent_start_node_id: str | None = None,
-        flow_start_node_id: str | None = None,
+        start_id_agent: str | None = None,
+        start_id_flow: str | None = None,
+        start_id_flow_node: str | None = None,
     ):
         self.previous_run_id = previous_run_id
-        self.agentstart_node_id = agent_start_node_id
-        self.flow_start_node_id = flow_start_node_id
+        self.start_id_agent = start_id_agent
+        self.start_id_flow = start_id_flow
+        self.start_id_flow_node = start_id_flow_node
 
     def setup_run(self, run_id_prefix: str | None = None):
         # Indicates if this is a rerun of a previous execution
@@ -128,8 +132,9 @@ class RunContext:
         if self.is_rerun:
             self.metadata["rerun_info"] = {
                 "previous_run_id": self.previous_run_id,
-                "agent_start_node_id": self.agent_start_node_id,
-                "flow_start_node_id": self.flow_start_node_id,
+                "start_id_agent": self.start_id_agent,
+                "start_id_flow": self.start_id_flow,
+                "start_id_flow_node": self.start_id_flow_node,
             }
 
         # Create run environment parameters
@@ -359,8 +364,9 @@ class RunContext:
                 # These will be picked up by the tracing system
                 os.environ["OTEL_RESOURCE_ATTRIBUTES"] = (
                     f"previous_run_id={self.previous_run_id},"
-                    f"agent_start_node_id={self.agent_start_node_id or 'none'},"
-                    f"flow_start_node_id={self.flow_start_node_id or 'none'}"
+                    f"start_id_agent={self.start_id_agent or 'none'},"
+                    f"start_id_flow={self.start_id_flow or 'none'},"
+                    f"start_id_flow_node={self.start_id_flow_node or 'none'}"
                 )
 
         # Set trace file paths in settings

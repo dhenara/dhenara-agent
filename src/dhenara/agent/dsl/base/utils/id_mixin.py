@@ -1,14 +1,13 @@
-from typing import Generic
 
 from pydantic import model_validator
 
-from dhenara.agent.dsl.base import ExecutableT
+from dhenara.agent.dsl.base import Executable
 
 
-class IdentifierValidationMixin(Generic[ExecutableT]):
+class IdentifierValidationMixin:
     """Mixin providing identifier validation for hierarchical structures."""
 
-    def _collect_all_identifiers(self, element: ExecutableT, identifiers: set[str]) -> None:
+    def _collect_all_identifiers(self, element: Executable, identifiers: set[str]) -> None:
         """
         Recursively collect all identifiers in a hierarchical structure.
 
@@ -38,20 +37,21 @@ class IdentifierValidationMixin(Generic[ExecutableT]):
         Raises:
             ValueError: If any duplicate identifiers are found
         """
+        return
         all_identifiers: set[str] = set()
         for element in self._get_top_level_elements():
             self._collect_all_identifiers(element, all_identifiers)
 
     # Abstract methods to be implemented by concrete classes
-    def _get_element_identifier(self, element: ExecutableT) -> str:
+    def _get_element_identifier(self, element: Executable) -> str:
         """Get the unique identifier from an element."""
         raise NotImplementedError
 
-    def _get_element_children(self, element: ExecutableT) -> list[ExecutableT]:
+    def _get_element_children(self, element: Executable) -> list[Executable]:
         """Get child elements from an element (if any)."""
         raise NotImplementedError
 
-    def _get_top_level_elements(self) -> list[ExecutableT]:
+    def _get_top_level_elements(self) -> list[Executable]:
         """Get all top-level elements."""
         raise NotImplementedError
 
@@ -110,10 +110,10 @@ class IdentifierValidationMixin(Generic[ExecutableT]):
             return None
 
 
-class NavigationMixin(Generic[ExecutableT]):
+class NavigationMixin:
     """Mixin providing navigation capabilities for hierarchical structures."""
 
-    def get_previous_element(self, identifier: str) -> tuple[ExecutableT | None, str | None]:
+    def get_previous_element(self, identifier: str) -> tuple[Executable | None, str | None]:
         """
         Returns the element that precedes the specified element and its identifier.
 
@@ -162,7 +162,7 @@ class NavigationMixin(Generic[ExecutableT]):
         _, prev_id = self.get_previous_element(identifier)
         return prev_id
 
-    def get_element_by_id(self, identifier: str) -> ExecutableT | None:
+    def get_element_by_id(self, identifier: str) -> Executable | None:
         """
         Find an element by its identifier.
 
@@ -179,7 +179,7 @@ class NavigationMixin(Generic[ExecutableT]):
         except ValueError:
             return None
 
-    def _get_flattened_elements(self) -> tuple[list[ExecutableT], list[str]]:
+    def _get_flattened_elements(self) -> tuple[list[Executable], list[str]]:
         """
         Get flattened lists of all elements and their identifiers, in execution order.
 
@@ -206,20 +206,20 @@ class NavigationMixin(Generic[ExecutableT]):
 
     # These methods should be implemented by the class using this mixin
     # (They're likely already implemented for the IdentifierValidationMixin)
-    def _get_element_identifier(self, element: ExecutableT) -> str:
+    def _get_element_identifier(self, element: Executable) -> str:
         """Get the unique identifier from an element."""
         raise NotImplementedError
 
-    def _get_element_children(self, element: ExecutableT) -> list[ExecutableT]:
+    def _get_element_children(self, element: Executable) -> list[Executable]:
         """Get child elements from an element (if any)."""
         raise NotImplementedError
 
-    def _get_top_level_elements(self) -> list[ExecutableT]:
+    def _get_top_level_elements(self) -> list[Executable]:
         """Get all top-level elements."""
         raise NotImplementedError
 
     # INFO: Not used currently, may be deleted in the future
-    def _get_flattened_elements(self) -> tuple[list[ExecutableT], list[str]]:
+    def _get_flattened_elements(self) -> tuple[list[Executable], list[str]]:
         """
         Get flattened lists of all elements and their identifiers, in execution order.
         Returns:
