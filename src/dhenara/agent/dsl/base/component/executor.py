@@ -53,8 +53,8 @@ class ComponentExecutor(BaseModelABC):
                 start_id = run_context.start_id_agent
             elif self.executable_type == ExecutableTypeEnum.flow and run_context.start_id_flow:
                 start_id = run_context.start_id_flow
-            elif run_context.start_id_flow_node:
-                start_id = run_context.start_id_flow_node
+            # elif self.executable_type == ExecutableTypeEnum.flow_node and run_context.start_id_flow_node:
+            #    start_id = run_context.start_id_flow_node
 
         _logattribute = {
             "component_id": str(component_id),

@@ -29,6 +29,11 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
     result_class = AgentExecutionResult
     logger_path: str = "dhenara.dad.agent"
 
+    def is_allowed_sub_components(self, inst) -> None:
+        """Check for allowed definitions for this component."""
+        if not isinstance(inst, (FlowDefinition, AgentDefinition)):
+            raise ValueError(f"Unsupported subcomponent type: {type(inst)}. Expected FlowDefinition or AgentDefinition")
+
     def flow(
         self,
         id: str,  # noqa: A002

@@ -1,21 +1,30 @@
-from typing import Any
+from typing import Any, Generic
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ExecutionContext
+from dhenara.agent.dsl.base import (
+    ComponentDefinition,
+    ComponentDefT,
+    ContextT,
+    NodeID,
+)
+from dhenara.agent.run import RunContext
 from dhenara.agent.types.base import BaseModel
 
-ExecutableBlock = Any  #  TODO:   Replace with component
 
-
-class Conditional(BaseModel):
+class Conditional(BaseModel, Generic[ComponentDefT]):
     """Conditional branch construct."""
 
-    condition: str = Field(..., description="Expression that evaluates to boolean")
-    then_branch: ExecutableBlock = Field(..., description="Block to execute if condition is true")
-    else_branch: ExecutableBlock | None = Field(default=None, description="Block to execute if condition is false")
+    statement: str = Field(..., description="Expression that evaluates to boolean")
+    then_branch: ComponentDefinition = Field(..., description="Block to execute if condition is true")
+    else_branch: ComponentDefinition | None = Field(default=None, description="Block to execute if condition is false")
 
-    async def execute(self, execution_context: ExecutionContext) -> Any:
+    async def execute(
+        self,
+        component_id: NodeID,
+        execution_context: ContextT,
+        run_context: RunContext | None = None,
+    ) -> Any:
         """Execute the appropriate branch based on the condition."""
         # Evaluate the condition
         condition_result = execution_context.evaluate_expression(self.condition)
@@ -32,17 +41,22 @@ class Conditional(BaseModel):
         return None
 
 
-class ForEach(BaseModel):
+class ForEach(BaseModel, Generic[ComponentDefT]):
     """Loop construct that executes a block for each item in a collection."""
 
-    items: str = Field(..., description="Expression that evaluates to an iterable")
-    body: ExecutableBlock = Field(..., description="Block to execute for each item")
+    statement: str = Field(..., description="Expression that evaluates to an iterable")
     item_var: str = Field(default="item", description="Variable name for current item")
     index_var: str = Field(default="index", description="Variable name for current index")
+    body: ComponentDefT = Field(..., description="Block to execute for each item")
     collect_results: bool = Field(default=True, description="Whether to collect results")
     max_iterations: int | None = Field(default=None, description="Maximum iterations")
 
-    async def execute(self, execution_context: ExecutionContext) -> list[Any]:
+    async def execute(
+        self,
+        component_id: NodeID,
+        execution_context: ContextT,
+        run_context: RunContext | None = None,
+    ) -> Any:
         """Execute the body for each item in the collection."""
         # Evaluate the items expression to get the iterable
         items = execution_context.evaluate_expression(self.items)

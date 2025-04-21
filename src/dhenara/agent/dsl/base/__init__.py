@@ -28,11 +28,11 @@ from .executable import Executable
 from .node.node_def import ExecutableNodeDefinition, NodeDefT
 from .node.node_executor import NodeExecutor
 from .node.node import ExecutableNode, NodeT
-from .node.control import Conditional, ForEach
 
 # Component
 from .component.comp_exe_result import ComponentExecutionResult, ComponentExeResultT
 from .component.component_def import ComponentDefinition, ComponentDefT
+from .component.control import Conditional, ForEach
 from .component.executor import ComponentExecutor
 from .component.component import ExecutableComponent, ComponentT
 

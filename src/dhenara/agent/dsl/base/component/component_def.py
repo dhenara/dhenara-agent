@@ -1,14 +1,12 @@
 from abc import abstractmethod
-from typing import Any, ClassVar, Generic, TypeVar, Union
+from typing import Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field
 
 from dhenara.agent.dsl.base import (
     ComponentExeResultT,
-    Conditional,
     ContextT,
     ExecutableTypeEnum,
-    ForEach,
     NodeID,
 )
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
@@ -115,77 +113,7 @@ class ComponentDefinition(
         return self.elements
 
     # -------------------------------------------------------------------------
-
-    # TODO: Cleanup
-    def conditional(
-        self,
-        id: str,  # noqa: A002
-        condition: str,
-        then_branch: Union["ComponentDefinition",],
-        # else_id: str,
-        else_branch: Union["ComponentDefinition",] | None = None,
-    ) -> "ComponentDefinition":
-        """Add a conditional branch to the flow."""
-
-        # Convert ComponentDefinition objects to their elements
-        if isinstance(then_branch, ComponentDefinition):
-            then_branch = then_branch.elements
-
-        if else_branch is not None and isinstance(else_branch, ComponentDefinition):
-            else_branch = else_branch.elements
-
-        self.elements.append(Conditional(condition, then_branch, else_branch))
-        return self
-
-    def for_each(
-        self,
-        id: str,  # noqa: A002
-        body,  #: Union["ComponentDefinition", BlockT, NodeT],
-        items: str,
-        item_var: str = "item",
-        index_var: str = "index",
-        collect_results: bool = True,
-        max_iterations: int | None = None,
-    ) -> "ComponentDefinition":
-        """Add a loop to the flow."""
-
-        if isinstance(body, type(self)):
-            _body_blcok = self.as_block(id=id)
-        elif isinstance(body, self.block_class):
-            _body_blcok = body
-        elif isinstance(body, self.node_class):
-            _body_blcok = self.block_class(id=id, elements=[body])
-        else:
-            raise ValueError(
-                f"Unsupported type for body: {type(body)}. "
-                f"Expected {type(self)} or {self.block_class} or {self.node_class}."
-            )
-
-        # Convert ComponentDefinition object to its elements
-        _foreach = ForEach(
-            items=items,
-            body=_body_blcok,
-            item_var=item_var,
-            index_var=index_var,
-            collect_results=collect_results,
-            max_iterations=max_iterations,
-        )
-        self.elements.append(_foreach)
-        return self
-
     async def execute(
-        self,
-        component_id: NodeID,
-        execution_context: ContextT,
-        run_context: RunContext | None = None,
-    ) -> Any:
-        return await self._execute(
-            component_id=component_id,
-            execution_context=execution_context,
-            run_context=run_context,
-        )
-
-    async def _execute(
         self,
         component_id: NodeID,
         execution_context: ContextT,
@@ -201,9 +129,44 @@ class ComponentDefinition(
         )
         return result
 
+    # -------------------------------------------------------------------------
+    async def load_from_previous_run(
+        self,
+        component_id: NodeID,
+        execution_context: ContextT,
+        run_context: RunContext | None = None,
+    ) -> Any:
+        result_data = await execution_context.run_context.load_node_from_previous_run(
+            node_id=component_id,  # TODO
+            copy_artifacts=True,
+        )
+
+        if result_data:
+            try:
+                result = self.result_class(**result_data)
+                # Set the result in the execution context
+                execution_context.set_result(component_id, result)
+
+                # TODO_FUTURE: record for tracing ?
+                return result
+            except Exception as e:
+                execution_context.logger.error(f"Failed to load previous run data for node {component_id}: {e}")
+                return None
+        else:
+            execution_context.logger.error(
+                f"Falied to load data from previous execution result artifacts for node {component_id}"
+            )
+            return None
+
     @abstractmethod
     def get_component_executor(self):
         """Get the component_executor for this component definition. This internally handles executor registry"""
+        pass
+
+    # -------------------------------------------------------------------------
+    @abstractmethod
+    def is_allowed_sub_components(self, inst) -> None:
+        """Check for allowed definitions for this component."""
         pass
 
 

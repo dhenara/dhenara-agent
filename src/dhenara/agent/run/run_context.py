@@ -277,7 +277,8 @@ class RunContext:
             node_hier_dir = node_id
             # node_hier_dir = f"{self.agent_identifier}/{node_id}"
         except Exception as e:
-            logger.warning(f"Using direct node_id for artifact copying: {e}")
+            logger.error(f"Error while copying previous run artifacts: node_hier_dir:{node_hier_dir}, Error: {e}")
+            return
 
         # Define source and target directories
         src_input_dir = self.previous_run_dir / node_hier_dir

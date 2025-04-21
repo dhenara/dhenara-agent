@@ -2,7 +2,7 @@ from typing import Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
-from dhenara.agent.dsl.base import ComponentDefT, ContextT, Executable, NodeID
+from dhenara.agent.dsl.base import ComponentDefT, Conditional, ContextT, Executable, ForEach, NodeID
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
 
@@ -17,7 +17,7 @@ class ExecutableComponent(Executable, BaseModel, Generic[ComponentDefT, ContextT
         pattern="^[a-zA-Z0-9_]+$",
     )
 
-    definition: ComponentDefT = Field(...)
+    definition: ComponentDefT | ForEach | Conditional = Field(...)
 
     @field_validator("id")
     @classmethod
