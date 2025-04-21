@@ -397,7 +397,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED
         return AIModelNodeExecutionResult(
             node_identifier=node_id,
-            status=status,
+            execution_status=status,
             input=node_input,
             output=node_output,
             outcome=node_outcome,

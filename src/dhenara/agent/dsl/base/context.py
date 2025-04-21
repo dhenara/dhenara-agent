@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from asyncio import Event
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -51,6 +52,7 @@ class ExecutionContext(BaseModelABC):
     executable_type: ExecutableTypeEnum = Field(...)
     component_id: NodeID  # TODO: Cehck if this is needed
     component_definition: Any  # Type of ComponentDefinition
+    context_id: uuid.UUID = Field(default_factory=uuid.uuid4)
 
     # Core data structures
     parent: Optional["ExecutionContext"] = Field(default=None)
@@ -278,6 +280,15 @@ class ExecutionContext(BaseModelABC):
         return NodeHierarchyHelper.get_node_hierarchy_path(
             execution_context=self,
             node_id=self.current_node_identifier,
+        )
+
+    def get_component_hierarchy_path(self) -> str:
+        if not self.component_id:
+            return ""
+
+        return NodeHierarchyHelper.get_component_hierarchy_path(
+            execution_context=self,
+            component_id=self.component_id,
         )
 
     def get_dad_dynamic_variables(self) -> dict:

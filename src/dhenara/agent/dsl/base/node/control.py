@@ -47,7 +47,7 @@ class ForEach(BaseModel):
         # Evaluate the items expression to get the iterable
         items = execution_context.evaluate_expression(self.items)
         if not items:
-            execution_context.logger.warning(f"ForEach items '{self.items}' evaluated to empty or None")
+            execution_context.logger.error(f"ForEach items '{self.items}' evaluated to empty or None")
             return []
 
         results = []

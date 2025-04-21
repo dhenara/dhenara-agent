@@ -137,7 +137,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             # Create execution result
             result = FolderAnalyzerNodeExecutionResult(
                 node_identifier=node_id,
-                status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
+                execution_status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
                 input=node_input,
                 output=node_output,
                 outcome=outcome,
@@ -503,7 +503,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         find_files_recursive(item, current_depth + 1)
 
             except (PermissionError, OSError) as e:
-                logger.warning(f"Error accessing {current_path}: {e}")
+                logger.error(f"Error accessing {current_path}: {e}")
 
         # Start recursive search
         find_files_recursive(path)
@@ -675,7 +675,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                             continue
                         patterns.append(line)
             except Exception as e:
-                logger.warning(f"Error parsing .gitignore file: {e}")
+                logger.error(f"Error parsing .gitignore file: {e}")
 
         return patterns
 

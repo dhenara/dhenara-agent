@@ -2,6 +2,7 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
+    ComponentTypeEnum,
     ExecutableComponent,
     ExecutableTypeEnum,
     ExecutionContext,
@@ -19,6 +20,7 @@ class AgentExecutionResult(ComponentExecutionResult):
 
 class AgentExecutor(ComponentExecutor):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
+    component_type: ComponentTypeEnum = ComponentTypeEnum.agent  # Purely for tracing and logging
 
 
 class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionResult]):

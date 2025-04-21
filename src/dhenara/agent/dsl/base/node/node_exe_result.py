@@ -15,7 +15,7 @@ from dhenara.ai.types.shared.base import BaseModel
 class NodeExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeOutcomeT]):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow_node  # Dirty fix instread of re-defining in flow
     node_identifier: NodeID
-    status: ExecutionStatusEnum
+    execution_status: ExecutionStatusEnum
     input: NodeInputT | None
     output: NodeOutputT | None
     outcome: NodeOutcomeT | None

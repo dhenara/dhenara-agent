@@ -2,6 +2,7 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
+    ComponentTypeEnum,
     ExecutableComponent,
     ExecutableNodeDefinition,
     ExecutableTypeEnum,
@@ -21,6 +22,7 @@ class FlowExecutionResult(ComponentExecutionResult):
 
 class FlowExecutor(ComponentExecutor):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.flow
+    component_type: ComponentTypeEnum = ComponentTypeEnum.flow  # Purely for tracing and logging
 
 
 class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResult]):

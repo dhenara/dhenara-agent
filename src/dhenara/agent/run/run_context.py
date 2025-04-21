@@ -191,7 +191,7 @@ class RunContext:
         input_source_path = source or self.input_source
 
         if not (input_source_path and input_source_path.exists()):
-            logger.warning(f"input_source_path {input_source_path} does not exists. No static input files copied")
+            logger.info(f"input_source_path {input_source_path} does not exists. No static input files copied")
             return
 
         # Save input data

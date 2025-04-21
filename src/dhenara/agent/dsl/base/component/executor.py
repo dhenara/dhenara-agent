@@ -4,6 +4,8 @@ from typing import Any
 
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
+    ComponentExecutionResult,
+    ComponentTypeEnum,
     ContextT,
     ExecutableNode,
     ExecutableTypeEnum,
@@ -11,7 +13,8 @@ from dhenara.agent.dsl.base import (
     NodeID,
 )
 from dhenara.agent.observability import log_with_context, record_metric
-from dhenara.agent.observability.tracing.data.profile import NodeTracingProfile
+from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
+from dhenara.agent.observability.tracing.decorators.fns import trace_component
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 
@@ -20,19 +23,26 @@ class ComponentExecutor(BaseModelABC):
     """Executor for Flow definitions."""
 
     executable_type: ExecutableTypeEnum
+    component_type: ComponentTypeEnum  # Purely for tracing and logging
     logger: logging.Logger | None = None
+
+    _tracing_profile: ComponentTracingProfile | None = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger = logging.getLogger(f"dhenara.dad.dsl.{self.executable_type.value}")
 
+        self._tracing_profile = ComponentTracingProfile()
+        self._tracing_profile.component_type = self.component_type.value
+
+    @trace_component()
     async def execute(
         self,
         component_id: NodeID,
         component_definition: ComponentDefinition,
         execution_context: ContextT | None = None,
         run_context: RunContext | None = None,
-    ) -> dict[str, Any]:
+    ) -> ComponentExecutionResult:
         """Execute a flow with the given initial data, optionally starting from a specific node."""
         start_time = datetime.now()
 
@@ -147,16 +157,6 @@ class ComponentExecutor(BaseModelABC):
         execution_context: ContextT,
     ) -> list[Any]:
         """Execute all elements in this component sequentially."""
-        # TODO _tracing_profile
-        _tracing_profile = NodeTracingProfile(
-            node_type=self.executable_type,
-            # Primary input data - what's being sent to the model
-            input_fields=[],
-            # Primary output data - what's coming back from the model
-            output_fields=[],
-            # Result data - processed outcomes and metadata
-            result_fields=[],
-        )
 
         results = []
 

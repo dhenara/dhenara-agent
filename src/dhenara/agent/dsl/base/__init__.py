@@ -1,5 +1,11 @@
 # Base Element
-from .enums import SpecialNodeIDEnum, ExecutionStatusEnum, ExecutionStrategyEnum, ExecutableTypeEnum
+from .enums import (
+    SpecialNodeIDEnum,
+    ComponentTypeEnum,
+    ExecutionStatusEnum,
+    ExecutionStrategyEnum,
+    ExecutableTypeEnum,
+)
 from .defs import NodeID
 
 from .data.template_engine import TemplateEngine
@@ -37,6 +43,7 @@ __all__ = [
     "ComponentExecutionResult",
     "ComponentExecutor",
     "ComponentT",
+    "ComponentTypeEnum",
     "Conditional",
     "ContextT",
     "DADTemplateEngine",

@@ -127,7 +127,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
                     )
                     # Handle fail_fast
                     if settings.fail_fast and not success:
-                        logger.warning(f"Command failed, stopping execution: {formatted_cmd}")
+                        logger.error(f"Command failed, stopping execution: {formatted_cmd}")
                         break
 
                 except asyncio.TimeoutError:
@@ -180,7 +180,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
             # Create execution result
             result = CommandNodeExecutionResult(
                 node_identifier=node_id,
-                status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
+                execution_status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
                 input=node_input,
                 output=node_output,
                 outcome=outcome,

@@ -1,13 +1,13 @@
 from .collector import TraceCollector, trace_collect, add_trace_attribute
 
-from .profile import TracingDataCategory, TracingDataField, TracingProfileRegistry, NodeTracingProfile
+from .profile import TracingDataCategory, TracingDataField, ComponentTracingProfile, NodeTracingProfile
 
 __all__ = [
+    "ComponentTracingProfile",
     "NodeTracingProfile",
     "TraceCollector",
     "TracingDataCategory",
     "TracingDataField",
-    "TracingProfileRegistry",
     "add_trace_attribute",
     "trace_collect",
 ]

@@ -159,7 +159,7 @@ class NodeExecutor(ABC):
         #        execution_context=execution_context,
         #    )
         #    if not isinstance(result, AsyncGenerator):
-        #        execution_context.logger.warning(
+        #        execution_context.logger.error(
         #            f"A streaming node node_executor is expected to returned an AsyncGenerator not{type(result)}. "
         #            f"Node {flow_node.identifier}, node_executor {node_executor.identifier}"
         #        )

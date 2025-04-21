@@ -1,4 +1,3 @@
-# dhenara/agent/observability/tracing/profile.py
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -25,15 +24,90 @@ class TracingDataField:
     description: str | None = None  # Human-readable description
 
 
+common_context_fields = [
+    # Primary context fields - most important execution information
+    # TracingDataField(
+    #    name="context_id",
+    #    source_path="context_id",
+    #    category=TracingDataCategory.primary,
+    #    description="Unique identifier for this execution",
+    # ),
+    TracingDataField(
+        name="node_id",
+        source_path="current_node_identifier",
+        category=TracingDataCategory.primary,
+        description="Current node being executed",
+    ),
+    TracingDataField(
+        name="execution_status",
+        source_path="execution_status",
+        category=TracingDataCategory.primary,
+        description="Status of the execution (pending, complete, failed)",
+    ),
+    # Secondary context fields - supporting execution information
+    TracingDataField(
+        name="created_at",
+        source_path="created_at",
+        category=TracingDataCategory.secondary,
+        transform=lambda x: x.isoformat() if x else None,
+        description="When this execution started",
+    ),
+    TracingDataField(
+        name="completed_at",
+        source_path="completed_at",
+        category=TracingDataCategory.secondary,
+        transform=lambda x: x.isoformat() if x else None,
+        description="When this execution completed",
+    ),
+    TracingDataField(
+        name="execution_type",
+        source_path="executable_type",
+        category=TracingDataCategory.secondary,
+        description="Type of execution (flow, node, agent)",
+    ),
+    # Tertiary context fields - technical details
+    TracingDataField(
+        name="error_message",
+        source_path="execution_failed_message",
+        category=TracingDataCategory.tertiary,
+        description="Error message if execution failed",
+    ),
+    TracingDataField(
+        name="parent_context",
+        source_path="parent.component_id",
+        category=TracingDataCategory.tertiary,
+        transform=lambda x: x.component_id if x else "No-parent",
+        description="Parent execution context ID, if any",
+    ),
+    # TracingDataField(
+    #    name="resource_config",
+    #    source_path="resource_config",
+    #    category=TracingDataCategory.tertiary,
+    #    transform=lambda x: x.model_dump() if hasattr(x, "model_dump") else str(x),
+    #    description="Resource configuration for this execution",
+    # ),
+    TracingDataField(
+        name="metadata",
+        source_path="metadata",
+        category=TracingDataCategory.tertiary,
+        transform=lambda x: {k: v for k, v in x.items() if isinstance(v, (str, int, float, bool))} if x else {},
+        description="Additional execution metadata",
+        max_length=500,
+    ),
+]
+
+
 @dataclass
 class NodeTracingProfile:
     """Defines how a node's execution should be traced."""
 
-    node_type: str  # Type of node this profile applies to
+    node_type: str = "unknown_node"  # Type of node this profile applies to
     input_fields: list[TracingDataField] = field(default_factory=list)  # Fields to capture from input
     output_fields: list[TracingDataField] = field(default_factory=list)  # Fields to capture from output
     result_fields: list[TracingDataField] = field(default_factory=list)  # Fields to capture from result
-    context_fields: list[TracingDataField] = field(default_factory=list)  # Fields from execution context
+    context_fields: list[TracingDataField] = field(
+        default_factory=lambda: list(common_context_fields)
+    )  # Fields from execution context
 
     def to_dict(self) -> dict[str, Any]:
         """Convert profile to dictionary for storage/reference."""
@@ -71,25 +145,6 @@ class NodeTracingProfile:
         return profile
 
 
-# Registry to store tracing profiles for different node types
-class TracingProfileRegistry:
-    """Registry for node tracing profiles."""
-
-    _profiles: dict[str, NodeTracingProfile] = {}
-
-    @classmethod
-    def register(cls, profile: NodeTracingProfile) -> None:
-        """Register a tracing profile for a node type."""
-        cls._profiles[profile.node_type] = profile
-
-    @classmethod
-    def get(cls, node_type: str) -> NodeTracingProfile | None:
-        """Get a tracing profile for a node type."""
-        return cls._profiles.get(node_type)
-
-    @classmethod
-    def get_or_default(cls, node_type: str) -> NodeTracingProfile:
-        """Get a tracing profile for a node type or a default profile."""
-        if node_type in cls._profiles:
-            return cls._profiles[node_type]
-        return NodeTracingProfile(node_type=node_type)
+@dataclass
+class ComponentTracingProfile(NodeTracingProfile):
+    component_type: str = "unknown_component"

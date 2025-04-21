@@ -63,8 +63,53 @@ class NodeHierarchyHelper:
 
         except Exception as e:
             # Log error but don't fail - fall back to just the node ID
-            logger.warning(f"Error determining node hierarchy for {node_id}: {e}")
+            logger.error(f"Error determining node hierarchy for {node_id}: {e}")
             return node_id
+
+    @staticmethod
+    def get_component_hierarchy_path(
+        execution_context,  # : ExecutionContext,
+        component_id: NodeID,
+    ) -> str:
+        # Skip if no component definition
+        # if not execution_context.component_definition:
+        #    return component_id
+
+        component_path_parts = NodeHierarchyHelper._find_parent_component_ids(execution_context)
+
+        # Add current node id
+        path_parts = [component_id]
+
+        try:
+            # Get component definition
+            component_def = execution_context.component_definition
+
+            # Get the current node's element
+            current_element = component_def.get_element_by_id(component_id)
+            if not current_element:
+                return component_id
+
+            # Check if this node is part of a subflow or nested component
+            parent_element_id = NodeHierarchyHelper._find_parent_element_id(component_def, component_id)
+
+            # If we found a parent, add it to the path
+            if parent_element_id:
+                path_parts.insert(0, parent_element_id)
+
+                # Continue looking for higher-level parents
+                parent_of_parent = NodeHierarchyHelper._find_parent_element_id(component_def, parent_element_id)
+                while parent_of_parent:
+                    path_parts.insert(0, parent_of_parent)
+                    parent_of_parent = NodeHierarchyHelper._find_parent_element_id(component_def, parent_of_parent)
+
+            final_path_parts = [*component_path_parts, *path_parts]
+            # Join path parts with forward slashes
+            return "/".join(final_path_parts)
+
+        except Exception as e:
+            # Log error but don't fail - fall back to just the node ID
+            logger.error(f"Error determining node hierarchy for {component_id}: {e}")
+            return component_id
 
     @staticmethod
     def _find_parent_component_ids(execution_context) -> list[str]:

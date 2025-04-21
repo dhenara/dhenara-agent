@@ -135,7 +135,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             # Create execution result
             result = FileOperationNodeExecutionResult(
                 node_identifier=node_id,
-                status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
+                execution_status=ExecutionStatusEnum.COMPLETED if all_succeeded else ExecutionStatusEnum.FAILED,
                 input=node_input,
                 output=node_output,
                 outcome=outcome,

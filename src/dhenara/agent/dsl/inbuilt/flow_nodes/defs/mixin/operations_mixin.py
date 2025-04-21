@@ -87,7 +87,7 @@ class FileSytemOperationsMixin:
                             elif isinstance(op, operation_class):
                                 operations.append(op)
                             else:
-                                logger.warning(f"Unexpected operation type in list: {type(op)}")
+                                logger.error(f"Unexpected operation type in list: {type(op)}")
                     # Handle single operation as dict
                     elif isinstance(template_result, dict):
                         operations = [operation_class(**template_result)]
