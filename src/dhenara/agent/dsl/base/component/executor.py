@@ -56,13 +56,20 @@ class ComponentExecutor(BaseModelABC):
             elif run_context.start_id_flow_node:
                 start_id = run_context.start_id_flow_node
 
+        _logattribute = {
+            "component_id": str(component_id),
+            "component_type": self.component_type.value,
+        }
+        if start_id:
+            _logattribute["start_id"] = start_id
+
         # Log execution start
         log_with_context(
             self.logger,
             logging.INFO,
             f"Starting {self.executable_type.value} execution {component_id}"
             + (f" from node {start_id}" if start_id else ""),
-            {"component_id": str(component_id), "start_id": start_id},
+            _logattribute,
         )
 
         try:

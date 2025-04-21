@@ -70,17 +70,22 @@ class ComponentRunner(ABC):
 
     async def run(self):
         try:
+            _logattributes = {
+                "executable_type": self.executable_type,
+                "root_id": self.root_id,
+            }
+            if self.run_context.start_id_agent:
+                _logattributes["start_id_agent"] = self.run_context.start_id_agent
+            if self.run_context.start_id_flow:
+                _logattributes["start_id_flow"] = self.run_context.start_id_flow
+            if self.run_context.start_id_flow_node:
+                _logattributes["start_id_flow_node"] = self.run_context.start_id_flow_node
+
             log_with_context(
                 self.logger,
                 logging.INFO,
                 f"{self.executable_type.title()} {self.root_id} run begins",
-                {
-                    "executable_type": self.executable_type,
-                    "root_id": self.root_id,
-                    "start_id_agent": self.run_context.start_id_agent,
-                    "start_id_flow": self.run_context.start_id_flow,
-                    "start_id_flow_node": self.run_context.start_id_flow_node,
-                },
+                _logattributes,
             )
 
             await self.run_component()
