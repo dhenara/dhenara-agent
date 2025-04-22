@@ -14,7 +14,7 @@ class CommandResult(BaseModel):
     stdout: str
     stderr: str
     success: bool
-    error: str = None
+    error: str | None = None
 
 
 class CommandNodeOutputData(BaseModel):

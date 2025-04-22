@@ -1,5 +1,3 @@
-
-
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeInput
@@ -18,4 +16,4 @@ class CommandNodeInput(NodeInput):
         default_factory=list,
         description="Override the list of commands to execute",
     )
-    settings_override: CommandNodeSettings = None
+    settings_override: CommandNodeSettings | None = None

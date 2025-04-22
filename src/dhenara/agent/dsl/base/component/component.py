@@ -43,7 +43,7 @@ class ExecutableComponent(Executable, BaseModel, Generic[ComponentDefT, ContextT
         return result
 
     async def load_from_previous_run(self, execution_context: ContextT) -> Any:
-        execution_context.logger.info(f"Loading previous run data for node {self.id} ")
+        execution_context.logger.info(f"Loading previous run data for component {self.id} ")
 
         result = await self.definition.load_from_previous_run(
             component_id=self.id,

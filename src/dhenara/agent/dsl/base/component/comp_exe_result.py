@@ -19,7 +19,7 @@ class ComponentExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeO
     executable_type: ExecutableTypeEnum
     component_id: str
     is_rerun: bool
-    start_id: str | None
+    start_hierarchy_path: str | None
 
     execution_status: ExecutionStatusEnum
     execution_results: dict[

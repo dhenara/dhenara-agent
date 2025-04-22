@@ -20,7 +20,6 @@ from .node.node_settings import (
 from .node.node_io import NodeInput, NodeInputs, NodeOutput, NodeOutcome, NodeOutcomeT, NodeInputT, NodeOutputT
 from .node.node_exe_result import NodeExecutionResult
 
-from .utils.node_hierarchy import NodeHierarchyHelper
 
 # Executable Elements
 from .context import ExecutionContext, StreamingContext, StreamingStatusEnum, ContextT
@@ -59,7 +58,6 @@ __all__ = [
     "NodeDefT",
     "NodeExecutionResult",
     "NodeExecutor",
-    "NodeHierarchyHelper",
     "NodeID",
     "NodeID",
     "NodeInput",

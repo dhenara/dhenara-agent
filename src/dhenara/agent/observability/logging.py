@@ -36,7 +36,8 @@ def setup_logging(settings: ObservabilitySettings) -> None:
         return
 
     # Create a resource with service info
-    resource = Resource.create({"service.name": settings.service_name})
+    # resource = Resource.create({"service.name": settings.service_name or DEFAULT_SERVICE_NAME})
+    resource = Resource(attributes={"service.name": settings.service_name or DEFAULT_SERVICE_NAME})
 
     # Create logger provider
     _logger_provider = LoggerProvider(resource=resource)

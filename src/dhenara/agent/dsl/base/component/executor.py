@@ -46,29 +46,21 @@ class ComponentExecutor(BaseModelABC):
         """Execute a flow with the given initial data, optionally starting from a specific node."""
         start_time = datetime.now()
 
-        # Determine the proper start ID based on executable type and context
-        start_id = None
-        if run_context:
-            if self.executable_type == ExecutableTypeEnum.agent and run_context.start_id_agent:
-                start_id = run_context.start_id_agent
-            elif self.executable_type == ExecutableTypeEnum.flow and run_context.start_id_flow:
-                start_id = run_context.start_id_flow
-            # elif self.executable_type == ExecutableTypeEnum.flow_node and run_context.start_id_flow_node:
-            #    start_id = run_context.start_id_flow_node
-
         _logattribute = {
             "component_id": str(component_id),
             "component_type": self.component_type.value,
         }
-        if start_id:
-            _logattribute["start_id"] = start_id
+        start_hierarchy_path = run_context.start_hierarchy_path if run_context else None
+
+        if start_hierarchy_path:
+            _logattribute["start_hierarchy_path"] = start_hierarchy_path
 
         # Log execution start
         log_with_context(
             self.logger,
             logging.INFO,
             f"Starting {self.executable_type.value} execution {component_id}"
-            + (f" from node {start_id}" if start_id else ""),
+            + (f" from {start_hierarchy_path}" if start_hierarchy_path else ""),
             _logattribute,
         )
 
@@ -98,7 +90,7 @@ class ComponentExecutor(BaseModelABC):
             execution_result = component_definition.result_class(
                 component_id=str(component_id),
                 is_rerun=is_rerun,
-                start_id=start_id,
+                start_hierarchy_path=start_hierarchy_path,
                 execution_status=execution_context.execution_status,
                 execution_results=execution_context.execution_results,
                 error=execution_context.execution_failed_message,
@@ -115,7 +107,7 @@ class ComponentExecutor(BaseModelABC):
                 component_id=component_id,
                 duration_sec=duration_sec,
                 is_rerun=is_rerun,
-                start_id=start_id,
+                start_hierarchy_path=start_hierarchy_path,
             )
 
         except Exception as e:
@@ -129,7 +121,7 @@ class ComponentExecutor(BaseModelABC):
             execution_result = component_definition.result_class(
                 component_id=str(component_id),
                 is_rerun=is_rerun,
-                start_id=start_id,
+                start_hierarchy_path=start_hierarchy_path,
                 execution_status=ExecutionStatusEnum.FAILED,
                 execution_results={},
                 error=f"Error while executing {self.executable_type}: {e}",
@@ -143,7 +135,7 @@ class ComponentExecutor(BaseModelABC):
                 component_id=component_id,
                 is_rerun=is_rerun,
                 error=str(e),
-                start_id=start_id,
+                start_hierarchy_path=start_hierarchy_path,
             )
 
         # Return the component level result
@@ -164,39 +156,36 @@ class ComponentExecutor(BaseModelABC):
         execution_context: ContextT,
     ) -> list[Any]:
         """Execute all elements in this component sequentially."""
-
         results = []
-
         execution_context.set_current_node(component_id)
-
         for element in component_definition.elements:
             element_start_time = datetime.now()
-
             if isinstance(element, ExecutableNode):
                 # For regular nodes
                 node = element
-                start_id = execution_context.start_id
-                start_execution = start_id is None or node.id == start_id
 
-                # Log node execution
-                log_level = logging.INFO if start_execution else logging.DEBUG
-                log_with_context(
-                    self.logger,
-                    log_level,
-                    f"{'Executing' if start_execution else 'Skipping'} node {node.id}",
-                    {"node_id": str(node.id), "component_id": str(component_id)},
-                )
-
-                if start_execution:
-                    # If we should execute this node
-                    if start_id == node.id:
-                        # Clear the start_id since we found it
-                        execution_context.start_id = None
-                        self.logger.info(f"Starting execution from node {node.id}")
+                # Check if this is where we should start
+                # NOTE: cache should_execute into a variable as it will reset the run context hierarchy upon hitting the
+                # start_hierarchy_path
+                should_execute = execution_context.should_execute
+                if should_execute:
+                    # Log node execution
+                    log_with_context(
+                        self.logger,
+                        logging.INFO,
+                        f"Executing node {node.id}",
+                        {"node_id": str(node.id), "component_id": str(component_id)},
+                    )
 
                     result = await node.execute(execution_context)
                 else:
-                    # Load from previous run
+                    # Loading from previous run instead of executing
+                    log_with_context(
+                        self.logger,
+                        logging.DEBUG,
+                        f"Skipping node {node.id}, loading from previous run",
+                        {"node_id": str(node.id), "component_id": str(component_id)},
+                    )
                     result = await node.load_from_previous_run(execution_context)
 
                 results.append(result)
@@ -207,7 +196,7 @@ class ComponentExecutor(BaseModelABC):
                     self.logger,
                     logging.INFO,
                     (
-                        f"Node {node.id} {'execution' if start_execution else 'loading'} "
+                        f"Node {node.id} {'execution' if should_execute else 'loading'} "
                         "completed in {element_duration:.2f}s"
                     ),
                     {"node_id": str(node.id), "duration_sec": element_duration},
@@ -227,15 +216,22 @@ class ComponentExecutor(BaseModelABC):
                     parent=execution_context,
                 )
 
-                # Check if this is where we should start
-                start_id = execution_context.start_id
-                start_execution = start_id is None or subcomponent.id == start_id
+                # INFO: We will always execute the subcomponent. There is no load_from_previous_run()
+                # fn for subcomponents, as we don't save the subcomponent results in a result.json file.
+                # When the subcomponent is executed, it will load its children node's results, and thus form the
+                # complete result that component.
 
-                if start_execution:
-                    if start_id == subcomponent.id:
-                        # We found our starting component, clear the start_id
-                        execution_context.start_id = None
-                        self.logger.info(f"Starting execution from component {subcomponent.id}")
+                # But still call the should_execute() method to correctly reset the hierarchy path if in case
+                # the start_hierarchy_path is the current subcomponent
+                should_execute = component_execution_context.should_execute
+
+                if True:
+                    log_with_context(
+                        self.logger,
+                        logging.INFO,
+                        f"Executing sub-component {subcomponent.id}",
+                        {"node_id": "NA", "component_id": str(component_id)},
+                    )
 
                     result = await subcomponent.execute(component_execution_context)
                 else:
@@ -249,7 +245,7 @@ class ComponentExecutor(BaseModelABC):
                     self.logger,
                     logging.INFO,
                     (
-                        f"Component {subcomponent.id} {'execution' if start_execution else 'loading'} "
+                        f"Component {subcomponent.id} {'execution' if should_execute else 'loading'} "
                         "completed in {element_duration:.2f}s"
                     ),
                     {"component_id": str(subcomponent.id), "duration_sec": element_duration},
@@ -257,7 +253,7 @@ class ComponentExecutor(BaseModelABC):
 
         return results
 
-    def _record_successful_execution(self, component_id, duration_sec, is_rerun, start_id):
+    def _record_successful_execution(self, component_id, duration_sec, is_rerun, start_hierarchy_path):
         """Record metrics for successful execution."""
         record_metric(
             meter_name=f"dhenara.dad.{self.executable_type}",
@@ -267,7 +263,7 @@ class ComponentExecutor(BaseModelABC):
             attributes={
                 f"{self.executable_type}_id": str(component_id),
                 "is_rerun": str(is_rerun),
-                "start_id": start_id or "none",
+                "start_hierarchy_path": start_hierarchy_path or "none",
             },
         )
 
@@ -289,11 +285,11 @@ class ComponentExecutor(BaseModelABC):
                 f"{self.executable_type}_id": str(component_id),
                 "duration_sec": duration_sec,
                 "is_rerun": str(is_rerun),
-                "start_id": start_id or "none",
+                "start_hierarchy_path": start_hierarchy_path or "none",
             },
         )
 
-    def _record_failed_execution(self, component_id, is_rerun, error, start_id):
+    def _record_failed_execution(self, component_id, is_rerun, error, start_hierarchy_path):
         """Record metrics for failed execution."""
         record_metric(
             meter_name=f"dhenara.dad.{self.executable_type}",
@@ -314,6 +310,6 @@ class ComponentExecutor(BaseModelABC):
                 f"{self.executable_type}_id": str(component_id),
                 "error": error,
                 "is_rerun": str(is_rerun),
-                "start_id": start_id or "none",
+                "start_hierarchy_path": start_hierarchy_path or "none",
             },
         )

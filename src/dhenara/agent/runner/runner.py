@@ -39,22 +39,21 @@ class ComponentRunner(ABC):
     def setup_run(
         self,
         previous_run_id: str | None = None,
-        start_id_agent: str | None = None,
-        start_id_flow: str | None = None,
-        start_id_flow_node: str | None = None,
+        start_hierarchy_path: str | None = None,
         run_id_prefix: str | None = None,
     ):
         # Update run context with rerun parameters if provided
-        if previous_run_id or start_id_agent or start_id_flow or start_id_flow_node:
+        if previous_run_id or start_hierarchy_path:
             self.run_context.set_previous_run(
                 previous_run_id=previous_run_id,
-                start_id_agent=start_id_agent,
-                start_id_flow=start_id_flow,
-                start_id_flow_node=start_id_flow_node,
+                start_hierarchy_path=start_hierarchy_path,
             )
-            log_msg = f"Rerunning root {self.root_id} from revious run {self.run_context.previous_run_id}"
+            log_msg = f"Rerunning root {self.root_id} from previous run {self.run_context.previous_run_id}"
+            if start_hierarchy_path:
+                log_msg += f" starting from {start_hierarchy_path}"
         else:
-            log_msg = f"Running root {self.root_id} from begining with run_id {self.run_context.run_id}"
+            log_msg = f"Running root {self.root_id} from beginning with run_id {self.run_context.run_id}"
+
         # Setup run context
         self.run_context.setup_run(
             run_id_prefix=run_id_prefix,
@@ -63,9 +62,7 @@ class ComponentRunner(ABC):
         # Normal run, copy input files
         if not self.run_context.is_rerun:
             self.run_context.copy_input_files()
-
         self.run_context.read_static_inputs()
-
         log_with_context(self.logger, logging.INFO, log_msg)
 
     async def run(self):
@@ -74,12 +71,8 @@ class ComponentRunner(ABC):
                 "executable_type": self.executable_type,
                 "root_id": self.root_id,
             }
-            if self.run_context.start_id_agent:
-                _logattributes["start_id_agent"] = self.run_context.start_id_agent
-            if self.run_context.start_id_flow:
-                _logattributes["start_id_flow"] = self.run_context.start_id_flow
-            if self.run_context.start_id_flow_node:
-                _logattributes["start_id_flow_node"] = self.run_context.start_id_flow_node
+            if self.run_context.start_hierarchy_path:
+                _logattributes["start_hierarchy_path"] = self.run_context.start_hierarchy_path
 
             log_with_context(
                 self.logger,

@@ -223,8 +223,8 @@ def trace_node(
                         add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
 
                         # Always include node hierarchy if available
-                        if hasattr(execution_context, "get_node_hierarchy_path"):
-                            hierarchy = execution_context.get_node_hierarchy_path()
+                        if hasattr(execution_context, "hierarchy_path"):
+                            hierarchy = execution_context.hierarchy_path
                             span.set_attribute("node.hierarchy", hierarchy)
 
                     # Add input data based on profile
@@ -387,8 +387,8 @@ def trace_component(
                         add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
 
                         # Always include component hierarchy if available
-                        if hasattr(execution_context, "get_component_hierarchy_path"):
-                            hierarchy = execution_context.get_component_hierarchy_path()
+                        if hasattr(execution_context, "hierarchy_path"):
+                            hierarchy = execution_context.hierarchy_path
                             span.set_attribute("component.hierarchy", hierarchy)
 
                     # Add input data based on profile

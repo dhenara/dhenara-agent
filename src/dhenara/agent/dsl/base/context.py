@@ -15,7 +15,6 @@ from dhenara.agent.dsl.base.node.node_exe_result import (
     NodeOutputT,
 )
 from dhenara.agent.dsl.base.node.node_io import NodeInput
-from dhenara.agent.dsl.base.utils import NodeHierarchyHelper
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
@@ -106,15 +105,102 @@ class ExecutionContext(BaseModelABC):
         return self.run_context.artifact_manager
 
     @property
-    def start_id(self) -> ResourceConfig:
-        if self.executable_type == ExecutableTypeEnum.flow_node:
-            return self.run_context.start_id_flow_node
-        elif self.executable_type == ExecutableTypeEnum.flow:
-            return self.run_context.start_id_flow
-        elif self.executable_type == ExecutableTypeEnum.agent:
-            return self.run_context.start_id_agent
+    def start_hierarchy_path(self) -> ResourceConfig:
+        return self.run_context.start_hierarchy_path
+
+    @property
+    def hierarchy_path(self) -> ResourceConfig:
+        return self.get_hierarchy_path(path_joiner=".")
+
+    @property
+    def should_execute(self) -> bool:
+        """
+        Determine if the current node should be executed based on the start_hierarchy_path.
+        This is used to skip nodes that are not part of the current execution path.
+
+        NOTE: The resutl should be cached while using as calling this will reset the start_hierarchy_path
+        in the run context when the current node is the start node.
+        """
+        current_node_hierarchy_path = self.get_hierarchy_path(path_joiner=".")
+
+        # No start hierarchy path, execute normally
+        start_hierarchy_path = self.run_context.start_hierarchy_path
+        if not start_hierarchy_path:
+            return True
+
+        # Check if we need to execute this component or skip it
+        should_execute = True
+        # If this is a component we should be at or within
+        if start_hierarchy_path.startswith(current_node_hierarchy_path):
+            # We are in the right path, but need to check if we should
+            # execute the whole component or just a sub-part
+            if start_hierarchy_path == current_node_hierarchy_path:
+                # This is exactly where we want to start, so clear the flag
+                self.run_context.start_hierarchy_path = None
+            else:
+                # We're in the right component, but need to continue down to the target
+                should_execute = True
+        elif current_node_hierarchy_path.startswith(start_hierarchy_path):
+            # We're past the target, execute normally
+            should_execute = True
         else:
-            raise ValueError(f"start_id: Unsupported executable type: {self.executable_type}")
+            # We're in a different branch, skip
+            should_execute = False
+
+        return should_execute
+
+    async def load_from_previous_run(
+        self,
+        copy_artifacts: bool = True,
+        node_id: NodeID | None = None,
+    ) -> dict | None:
+        hierarchy_path = self.get_hierarchy_path(path_joiner="/", node_id=node_id)
+
+        result_data = await self.run_context.load_from_previous_run(
+            hierarchy_path=hierarchy_path,
+            copy_artifacts=copy_artifacts,
+            is_component=True if self.executable_type != ExecutableTypeEnum.flow_node is None else False,
+        )
+        return result_data
+
+    def get_hierarchy_path(
+        self,
+        path_joiner: str = "/",
+        node_id: NodeID | None = None,
+    ) -> str:
+        """
+        Determine the hierarchical path of a node within a component definition.
+        """
+        # Skip if no component definition
+        # if not self.component_definition:
+        #    return node_id
+
+        component_path_parts = self._find_parent_component_ids()
+
+        if not node_id:
+            # If no node_id is provided, use the current node identifier
+            node_id = self.current_node_identifier
+
+        if node_id:
+            final_path_parts = [*component_path_parts, node_id]
+        else:
+            final_path_parts = [*component_path_parts]
+
+        try:
+            return path_joiner.join(final_path_parts)
+        except Exception as e:
+            raise ValueError(f"get_hierarchy_path: Error: {e}")
+
+    def _find_parent_component_ids(self) -> list[str]:
+        comp_path_parts = [self.component_id]
+
+        parent_ctx = self.parent
+        while parent_ctx is not None:
+            comp_path_parts.append(parent_ctx.component_id)
+            parent_ctx = parent_ctx.parent
+
+        comp_path_parts.reverse()  # Reverse the order
+        return comp_path_parts
 
     def get_value(self, path: str) -> Any:
         """Get a value from the context by path."""
@@ -267,34 +353,10 @@ class ExecutionContext(BaseModelABC):
         # Similar to record_outcome but with iteration-specific values
         pass
 
-    def get_node_hierarchy_path(self) -> str:
-        """
-        Get the hierarchical path of the current node within the flow.
-
-        Returns:
-            A path string representing the node's hierarchy (e.g., "main_flow/subflow1/node_id")
-        """
-        if not self.current_node_identifier:
-            return ""
-
-        return NodeHierarchyHelper.get_node_hierarchy_path(
-            execution_context=self,
-            node_id=self.current_node_identifier,
-        )
-
-    def get_component_hierarchy_path(self) -> str:
-        if not self.component_id:
-            return ""
-
-        return NodeHierarchyHelper.get_component_hierarchy_path(
-            execution_context=self,
-            component_id=self.component_id,
-        )
-
     def get_dad_dynamic_variables(self) -> dict:
         return {
             "node_id": self.current_node_identifier,
-            "node_hier": self.get_node_hierarchy_path(),
+            "node_hier": self.get_hierarchy_path(path_joiner="/"),
         }
 
     def evaluate_expression(self, expression: str) -> Any:

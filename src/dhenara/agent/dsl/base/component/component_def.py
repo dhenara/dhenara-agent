@@ -35,7 +35,7 @@ class ComponentDefinition(
         default=None,
         description=(
             "Id if this is a root component. "
-            "Do not set ID for any other componets, as id should be assigned when added to a node"
+            "Do not set ID for any other componets, as id should be assigned when added as al element"
         ),
     )
     description: str | None = Field(
@@ -60,7 +60,7 @@ class ComponentDefinition(
 
     def _get_element_children(self, element) -> list:
         """Get children from element."""
-        # For nodes with subflows or nested elements
+        # For elements with subflows or nested elements
         if hasattr(element, "subflow") and element.subflow:
             return element.subflow.elements
         # For conditional branches
@@ -96,7 +96,7 @@ class ComponentDefinition(
 
     def _get_element_children(self, element) -> list:
         """Get children from element."""
-        # For nodes with subflows or nested elements
+        # For elements with subflows or nested elements
         if hasattr(element, "subflow") and element.subflow:
             return element.subflow.elements
         # For conditional branches
@@ -134,12 +134,14 @@ class ComponentDefinition(
         self,
         component_id: NodeID,
         execution_context: ContextT,
-        run_context: RunContext | None = None,
     ) -> Any:
-        result_data = await execution_context.run_context.load_node_from_previous_run(
-            node_id=component_id,  # TODO
-            copy_artifacts=True,
+        raise ValueError(
+            "Loading from previous run is not supported for component as we don't save component results in artifacts."
+            "Use execute() fn to load from previous results as "
+            "they will load_from_previous_run in the nodes and from the component results"
         )
+
+        result_data = await execution_context.load_from_previous_run(copy_artifacts=True)
 
         if result_data:
             try:
@@ -150,11 +152,11 @@ class ComponentDefinition(
                 # TODO_FUTURE: record for tracing ?
                 return result
             except Exception as e:
-                execution_context.logger.error(f"Failed to load previous run data for node {component_id}: {e}")
+                execution_context.logger.error(f"Failed to load previous run data for component {component_id}: {e}")
                 return None
         else:
             execution_context.logger.error(
-                f"Falied to load data from previous execution result artifacts for node {component_id}"
+                f"Falied to load data from previous execution result artifacts for component {component_id}"
             )
             return None
 

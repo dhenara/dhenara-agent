@@ -103,11 +103,12 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         node_id: NodeID,
         execution_context: ContextT,
     ) -> Any:
+        execution_context.set_current_node(node_id)
+
         executer = self.get_node_executor()
         result_class = executer.get_result_class()
 
-        result_data = await execution_context.run_context.load_node_from_previous_run(
-            node_id=node_id,
+        result_data = await execution_context.load_from_previous_run(
             copy_artifacts=True,
         )
 

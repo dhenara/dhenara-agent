@@ -33,10 +33,16 @@ common_context_fields = [
     #    description="Unique identifier for this execution",
     # ),
     TracingDataField(
-        name="node_id",
-        source_path="current_node_identifier",
+        name="hierarchy_path",
+        source_path="hierarchy_path",
         category=TracingDataCategory.primary,
-        description="Current node being executed",
+        description="hierarchy_path of the context",
+    ),
+    TracingDataField(
+        name="start_hierarchy_path",
+        source_path="start_hierarchy_path",
+        category=TracingDataCategory.primary,
+        description="start_hierarchy_path from the run context",
     ),
     TracingDataField(
         name="execution_status",

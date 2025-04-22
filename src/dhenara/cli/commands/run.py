@@ -33,27 +33,15 @@ def run():
     help="ID of a previous run to use as a base for this run",
 )
 @click.option(
-    "--start-id-agent",
+    "--start-path",
     default=None,
-    help="Agent ID to start execution from (skips all previous nodes)",
-)
-@click.option(
-    "--start-id-flow",
-    default=None,
-    help="Flow ID to start execution from (skips all previous nodes)",
-)
-@click.option(
-    "--start-id-flow-node",
-    default=None,
-    help="Flow-Node ID to start execution from (skips all previous nodes)",
+    help="Hierarchical path to start execution from (e.g., 'agent_id/flow_id/node_id')",
 )
 def run_agent(
     identifier,
     project_root,
     previous_run_id,
-    start_id_agent,
-    start_id_flow,
-    start_id_flow_node,
+    start_path,
 ):
     """Run an agent with the specified inputs.
 
@@ -62,17 +50,14 @@ def run_agent(
     Examples:
         dhenara run agent my_agent                     # Run the agent normally
         dhenara run agent my_agent --previous-run-id run_123  # Rerun a previous execution
-        dhenara run agent my_agent --start-node-id node2     # Start execution from node2
-        dhenara run agent my_agent --previous-run-id run_123 --start-node-id node2  # Rerun from node2
+        dhenara run agent my_agent --start-path agent_id/flow_id/node_id  # Start execution from specific point
     """
     asyncio.run(
         _run_agent(
             identifier=identifier,
             project_root=project_root,
             previous_run_id=previous_run_id,
-            start_id_agent=start_id_agent,
-            start_id_flow=start_id_flow,
-            start_id_flow_node=start_id_flow_node,
+            start_hierarchy_path=start_path,
         )
     )
 
@@ -81,9 +66,7 @@ async def _run_agent(
     identifier,
     project_root,
     previous_run_id,
-    start_id_agent,
-    start_id_flow,
-    start_id_flow_node,
+    start_hierarchy_path,
 ):
     """Async implementation of run_agent."""
     # Find project root
@@ -102,9 +85,7 @@ async def _run_agent(
     # Update run context with rerun parameters if provided
     runner.setup_run(
         previous_run_id=previous_run_id,
-        start_id_agent=start_id_agent,
-        start_id_flow=start_id_flow,
-        start_id_flow_node=start_id_flow_node,
+        start_hierarchy_path=start_hierarchy_path,
     )
 
     try:
@@ -117,14 +98,8 @@ async def _run_agent(
         # Display rerun information if applicable
         run_type = "rerun" if previous_run_id else "standard run"
         start_info = ""
-        if start_id_agent or start_id_flow or start_id_flow_node:
-            start_info += " from"
-        if start_id_agent:
-            start_info += f" agent {start_id_agent}"
-        if start_id_flow:
-            start_info += f" flow {start_id_flow}"
-        if start_id_flow_node:
-            start_info += f" flow-node {start_id_flow_node}"
+        if start_hierarchy_path:
+            start_info += f"from {start_hierarchy_path}"
 
         print(f"Agent {run_type} completed successfully{start_info}. Run ID: {runner.run_context.run_id}")
 

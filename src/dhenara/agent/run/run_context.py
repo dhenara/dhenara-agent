@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from dhenara.agent.dsl.base import NodeID, NodeInput
+from dhenara.agent.dsl.base import NodeInput
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.run.registry import resource_config_registry
@@ -32,9 +32,7 @@ class RunContext:
         observability_settings: ObservabilitySettings | None = None,
         #  for re-run functionality
         previous_run_id: str | None = None,
-        start_id_agent: str | None = None,
-        start_id_flow: str | None = None,
-        start_id_flow_node: str | None = None,
+        start_hierarchy_path: str | None = None,
         # Static inputs
         input_source: Path | None = None,
     ):
@@ -54,9 +52,7 @@ class RunContext:
         # Store re-run parameters
         self.run_id = run_id
         self.previous_run_id = previous_run_id
-        self.start_id_agent = start_id_agent
-        self.start_id_flow = start_id_flow
-        self.start_id_flow_node = start_id_flow_node
+        self.start_hierarchy_path = start_hierarchy_path
 
         self.event_bus = EventBus()
         self.setup_completed = False
@@ -65,14 +61,10 @@ class RunContext:
     def set_previous_run(
         self,
         previous_run_id: str,
-        start_id_agent: str | None = None,
-        start_id_flow: str | None = None,
-        start_id_flow_node: str | None = None,
+        start_hierarchy_path: str | None = None,
     ):
         self.previous_run_id = previous_run_id
-        self.start_id_agent = start_id_agent
-        self.start_id_flow = start_id_flow
-        self.start_id_flow_node = start_id_flow_node
+        self.start_hierarchy_path = start_hierarchy_path
 
     def setup_run(self, run_id_prefix: str | None = None):
         # Indicates if this is a rerun of a previous execution
@@ -132,9 +124,7 @@ class RunContext:
         if self.is_rerun:
             self.metadata["rerun_info"] = {
                 "previous_run_id": self.previous_run_id,
-                "start_id_agent": self.start_id_agent,
-                "start_id_flow": self.start_id_flow,
-                "start_id_flow_node": self.start_id_flow_node,
+                "start_hierarchy_path": self.start_hierarchy_path,
             }
 
         # Create run environment parameters
@@ -252,32 +242,43 @@ class RunContext:
             # TODO_FUTURE: Record to a global recording system?
             logger.error(f"Completed run even before run_context setup. Error: {error_msg}")
 
-    async def load_node_from_previous_run(self, node_id: NodeID, copy_artifacts: bool = True) -> dict | None:
+    async def load_from_previous_run(
+        self,
+        is_component: bool,
+        hierarchy_path: str,
+        copy_artifacts: bool = True,
+    ) -> dict | None:
         """Copy artifacts from previous run up to the start node."""
         if not self.previous_run_dir or not self.previous_run_dir.exists():
             logger.error(f"Cannot copy artifacts: Previous run directory not found. Looked for {self.previous_run_dir}")
             return
 
         if copy_artifacts:
-            await self._copy_previous_run_node_artifacts(node_id)
-            logger.info(f"Copied previous execution result artifacts for node {node_id}")
+            await self._copy_previous_run_artifacts(
+                hierarchy_path=hierarchy_path,
+                is_component=is_component,
+            )
+            logger.info(f"Copied previous execution result artifacts for {hierarchy_path}")
 
-        return await self._load_previous_run_node_execution_result_dict(node_id)
+        return await self._load_previous_run_execution_result_dict(
+            hierarchy_path=hierarchy_path,
+            is_component=is_component,
+        )
 
-    async def _copy_previous_run_node_artifacts(self, node_id: str):
-        """Copy artifacts for a specific node from previous run."""
+    async def _copy_previous_run_artifacts(
+        self,
+        hierarchy_path: str,
+        is_component: bool,
+    ):
+        """Copy artifacts for a specific node/component from previous run."""
         if not self.previous_run_dir:
             return
 
         # Determine the hierarchy path for this node
-        node_hier_dir = node_id
         try:
-            # Try to use hierarchy path if we can generate it correctly
-            # This might require more context than we have here
-            node_hier_dir = node_id
-            # node_hier_dir = f"{self.agent_identifier}/{node_id}"
+            node_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
-            logger.error(f"Error while copying previous run artifacts: node_hier_dir:{node_hier_dir}, Error: {e}")
+            logger.error(f"Error while deriving heirarchy for prevoious run artifacts: Error: {e}")
             return
 
         # Define source and target directories
@@ -287,6 +288,25 @@ class RunContext:
         # Ensure target directory exists
         dst_input_dir.mkdir(parents=True, exist_ok=True)
 
+        # NOTE: Currently there us nothing to copy for components
+        if is_component:
+            return
+
+        # try:
+        #    # Use glob to copy files instead of trying to use wildcard with copy2
+        #    import glob
+
+        #    for file_path in glob.glob(str(src_input_dir / "*")):
+        #        if os.path.isfile(file_path):
+        #            shutil.copy2(file_path, dst_input_dir)
+        #        elif os.path.isdir(file_path):
+        #            dst_subdir = dst_input_dir / os.path.basename(file_path)
+        #            shutil.copytree(file_path, dst_subdir, dirs_exist_ok=True)
+
+        #    logger.debug(f"Copied dirs for {hierarchy_path}")
+        # except Exception as e:
+        #    logger.error(f"Failed to copy dirs for {hierarchy_path}: {e}")
+
         if src_input_dir.exists():
             # Copy input, output, and outcome files
             for file_name in ["outcome.json", "result.json"]:
@@ -295,9 +315,9 @@ class RunContext:
                     dst_file = dst_input_dir / file_name
                     try:
                         shutil.copy2(src_file, dst_file)
-                        logger.debug(f"Copied {file_name} for node {node_id}")
+                        logger.debug(f"Copied {file_name} for {hierarchy_path}")
                     except Exception as e:
-                        logger.warning(f"Failed to copy {file_name} for node {node_id}: {e}")
+                        logger.warning(f"Failed to copy {file_name} for {hierarchy_path}: {e}")
 
             ## Copy any other files in the directory
             # for src_file in src_input_dir.glob("*"):
@@ -309,20 +329,24 @@ class RunContext:
             #        except Exception as e:
             #            logger.warning(f"Failed to copy additional file {src_file.name} for node {node_id}: {e}")
 
-    async def _load_previous_run_node_execution_result_dict(self, node_id: str) -> dict | None:
-        """Copy artifacts for a specific node from previous run."""
+    async def _load_previous_run_execution_result_dict(
+        self,
+        hierarchy_path: str,
+        is_component: bool,
+    ) -> dict | None:
+        """Copy artifacts for a specific node/component from previous run."""
         if not self.previous_run_dir:
             return None
 
-        # Determine the hierarchy path for this node
-        node_hier_dir = node_id
         try:
-            # Try to use hierarchy path if we can generate it correctly
-            # This might require more context than we have here
-            node_hier_dir = node_id
-            # node_hier_dir = f"{self.agent_identifier}/{node_id}"
+            node_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
-            logger.warning(f"Using direct node_id for artifact copying: {e}")
+            logger.error(f"Error while reloading results: node_hier_dir:{node_hier_dir}, Error: {e}")
+            return
+
+        # NOTE: Currently there us nothing to copy for components
+        if is_component:
+            return
 
         # Define source and target directories
         src_input_dir = self.previous_run_dir / node_hier_dir
@@ -364,10 +388,7 @@ class RunContext:
             if self.previous_run_id:
                 # These will be picked up by the tracing system
                 os.environ["OTEL_RESOURCE_ATTRIBUTES"] = (
-                    f"previous_run_id={self.previous_run_id},"
-                    f"start_id_agent={self.start_id_agent or 'none'},"
-                    f"start_id_flow={self.start_id_flow or 'none'},"
-                    f"start_id_flow_node={self.start_id_flow_node or 'none'}"
+                    f"previous_run_id={self.previous_run_id},start_hierarchy_path={self.start_hierarchy_path},"
                 )
 
         # Set trace file paths in settings
