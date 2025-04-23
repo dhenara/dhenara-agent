@@ -163,9 +163,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         prompt = DADTemplateEngine.render_dad_template(
             template=prompt,
             variables=prompt.variables,
-            dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
-            run_env_params=execution_context.run_context.run_env_params,
-            node_execution_results=execution_context.execution_results,
+            execution_context=execution_context,
         )
 
         # Add the final prompt to tracing

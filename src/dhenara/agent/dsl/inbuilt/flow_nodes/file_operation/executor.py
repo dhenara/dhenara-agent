@@ -174,16 +174,11 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 repo.add(git_files)
 
                 if settings.commit_message:
-                    variables = {}
-                    dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
-
                     # Resolve base directory with variables
                     commit_msg = DADTemplateEngine.render_dad_template(
                         template=settings.commit_message,
-                        variables=variables,
-                        dad_dynamic_variables=dad_dynamic_variables,
-                        run_env_params=execution_context.run_context.run_env_params,
-                        node_execution_results=None,
+                        variables={},
+                        execution_context=execution_context,
                     )
                 else:
                     commit_msg = f"Commit {datetime.now().strftime()}"

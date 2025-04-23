@@ -1,10 +1,19 @@
+import logging
 import operator
 import re
 from collections.abc import Callable
 from re import Pattern
-from typing import Any, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar
 
 T = TypeVar("T")
+
+# Use TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from dhenara.agent.dsl.base import ExecutionContext
+else:
+    ExecutionContext = Any
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateEngine:
@@ -89,15 +98,19 @@ class TemplateEngine:
         cls,
         template: str,
         variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
         mode: Literal["standard", "expression"] = "expression",
+        max_words: int | None = None,
     ) -> str:
         """
-        Render a template using either standard substitution or expression evaluation.
+        Render a string template with context support.
 
         Args:
-            template: Template string
+            template: String template to render
             variables: Variables for substitution/evaluation
-            mode: "standard" for basic substitution, "expression" for advanced evaluation
+            execution_context: Execution context for node result resolution
+            mode: Rendering mode
+            max_words: Maximum number of words in output
 
         Returns:
             Rendered template string
@@ -115,7 +128,7 @@ class TemplateEngine:
         if not template:
             return template
 
-        # First handle escape sequences
+        # Process escape sequences
         template = cls._process_escape_sequences(template)
 
         # Process $var{} regardless of mode
@@ -123,9 +136,10 @@ class TemplateEngine:
 
         # Process $expr{} only in expression mode
         if mode == "expression":
-            template = cls._process_expr_substitutions(template, variables)
+            template = cls._process_expr_substitutions(template, variables, execution_context)
 
-        return template
+        # Apply word limit if specified
+        return cls._apply_word_limit(template, max_words)
 
     @classmethod
     def _process_escape_sequences(cls, template: str) -> str:
@@ -175,16 +189,22 @@ class TemplateEngine:
         return cls.VAR_PATTERN.sub(replace_var, template)
 
     @classmethod
-    def _process_expr_substitutions(cls, template: str, variables: dict[str, Any]) -> str:
+    def _process_expr_substitutions(
+        cls,
+        template: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> str:
         """
-        Process complex expressions with $expr{} syntax.
+        Process expressions in a template with context support, converting results to strings.
 
         Args:
-            template: Template string containing $expr{} patterns
-            variables: Dictionary of variables for evaluation
+            template: Template string containing expressions
+            variables: Variables for evaluation
+            execution_context: Execution context for node result resolution
 
         Returns:
-            String with expressions evaluated and substituted
+            Template with expressions evaluated and converted to strings
         """
         if not template:
             return template
@@ -192,9 +212,11 @@ class TemplateEngine:
         def replace_expr(match: re.Match) -> str:
             expr = match.group(1).strip()
             try:
-                result = cls._evaluate_expression(expr, variables)
+                # Evaluate the expression and convert result to string
+                result = cls._evaluate_expression(expr, variables, execution_context)
                 return str(result) if result is not None else ""
             except Exception as e:
+                logger.error(f"Error evaluating expression '{expr}': {e}")
                 return f"Error: {e!s}"
 
         return cls.EXPR_PATTERN.sub(replace_expr, template)
@@ -217,7 +239,12 @@ class TemplateEngine:
         return text
 
     @classmethod
-    def evaluate_single_expression(cls, expr_template: str, variables: dict[str, Any]) -> Any:
+    def evaluate_single_expression(
+        cls,
+        expr_template: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> Any:
         """
         Evaluate a single expression and return the raw result without string conversion.
         Used primarily for ObjectTemplate evaluation.
@@ -240,56 +267,60 @@ class TemplateEngine:
         if match:
             expr = match.group(1).strip()
             try:
-                return cls._evaluate_expression(expr, variables)
+                return cls._evaluate_expression(expr, variables, execution_context)
             except Exception as e:
                 return f"Error: {e!s}"
 
         # If no expression found, return the template unchanged
-        return expr_template
+        return expr_template  # Return the original template
 
     @classmethod
-    def _evaluate_expression(cls, expr: str, variables: dict[str, Any]) -> Any:
+    def _evaluate_expression(
+        cls,
+        expr: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> Any:
         """
-        Evaluate a single expression against the variables.
+        Evaluate an expression with context support.
 
         Args:
-            expr: Expression string to evaluate
-            variables: Dictionary of variables for evaluation
+            expr: Expression to evaluate
+            variables: Variables for evaluation
+            execution_context: Execution context for node result resolution
 
         Returns:
-            Evaluated result of the expression
-
-        Raises:
-            ValueError: If there's an error evaluating a Python expression
+            Evaluated result with original type preserved
         """
-        # Python expression evaluation (advanced feature)
+        # Handle Python expressions
         if expr.startswith("py:"):
             return cls._evaluate_python_expression(expr[3:], variables)
 
         # Handle binary operators
         for op_text, op_func in cls.OPERATORS.items():
             if op_text in expr:
-                # Split on operator, accounting for whitespace
                 parts = expr.split(op_text, 1)
-                left = cls._evaluate_expression(parts[0].strip(), variables)
-                right = cls._evaluate_expression(parts[1].strip(), variables)
+                left = cls._evaluate_expression(parts[0].strip(), variables, execution_context)
+                right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
                 return op_func(left, right)
 
-        # Handle property access with dot notation and indexing
-        return cls._get_value_from_path(expr, variables)
+        # Handle path resolution
+        return cls._get_value_from_path(expr, variables, execution_context)
 
     @classmethod
-    def _get_value_from_path(cls, path: str, variables: dict[str, Any]) -> Any:
+    def _get_value_from_path(
+        cls,
+        path: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> Any:
         """
-        Get a value from a dot-notation path with support for indexing.
-
-        Examples:
-            - "node1.data" - Gets the 'data' field from the result of node1
-            - "node1.data.items[0]" - Gets the first item in the items array
+        Get a value from a dot-notation path with hierarchical node resolution.
 
         Args:
-            path: Dot-notation path string
-            variables: variables dictionary
+            path: Dot-notation path
+            variables: Variables dictionary
+            execution_context: Execution context for node result resolution
 
         Returns:
             Value at the specified path or None if not found
@@ -299,14 +330,24 @@ class TemplateEngine:
 
         path = path.strip()
         parts = path.split(".")
+        first_part = parts[0]
 
-        # Start with the first part
-        if parts[0] not in variables:
+        # First check in the variables dictionary
+        if first_part in variables:
+            current = variables[first_part]
+        # Then try to resolve as a node result if execution context is available
+        elif execution_context is not None:
+            # Use the hierarchical node resolution method
+            node_result = execution_context.get_node_result_hierarchical(first_part)
+            if node_result is not None:
+                current = node_result
+            else:
+                return None
+        else:
+            # Not found in variables and no execution context
             return None
 
-        current = variables[parts[0]]
-
-        # Navigate through the parts
+        # Navigate through remaining parts...
         for part in parts[1:]:
             # Check for array indexing
             index_match = cls.INDEX_PATTERN.match(part)

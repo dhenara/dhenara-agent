@@ -210,15 +210,12 @@ class CommandNodeExecutor(FlowNodeExecutor):
         # Format the commands with variables
         formatted_commands = []
         run_env_params = execution_context.run_context.run_env_params
-        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
 
         for cmd in settings.commands:
             cmd = DADTemplateEngine.render_dad_template(
                 template=cmd,
                 variables=variables,
-                dad_dynamic_variables=dad_dynamic_variables,
-                run_env_params=run_env_params,
-                node_execution_results=None,
+                execution_context=execution_context,
             )
             formatted_commands.append(cmd)
 
@@ -227,9 +224,7 @@ class CommandNodeExecutor(FlowNodeExecutor):
         working_dir = DADTemplateEngine.render_dad_template(
             template=working_dir,
             variables=variables,
-            dad_dynamic_variables=dad_dynamic_variables,
-            run_env_params=run_env_params,
-            node_execution_results=None,
+            execution_context=execution_context,
         )
 
         return formatted_commands, Path(working_dir).expanduser().resolve()

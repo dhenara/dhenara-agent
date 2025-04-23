@@ -17,7 +17,6 @@ class FileSytemOperationsMixin:
     ) -> Path:
         """Format path with variables."""
         variables = {}
-        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
 
         # Determine base directory from input or settings
         base_directory = "."
@@ -30,9 +29,7 @@ class FileSytemOperationsMixin:
         path_str = DADTemplateEngine.render_dad_template(
             template=base_directory,
             variables=variables,
-            dad_dynamic_variables=dad_dynamic_variables,
-            run_env_params=execution_context.run_context.run_env_params,
-            node_execution_results=None,
+            execution_context=execution_context,
         )
 
         return Path(path_str).expanduser().resolve()
@@ -70,9 +67,7 @@ class FileSytemOperationsMixin:
             template_result = DADTemplateEngine.render_dad_template(
                 template=settings.operations_template,
                 variables={},
-                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
-                run_env_params=execution_context.run_context.run_env_params,
-                node_execution_results=execution_context.execution_results,
+                execution_context=execution_context,
             )
 
             # Process operations based on the actual type returned

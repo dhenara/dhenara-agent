@@ -140,9 +140,9 @@ class NodeExecutor(ABC):
             input_data = node_input.model_dump() if hasattr(node_input, "model_dump") else node_input
             execution_context.artifact_manager.record_data(
                 record_type="input",
-                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=input_data,
                 record_settings=input_record_settings,
+                execution_context=execution_context,
             )
 
         # if self.is_streaming:
@@ -284,17 +284,17 @@ class NodeExecutor(ABC):
             # Record the node output
             execution_context.artifact_manager.record_data(
                 record_type="result",
-                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=result_data,
                 record_settings=result_record_settings,
+                execution_context=execution_context,
             )
 
             # Record the node outcome
             execution_context.artifact_manager.record_data(
                 record_type="outcome",
-                dad_dynamic_variables=execution_context.get_dad_dynamic_variables(),
                 data=outcome_data,
                 record_settings=outcome_record_settings,
+                execution_context=execution_context,
             )
 
         return None

@@ -89,16 +89,16 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         id: str,  # noqa: A002
         statement: str,
         body: "ComponentDefinition",
+        max_iterations: int | None,
         item_var: str = "item",
         index_var: str = "index",
         collect_results: bool = True,
-        max_iterations: int | None = None,
     ) -> ForEach:
         """Add a loop to the flow."""
 
         self.is_allowed_sub_components(body)
 
-        _foreach = ForEach(
+        _foreach = FlowForEach(
             statement=statement,
             item_var=item_var,
             index_var=index_var,
@@ -114,9 +114,8 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         return FlowExecutor()  # TODO: Implement registry similar to node_executor_registry
 
 
-# TODO: Needed below?
-# class FlowForEach(ForEach, FlowDefinition):
-#    pass
+class FlowForEach(ForEach, FlowDefinition):
+    pass
 
 
 # ExecutableFlow

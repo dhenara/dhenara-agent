@@ -78,6 +78,10 @@ class ExecutionContext(BaseModelABC):
     updated_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
 
+    # Additional template rendering variables
+    condition_variables: dict[str, Any] = Field(default_factory=dict)
+    iteration_variables: dict[str, Any] = Field(default_factory=dict)
+
     # Streaming support
     streaming_contexts: dict[NodeID, StreamingContext | None] = Field(default_factory=dict)
     stream_generator: AsyncGenerator | None = Field(default=None)
@@ -359,19 +363,29 @@ class ExecutionContext(BaseModelABC):
             "node_hier": self.get_hierarchy_path(path_joiner="/"),
         }
 
-    def evaluate_expression(self, expression: str) -> Any:
-        """Evaluate an expression using the context's state."""
-        from .data.dad_template_engine import DADTemplateEngine
+    def get_node_result_hierarchical(self, node_id: str) -> Any:
+        """
+        Recursively search for a node execution result through the execution context hierarchy.
 
-        run_env_params = self.run_context.run_env_params
-        dad_dynamic_variables = self.get_dad_dynamic_variables()
-        return DADTemplateEngine.render_dad_template(
-            template=expression,
-            variables={},
-            dad_dynamic_variables=dad_dynamic_variables,
-            run_env_params=run_env_params,
-            node_execution_results=None,
-        )
+        This method first looks in the current execution context for the specified node ID.
+        If not found, it searches through parent contexts recursively.
+
+        Args:
+            node_id: The identifier of the node to find
+
+        Returns:
+            The node execution result if found, None otherwise
+        """
+        # Check if the node ID exists in the current context
+        if node_id in self.execution_results:
+            return self.execution_results[node_id]
+
+        # If not found, check parent contexts recursively
+        if self.parent:
+            return self.parent.get_node_result_hierarchical(node_id)
+
+        # Not found in any context
+        return None
 
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)

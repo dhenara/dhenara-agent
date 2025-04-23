@@ -1,11 +1,16 @@
 import json
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from dhenara.agent.dsl.base import DADTemplateEngine, RecordFileFormatEnum, RecordSettingsItem
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
+
+if TYPE_CHECKING:
+    from dhenara.agent.dsl.base import ExecutionContext
+else:
+    ExecutionContext = Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +27,8 @@ class ArtifactManager:
     def _resolve_template(
         self,
         template_str: str,
-        variables: dict | None = None,
-        dad_dynamic_variables: dict | None = None,
+        variables: dict | None,
+        execution_context: ExecutionContext,
     ) -> str:
         """Resolve a template string with the given variables."""
         # Handle both direct strings and TextTemplate objects
@@ -31,19 +36,16 @@ class ArtifactManager:
         return DADTemplateEngine.render_dad_template(
             template=template_text,
             variables=variables or {},
-            dad_dynamic_variables=dad_dynamic_variables or {},
-            run_env_params=self.run_env_params,
-            node_execution_results=None,
+            execution_context=execution_context,
             mode="standard",  # NOTE: Standard mode. No $expr() are allowed
         )
 
     def record_data(
         self,
-        dad_dynamic_variables: dict,
-        data: dict | str | bytes,
         record_type: Literal["outcome", "result"],
-        record_settings: RecordSettingsItem = None,
-        git_settings=None,  # TODO: Remove this legacy settings
+        data: dict | str | bytes,
+        record_settings: RecordSettingsItem | None,
+        execution_context: ExecutionContext,
     ) -> bool:
         """Common implementation for recording node data."""
         if record_settings is None or not record_settings.enabled:
@@ -71,8 +73,8 @@ class ArtifactManager:
 
         try:
             # Resolve path and filename from templates
-            path_str = self._resolve_template(record_settings.path, variables, dad_dynamic_variables)
-            file_name = self._resolve_template(record_settings.filename, variables, dad_dynamic_variables)
+            path_str = self._resolve_template(record_settings.path, variables, execution_context)
+            file_name = self._resolve_template(record_settings.filename, variables, execution_context)
 
             # Create full path - determine appropriate base directory based on record type
             base_dir = Path(self.run_env_params.run_dir)

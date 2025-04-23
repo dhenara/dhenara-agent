@@ -28,7 +28,10 @@ class FolderAnalysisOperationResult(BaseModel):
             return f"Operation failed: {self.error}"
 
         if self.operation_type == "analyze_folder":
-            return f"Analyzed folder {self.path}: {self.total_files} files, {self.total_directories} directories"
+            return (
+                f"Analyzed folder {self.path}: {self.analysis.total_files} files, "
+                f"{self.analysis.total_directories} directories"
+            )
         elif self.operation_type == "analyze_file":
             return f"Analyzed file {self.path}"
         elif self.operation_type == "find_files":

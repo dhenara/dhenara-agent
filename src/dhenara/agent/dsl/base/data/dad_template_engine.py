@@ -1,10 +1,17 @@
 import logging
-from typing import Any, Literal, TypeVar
+import re
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar
 
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate, Prompt, PromptText, TextTemplate
 
 from .template_engine import TemplateEngine
+
+# Use TYPE_CHECKING to avoid circular imports
+if TYPE_CHECKING:
+    from dhenara.agent.dsl.base import ExecutionContext
+else:
+    ExecutionContext = Any
 
 T = TypeVar("T")
 logger = logging.getLogger(__name__)
@@ -15,9 +22,9 @@ class DADTemplateEngine(TemplateEngine):
     Template engine specialized for Dhenara Agent DSL (DAD), extending the base TemplateEngine.
 
     This engine provides additional context from RunEnvParams and node execution results
-    to be used in template substitution.
+    to be used in template substitution, with support for hierarchical node resolution.
 
-    Use `.` notation to access data of input, output & outcome:
+    Use `.` notation to access data from node results:
     - $var{} for simple variable substitution
     - $expr{} for complex expressions with property access, operators, etc.
 
@@ -51,6 +58,7 @@ class DADTemplateEngine(TemplateEngine):
 
     @classmethod
     def get_dad_template_keywords_static_vars(cls, run_env_params: RunEnvParams) -> dict:
+        """Get static variables from run environment parameters."""
         # Guaranteed vars
         variables = {
             # --- Externally exposed vars
@@ -70,21 +78,14 @@ class DADTemplateEngine(TemplateEngine):
         return variables
 
     @classmethod
-    def get_dad_template_keywords_dynamic_vars(
-        cls,
-        dad_dynamic_variables: dict,
-        # Keep adding this list
-    ) -> dict:
-        """
-        Function to cross check only allowed variables are processed as dad_dynamic_variables
-        """
+    def get_dad_template_keywords_dynamic_vars(cls, dad_dynamic_variables: dict) -> dict:
+        """Extract only allowed dynamic variables."""
         variables = {}
 
-        # Check and add
-        if "node_id" in dad_dynamic_variables.keys() and dad_dynamic_variables["node_id"]:
+        if dad_dynamic_variables.get("node_id"):
             variables["node_id"] = str(dad_dynamic_variables["node_id"])
 
-        if "node_hier" in dad_dynamic_variables.keys() and dad_dynamic_variables["node_hier"]:
+        if dad_dynamic_variables.get("node_hier"):
             variables["node_hier"] = str(dad_dynamic_variables["node_hier"])
 
         return variables
@@ -94,40 +95,45 @@ class DADTemplateEngine(TemplateEngine):
         cls,
         template: str | Prompt | TextTemplate | ObjectTemplate,
         variables: dict[str, Any],
-        dad_dynamic_variables: dict[str, Any],
-        run_env_params: RunEnvParams,
-        node_execution_results: dict[str, Any],
+        execution_context: ExecutionContext,
         mode: Literal["standard", "expression"] = "expression",
         max_words: int | None = None,
         max_words_file: int | None = None,
         **kwargs: Any,
     ) -> Any:
         """
-        Render a template with DAD-specific context.
+        Render a template with DAD-specific context and hierarchical node resolution.
 
         Args:
-            template: String, Prompt, TextTemplate, or ObjectTemplate to render
+            template: Template to render (string, Prompt, TextTemplate, or ObjectTemplate)
             variables: User-provided variables for template rendering
-            dad_dynamic_variables: Dynamic variables from the DAD context
+            dad_dynamic_variables: Dynamic variables from the execution context
             run_env_params: Run environment parameters
-            node_execution_results: Results from previous node executions
+            execution_context: Current execution context for hierarchical node lookup
+            node_execution_results: Flat dictionary of node results (for backward compatibility)
             mode: "standard" for basic substitution, "expression" for advanced evaluation
-            max_words: Maximum number of words in output text
-            max_words_file: Maximum number of words for file content
+            max_words: Maximum number of words to include in text output
+            max_words_file: Maximum number of words for file content (unused, for API compatibility)
             **kwargs: Additional variables for template formatting
 
         Returns:
-            Rendered template (string for TextTemplate, raw value for ObjectTemplate)
+            Rendered template (preserves type for ObjectTemplate, returns string for others)
         """
-        if not template:
-            return ""
+        if template is None:
+            return None
+
+        dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
+        run_env_params = execution_context.run_context.run_env_params
+        iteration_variables = execution_context.iteration_variables
 
         # Combine all variables with precedence: kwargs > variables > node_results > run_env
         combined_variables = {}
 
-        # Add node execution results
-        if node_execution_results:
-            combined_variables.update(node_execution_results)
+        # TODO: Delete
+        ## Add node execution results (lowest precedence)
+        # node_execution_results = execution_context.execution_results
+        # if node_execution_results:
+        #    combined_variables.update(node_execution_results)
 
         # Add user-provided variables (overriding previous)
         if variables:
@@ -137,14 +143,20 @@ class DADTemplateEngine(TemplateEngine):
         if kwargs:
             combined_variables.update(kwargs)
 
+        # Add iteration_variables
+        combined_variables.update(iteration_variables)
         # Add DAD variables
         combined_variables.update(cls.get_dad_template_keywords_static_vars(run_env_params))
         combined_variables.update(cls.get_dad_template_keywords_dynamic_vars(dad_dynamic_variables))
 
         try:
+            # Handle ObjectTemplate - preserves type
+            if isinstance(template, ObjectTemplate):
+                return cls.evaluate_single_expression(template.expression, combined_variables, execution_context)
+
             # Handle string templates
-            if isinstance(template, str):
-                rendered_text = cls.render_template(template, combined_variables, mode)
+            elif isinstance(template, str):
+                rendered_text = cls.render_template(template, combined_variables, execution_context, mode)
                 return cls._apply_word_limit(rendered_text, max_words)
 
             # Handle Prompt objects
@@ -155,11 +167,12 @@ class DADTemplateEngine(TemplateEngine):
                     return cls._process_prompt_text(
                         prompt_text=template.text,
                         variables=combined_variables,
+                        execution_context=execution_context,
                         mode=mode,
                         max_words=max_words,
                     )
                 elif isinstance(template.text, str):
-                    rendered_text = cls.render_template(template.text, combined_variables, mode)
+                    rendered_text = cls.render_template(template.text, combined_variables, execution_context, mode)
                     return cls._apply_word_limit(rendered_text, max_words)
                 else:
                     raise ValueError(f"Unsupported prompt.text type: {type(template.text)}")
@@ -168,13 +181,10 @@ class DADTemplateEngine(TemplateEngine):
                 return cls._process_text_template(
                     text_template=template,
                     variables=combined_variables,
+                    execution_context=execution_context,
                     mode=mode,
                     max_words=max_words,
                 )
-
-            # Handle ObjectTemplate - preserves type
-            elif isinstance(template, ObjectTemplate):
-                return cls.evaluate_single_expression(template.expression, combined_variables)
 
             else:
                 raise ValueError(f"Unsupported template type: {type(template)}")
@@ -188,19 +198,21 @@ class DADTemplateEngine(TemplateEngine):
         cls,
         prompt_text: PromptText,
         variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"],
         mode: Literal["standard", "expression"],
         max_words: int | None,
     ) -> str:
         """Process a PromptText object."""
         if prompt_text.content:
             template_text = prompt_text.content.get_content()
-            parsed_text = cls.render_template(template_text, variables, mode)
+            parsed_text = cls.render_template(template_text, variables, execution_context, mode)
             return cls._apply_word_limit(parsed_text, max_words)
         else:
             # If no content, use the template text directly
             return cls._process_text_template(
                 text_template=prompt_text.template,
                 variables=variables,
+                execution_context=execution_context,
                 mode=mode,
                 max_words=max_words,
             )
@@ -210,10 +222,11 @@ class DADTemplateEngine(TemplateEngine):
         cls,
         text_template: TextTemplate,
         variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"],
         mode: Literal["standard", "expression"],
         max_words: int | None,
     ) -> str:
-        parsed_text = cls.render_template(text_template.text, variables, mode)
+        parsed_text = cls.render_template(text_template.text, variables, execution_context, mode)
         return cls._apply_word_limit(parsed_text, max_words)
 
     @classmethod
@@ -227,7 +240,6 @@ class DADTemplateEngine(TemplateEngine):
         """Process a PromptText object."""
 
         # Phase 1: Extract and protect DAD template variables (${...})
-        import re
 
         protected_dad_vars = {}
 
