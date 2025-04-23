@@ -64,20 +64,20 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         self,
         id: str,  # noqa: A002
         statement: ObjectTemplate,
-        then_branch: "FlowDefinition",
-        else_branch: Union["FlowDefinition", None] = None,
+        true_branch: "FlowDefinition",
+        false_branch: Union["FlowDefinition", None] = None,
     ) -> "FlowDefinition":
         """Add a conditional branch to the flow."""
 
-        if not isinstance(then_branch, FlowDefinition):
-            raise ValueError(f"Unsupported subcomponent type: {type(then_branch)}. Expected FlowDefinition")
-        if else_branch is not None and not isinstance(else_branch, FlowDefinition):
-            raise ValueError(f"Unsupported subcomponent type: {type(else_branch)}. Expected FlowDefinition")
+        if not isinstance(true_branch, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(true_branch)}. Expected FlowDefinition")
+        if false_branch is not None and not isinstance(false_branch, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(false_branch)}. Expected FlowDefinition")
 
         _conditional = FlowConditional(
             statement=statement,
-            then_branch=then_branch,
-            else_branch=else_branch,
+            true_branch=true_branch,
+            false_branch=false_branch,
         )
         self.elements.append(Flow(id=id, definition=_conditional))
         return self

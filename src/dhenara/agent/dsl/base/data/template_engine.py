@@ -82,15 +82,21 @@ class TemplateEngine:
         "bool": bool,
         "list": list,
         "dict": dict,
+        "set": set,
         "sum": sum,
         "min": min,
         "max": max,
         "all": all,
         "any": any,
+        "filter": filter,
         "sorted": sorted,
         "enumerate": enumerate,
         "zip": zip,
         "range": range,
+        "isinstance": isinstance,
+        "getattr": getattr,
+        "hasattr": hasattr,
+        "map": map,
     }
 
     @classmethod
@@ -282,19 +288,21 @@ class TemplateEngine:
         execution_context: Optional["ExecutionContext"] = None,
     ) -> Any:
         """
-        Evaluate an expression with context support.
-
-        Args:
-            expr: Expression to evaluate
-            variables: Variables for evaluation
-            execution_context: Execution context for node result resolution
-
-        Returns:
-            Evaluated result with original type preserved
+        Evaluate an expression with enhanced literal value handling.
         """
         # Handle Python expressions
         if expr.startswith("py:"):
-            return cls._evaluate_python_expression(expr[3:], variables)
+            # Extract the Python expression
+            py_expr = expr[3:].strip()
+
+            # Create a context dictionary with all variables
+            eval_context = variables.copy()
+
+            # Add special functions for accessing node results
+            eval_context["$node"] = NodeAccessHelper(execution_context)
+
+            # Evaluate the Python expression with this context
+            return cls._evaluate_python_expression(py_expr, eval_context)
 
         # Handle binary operators
         for op_text, op_func in cls.OPERATORS.items():
@@ -304,26 +312,62 @@ class TemplateEngine:
                 right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
                 return op_func(left, right)
 
-        # Handle path resolution
-        return cls._get_value_from_path(expr, variables, execution_context)
+        # Handle literal values before attempting path resolution
+        literal_value = cls._try_parse_literal(expr)
+        if literal_value is not None:
+            return literal_value
+
+        # If not a literal, handle path resolution
+        return cls._resolve_hierarchical_path(expr, variables, execution_context)
 
     @classmethod
-    def _get_value_from_path(
+    def _try_parse_literal(cls, expr: str) -> Any:
+        """
+        Attempt to parse a string as a literal value (number, boolean, null).
+        Returns the parsed value if successful, otherwise None.
+        """
+        expr = expr.strip()
+
+        # Handle numeric literals
+        try:
+            # Try integer first
+            return int(expr)
+        except ValueError:
+            try:
+                # Then try float
+                return float(expr)
+            except ValueError:
+                pass
+
+        # Handle boolean literals
+        if expr.lower() == "true":
+            return True
+        if expr.lower() == "false":
+            return False
+
+        # Handle null/None
+        if expr.lower() in ("null", "none"):
+            return None
+
+        # Handle quoted string literals
+        if (expr.startswith('"') and expr.endswith('"')) or (expr.startswith("'") and expr.endswith("'")):
+            return expr[1:-1]
+
+        # Not a recognized literal
+        return None
+
+    @classmethod
+    def _resolve_hierarchical_path(
         cls,
         path: str,
         variables: dict[str, Any],
         execution_context: Optional["ExecutionContext"] = None,
     ) -> Any:
         """
-        Get a value from a dot-notation path with hierarchical node resolution.
+        Resolves a path expression with full support for hierarchical node results.
 
-        Args:
-            path: Dot-notation path
-            variables: Variables dictionary
-            execution_context: Execution context for node result resolution
-
-        Returns:
-            Value at the specified path or None if not found
+        This is an improved version of _get_value_from_path that better handles
+        node result hierarchies and complex expressions.
         """
         if not path or not path.strip():
             return None
@@ -347,9 +391,9 @@ class TemplateEngine:
             # Not found in variables and no execution context
             return None
 
-        # Navigate through remaining parts...
+        # Enhanced navigation through remaining parts
         for part in parts[1:]:
-            # Check for array indexing
+            # Handle array/list indexing with [n] syntax
             index_match = cls.INDEX_PATTERN.match(part)
             if index_match:
                 # Split into name and index
@@ -362,13 +406,19 @@ class TemplateEngine:
                     if current is None:
                         return None
 
-                # Access by index
-                if isinstance(current, (list, tuple)) and 0 <= idx < len(current):
-                    current = current[idx]
+                # Access by index with better error handling
+                if isinstance(current, (list, tuple)):
+                    if 0 <= idx < len(current):
+                        current = current[idx]
+                    else:
+                        return None
+                elif isinstance(current, dict) and str(idx) in current:
+                    # Support dictionary access by numeric key
+                    current = current[str(idx)]
                 else:
                     return None
             else:
-                # Regular property access
+                # Regular property access with improved error handling
                 current = cls._access_property(current, part)
                 if current is None:
                     return None
@@ -422,7 +472,28 @@ class TemplateEngine:
             # Create a safe execution environment
             return eval(expr, {"__builtins__": cls.SAFE_GLOBALS}, variables)
         except Exception as e:
-            raise ValueError(f"Error evaluating Python expression: {e!s}")
+            logger.error(f"Error evaluating Python expression '{expr}': {e}")
+            return f"Error: {e!s}"
+
+
+class NodeAccessHelper:
+    """Helper class that makes accessing node results more intuitive in expressions."""
+
+    def __init__(self, execution_context):
+        self.execution_context = execution_context
+
+    def __getattr__(self, node_id):
+        """Allow accessing node results with dot notation: node.node_id"""
+        result = self.execution_context.get_context_variable_value_hierarchical(node_id)
+        if result is None:
+            # return EmptyNodeResult()  # Return a safe empty object instead of None
+            return {}
+        return result
+
+    def get(self, node_id, default=None):
+        """Safe way to get node results with a default value"""
+        result = self.execution_context.get_context_variable_value_hierarchical(node_id)
+        return result if result is not None else default
 
 
 # TODO: Test  document and delete below

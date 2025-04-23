@@ -21,8 +21,8 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         default=None,
         description=("Template to evaluvate from previous node results. This should resolve to a boolean."),
     )
-    then_branch: ComponentDefinition = Field(..., description="Block to execute if condition is true")
-    else_branch: ComponentDefinition | None = Field(default=None, description="Block to execute if condition is false")
+    true_branch: ComponentDefinition = Field(..., description="Block to execute if condition is true")
+    false_branch: ComponentDefinition | None = Field(default=None, description="Block to execute if condition is false")
 
     async def execute(
         self,
@@ -55,10 +55,10 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         )
 
         # Create branch-specific IDs
-        # then_id = f"{component_id}_then"
-        # else_id = f"{component_id}_else"
-        then_id = "then"
-        else_id = "else"
+        # true_id = f"{component_id}_is_true"
+        # false_id = f"{component_id}_is_false"
+        true_id = "is_true"
+        false_id = "is_false"
 
         condition_variables = {
             "evaluation_result": evaluation_result,
@@ -68,32 +68,32 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
 
         # Execute the appropriate branch
         if evaluation_result:
-            then_branch_context = execution_context.__class__(
-                component_id=then_id,
-                component_definition=self.then_branch,
+            true_branch_context = execution_context.__class__(
+                component_id=true_id,
+                component_definition=self.true_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
                 condition_variables=condition_variables,
             )
 
-            result = await self.then_branch.execute(
-                component_id=then_id,
-                execution_context=then_branch_context,
+            result = await self.true_branch.execute(
+                component_id=true_id,
+                execution_context=true_branch_context,
                 run_context=run_context,
             )
             return result
-        elif self.else_branch:
-            else_branch_context = execution_context.__class__(
-                component_id=else_id,
-                component_definition=self.else_branch,
+        elif self.false_branch:
+            false_branch_context = execution_context.__class__(
+                component_id=false_id,
+                component_definition=self.false_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
                 condition_variables=condition_variables,
             )
 
-            result = self.else_branch.execute(
-                component_id=else_id,
-                execution_context=else_branch_context,
+            result = await self.false_branch.execute(
+                component_id=false_id,
+                execution_context=false_branch_context,
                 run_context=run_context,
             )
         return result

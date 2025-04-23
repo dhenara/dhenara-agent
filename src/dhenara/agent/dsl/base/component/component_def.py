@@ -64,10 +64,10 @@ class ComponentDefinition(
         if hasattr(element, "subflow") and element.subflow:
             return element.subflow.elements
         # For conditional branches
-        elif hasattr(element, "then_branch") and element.then_branch:
-            children = list(getattr(element.then_branch, "elements", []))
-            if hasattr(element, "else_branch") and element.else_branch:
-                children.extend(getattr(element.else_branch, "elements", []))
+        elif hasattr(element, "true_branch") and element.true_branch:
+            children = list(getattr(element.true_branch, "elements", []))
+            if hasattr(element, "false_branch") and element.false_branch:
+                children.extend(getattr(element.false_branch, "elements", []))
             return children
         # For other element types
         return getattr(element, "elements", [])
@@ -100,10 +100,10 @@ class ComponentDefinition(
         if hasattr(element, "subflow") and element.subflow:
             return element.subflow.elements
         # For conditional branches
-        elif hasattr(element, "then_branch") and element.then_branch:
-            children = list(getattr(element.then_branch, "elements", []))
-            if hasattr(element, "else_branch") and element.else_branch:
-                children.extend(getattr(element.else_branch, "elements", []))
+        elif hasattr(element, "true_branch") and element.true_branch:
+            children = list(getattr(element.true_branch, "elements", []))
+            if hasattr(element, "false_branch") and element.false_branch:
+                children.extend(getattr(element.false_branch, "elements", []))
             return children
         # For other element types
         return getattr(element, "elements", [])

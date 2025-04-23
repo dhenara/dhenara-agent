@@ -72,21 +72,21 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         self,
         id: str,  # noqa: A002
         statement: ObjectTemplate,
-        then_branch: "AgentDefinition",
-        else_branch: Union["AgentDefinition", None] = None,
+        true_branch: "AgentDefinition",
+        false_branch: Union["AgentDefinition", None] = None,
     ) -> "AgentDefinition":
         """Add a conditional branch to the agent."""
 
-        if not isinstance(then_branch, AgentDefinition):
-            raise ValueError(f"Unsupported subcomponent type: {type(then_branch)}. Expected AgentDefinition")
+        if not isinstance(true_branch, AgentDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(true_branch)}. Expected AgentDefinition")
 
-        if else_branch is not None and not isinstance(else_branch, AgentDefinition):
-            raise ValueError(f"Unsupported subcomponent type: {type(else_branch)}. Expected AgentDefinition")
+        if false_branch is not None and not isinstance(false_branch, AgentDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(false_branch)}. Expected AgentDefinition")
 
         _conditional = AgentConditional(
             statement=statement,
-            then_branch=then_branch,
-            else_branch=else_branch,
+            true_branch=true_branch,
+            false_branch=false_branch,
         )
         self.elements.append(Agent(id=id, definition=_conditional))
         return self
