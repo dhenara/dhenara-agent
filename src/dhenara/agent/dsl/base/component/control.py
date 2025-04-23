@@ -32,10 +32,26 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
     ) -> Any:
         """Execute the appropriate branch based on the condition."""
         # Evaluate the condition
-        condition_result = execution_context.evaluate_expression(self.statement)
+        result = None
+
+        _rendered = DADTemplateEngine.render_dad_template(
+            template=self.statement,
+            variables={},
+            execution_context=execution_context,
+        )
+        evaluation_result = _rendered
+
+        if evaluation_result is None or isinstance(evaluation_result, str):
+            execution_context.logger.error(
+                f"Conditional statement '{self.statement}' evaluated to a type {type(evaluation_result)} "
+                "not to a bool convertable type"
+            )
+            return result
+
+        evaluation_result = bool(evaluation_result)
 
         execution_context.logger.info(
-            f"Conditional {component_id}: Statement '{self.statement}' evaluated to {condition_result}"
+            f"Conditional {component_id}: Statement '{self.statement}' evaluated to {evaluation_result}"
         )
 
         # Create branch-specific IDs
@@ -45,34 +61,42 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         else_id = "else"
 
         condition_variables = {
-            "evaluation_result": condition_result,
+            "evaluation_result": evaluation_result,
             "statement": self.statement,
         }
         # Create a new context for the branch with the evaluation result
-        branch_context = execution_context.__class__(
-            component_id=then_id if condition_result else else_id,
-            component_definition=self.then_branch if condition_result else self.else_branch,
-            run_context=execution_context.run_context,
-            parent=execution_context,
-            condition_variables=condition_variables,
-        )
 
         # Execute the appropriate branch
-        if condition_result:
-            if self.then_branch:
-                return await self.then_branch.execute(
-                    component_id=then_id,
-                    execution_context=branch_context,
-                    run_context=run_context,
-                )
-            return None
-        elif self.else_branch:
-            return await self.else_branch.execute(
-                component_id=else_id,
-                execution_context=branch_context,
+        if evaluation_result:
+            then_branch_context = execution_context.__class__(
+                component_id=then_id,
+                component_definition=self.then_branch,
+                run_context=execution_context.run_context,
+                parent=execution_context,
+                condition_variables=condition_variables,
+            )
+
+            result = await self.then_branch.execute(
+                component_id=then_id,
+                execution_context=then_branch_context,
                 run_context=run_context,
             )
-        return None
+            return result
+        elif self.else_branch:
+            else_branch_context = execution_context.__class__(
+                component_id=else_id,
+                component_definition=self.else_branch,
+                run_context=execution_context.run_context,
+                parent=execution_context,
+                condition_variables=condition_variables,
+            )
+
+            result = self.else_branch.execute(
+                component_id=else_id,
+                execution_context=else_branch_context,
+                run_context=run_context,
+            )
+        return result
 
 
 class ForEach(BaseModel, Generic[ComponentDefT]):
@@ -85,7 +109,6 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
     item_var: str = Field(default="item", description="Variable name for current item")
     index_var: str = Field(default="index", description="Variable name for current index")
     body: ComponentDefT = Field(..., description="Block to execute for each item")
-    collect_results: bool = Field(default=True, description="Whether to collect results")
     max_iterations: int | None = Field(default=None, description="Maximum iterations")
 
     async def execute(
@@ -108,6 +131,7 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
             execution_context.logger.error(f"ForEach statement '{self.statement}' evaluated to empty or None")
             return []
 
+        execution_context.logger.debug(f"ForEach {component_id}: Statement '{self.statement}' evaluated to {items}")
         results = []
 
         # Apply iteration limit if configured
@@ -143,8 +167,6 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
                 run_context=run_context,
             )
 
-            # Collect results if configured
-            if self.collect_results:
-                results.append(result)
+            results.append(result)
 
-        return results if self.collect_results else None
+        return results

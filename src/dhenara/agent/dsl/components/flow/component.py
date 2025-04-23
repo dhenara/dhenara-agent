@@ -13,6 +13,7 @@ from dhenara.agent.dsl.base import (
     NodeDefT,
 )
 from dhenara.agent.dsl.components.flow import FlowNode
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
 class FlowExecutionContext(ExecutionContext):
@@ -34,17 +35,12 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
     result_class = FlowExecutionResult
     logger_path: str = "dhenara.dad.flow"
 
-    def is_allowed_sub_components(self, inst) -> None:
-        """Check for allowed definitions for this component."""
-        if not isinstance(inst, FlowDefinition):
-            raise ValueError(f"Unsupported subcomponent type: {type(inst)}. Expected FlowDefinition")
-
     # Factory methods for creating components
     def node(
         self,
         id: str,  # noqa: A002
         definition: NodeDefT,
-    ) -> "ComponentDefinition":
+    ) -> "FlowDefinition":
         """Add a node to the flow."""
 
         _node = FlowNode(id=id, definition=definition)
@@ -55,28 +51,30 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         self,
         id: str,  # noqa: A002
         definition: "FlowDefinition",
-    ) -> "ComponentDefinition":
+    ) -> "FlowDefinition":
         """Add a component to the flow."""
 
-        self.is_allowed_sub_components(definition)
+        if not isinstance(definition, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(definition)}. Expected FlowDefinition")
+
         self.elements.append(Flow(id=id, definition=definition))
         return self
 
-    # TODO: Cleanup
     def conditional(
         self,
         id: str,  # noqa: A002
-        statement: str,
-        then_branch: "ComponentDefinition",
-        else_branch: Union["ComponentDefinition", None] = None,
-    ) -> "ComponentDefinition":
+        statement: ObjectTemplate,
+        then_branch: "FlowDefinition",
+        else_branch: Union["FlowDefinition", None] = None,
+    ) -> "FlowDefinition":
         """Add a conditional branch to the flow."""
 
-        self.is_allowed_sub_components(then_branch)
-        if else_branch is not None:
-            self.is_allowed_sub_components(else_branch)
+        if not isinstance(then_branch, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(then_branch)}. Expected FlowDefinition")
+        if else_branch is not None and not isinstance(else_branch, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(else_branch)}. Expected FlowDefinition")
 
-        _conditional = Conditional(
+        _conditional = FlowConditional(
             statement=statement,
             then_branch=then_branch,
             else_branch=else_branch,
@@ -87,23 +85,22 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
     def for_each(
         self,
         id: str,  # noqa: A002
-        statement: str,
-        body: "ComponentDefinition",
+        statement: ObjectTemplate,
+        body: "FlowDefinition",
         max_iterations: int | None,
         item_var: str = "item",
         index_var: str = "index",
-        collect_results: bool = True,
     ) -> ForEach:
         """Add a loop to the flow."""
 
-        self.is_allowed_sub_components(body)
+        if not isinstance(body, FlowDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected FlowDefinition")
 
         _foreach = FlowForEach(
             statement=statement,
             item_var=item_var,
             index_var=index_var,
             body=body,
-            collect_results=collect_results,
             max_iterations=max_iterations,
         )
         self.elements.append(Flow(id=id, definition=_foreach))
@@ -112,6 +109,10 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
     # Implementaion of abstractmethod
     def get_component_executor(self):
         return FlowExecutor()  # TODO: Implement registry similar to node_executor_registry
+
+
+class FlowConditional(Conditional, FlowDefinition):
+    pass
 
 
 class FlowForEach(ForEach, FlowDefinition):

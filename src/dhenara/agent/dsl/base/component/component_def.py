@@ -165,11 +165,5 @@ class ComponentDefinition(
         """Get the component_executor for this component definition. This internally handles executor registry"""
         pass
 
-    # -------------------------------------------------------------------------
-    @abstractmethod
-    def is_allowed_sub_components(self, inst) -> None:
-        """Check for allowed definitions for this component."""
-        pass
-
 
 ComponentDefT = TypeVar("ComponentDefT", bound=ComponentDefinition)

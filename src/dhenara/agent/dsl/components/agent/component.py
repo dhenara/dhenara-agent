@@ -1,13 +1,18 @@
+from typing import Union
+
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
     ComponentTypeEnum,
+    Conditional,
     ExecutableComponent,
     ExecutableTypeEnum,
     ExecutionContext,
+    ForEach,
 )
 from dhenara.agent.dsl.components.flow.component import Flow, FlowDefinition
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
 class AgentExecutionContext(ExecutionContext):
@@ -29,35 +34,85 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
     result_class = AgentExecutionResult
     logger_path: str = "dhenara.dad.agent"
 
-    def is_allowed_sub_components(self, inst) -> None:
-        """Check for allowed definitions for this component."""
-        if not isinstance(inst, (FlowDefinition, AgentDefinition)):
-            raise ValueError(f"Unsupported subcomponent type: {type(inst)}. Expected FlowDefinition or AgentDefinition")
-
     def flow(
         self,
         id: str,  # noqa: A002
         definition: FlowDefinition,
-    ) -> "ComponentDefinition":
-        """Add a component to the flow."""
+    ) -> "AgentDefinition":
+        """Add a component to the agent."""
 
         if not isinstance(definition, FlowDefinition):
             raise ValueError(f"Unsupported type for body: {type(definition)}. Expected FlowDefinition")
 
-        self.elements.append(Agent(id=id, definition=definition))
+        self.elements.append(Flow(id=id, definition=definition))
         return self
 
     def subagent(
         self,
         id: str,  # noqa: A002
         definition: "AgentDefinition",
-    ) -> "ComponentDefinition":
-        """Add a component to the flow."""
+    ) -> "AgentDefinition":
+        """Add a component to the agent."""
 
         if not isinstance(definition, AgentDefinition):
             raise ValueError(f"Unsupported type for body: {type(definition)}. Expected AgentDefinition")
 
-        self.elements.append(Flow(id=id, definition=definition))
+        self.elements.append(Agent(id=id, definition=definition))
+        return self
+
+    # TODO_FUTURE
+    def conditional_flow(self):
+        raise NotImplementedError("conditional_flow")
+
+    # TODO_FUTURE
+    def for_each_flow(self):
+        raise NotImplementedError("for_each")
+
+    def conditional(
+        self,
+        id: str,  # noqa: A002
+        statement: ObjectTemplate,
+        then_branch: "AgentDefinition",
+        else_branch: Union["AgentDefinition", None] = None,
+    ) -> "AgentDefinition":
+        """Add a conditional branch to the agent."""
+
+        if not isinstance(then_branch, AgentDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(then_branch)}. Expected AgentDefinition")
+
+        if else_branch is not None and not isinstance(else_branch, AgentDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(else_branch)}. Expected AgentDefinition")
+
+        _conditional = AgentConditional(
+            statement=statement,
+            then_branch=then_branch,
+            else_branch=else_branch,
+        )
+        self.elements.append(Agent(id=id, definition=_conditional))
+        return self
+
+    def for_each(
+        self,
+        id: str,  # noqa: A002
+        statement: ObjectTemplate,
+        body: "AgentDefinition",
+        max_iterations: int | None,
+        item_var: str = "item",
+        index_var: str = "index",
+    ) -> ForEach:
+        """Add a loop to the agent."""
+
+        if not isinstance(body, AgentDefinition):
+            raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected AgentDefinition")
+
+        _foreach = AgentForEach(
+            statement=statement,
+            item_var=item_var,
+            index_var=index_var,
+            body=body,
+            max_iterations=max_iterations,
+        )
+        self.elements.append(Agent(id=id, definition=_foreach))
         return self
 
     # Implementaion of abstractmethod
@@ -65,8 +120,16 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         return AgentExecutor()  # TODO: Implement registry similar to node_executor_registry
 
 
+class AgentConditional(Conditional, AgentDefinition):
+    pass
+
+
+class AgentForEach(ForEach, AgentDefinition):
+    pass
+
+
 # ExecutableAgent
 class Agent(ExecutableComponent[AgentDefinition, AgentExecutionContext]):
     @property
     def executable_type(self) -> ExecutableTypeEnum:
-        return ExecutableTypeEnum.flow
+        return ExecutableTypeEnum.agent
