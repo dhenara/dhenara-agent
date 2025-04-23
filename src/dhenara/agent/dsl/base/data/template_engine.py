@@ -32,6 +32,20 @@ class TemplateEngine:
     - Use $$var{} to output a literal "$var{}" string
     - Use $$expr{} to output a literal "$expr{}" string
 
+    Node heirarcy:
+        To access any node heirarcy inside a `$expr{}` WITHOUT a `py:` expression,
+        list the node heirarcy seperated with a `.`
+            Example:
+
+            expression="$expr{initial_repo_analysis.outcome.results}"
+
+        To access any node heirarcy inside a `py:` expression,
+        add a `$node.` before the node heirarcy.
+            Example:
+
+            expression="$expr{py: len($node.initial_repo_analysis.outcome.results) >=1  and all(chld.word_count > 10 for rslt in $node.initial_repo_analysis.outcome.results for chld in rslt.analysis.children)}"
+
+
     Examples:
         # Variable substitution
         TemplateEngine.render_template("Hello $var{name}", {"name": "World"})
@@ -52,7 +66,7 @@ class TemplateEngine:
         # Regular braces are left untouched
         TemplateEngine.render_template("Braces: {not.a.placeholder}", {})
         # Output: "Braces: {not.a.placeholder}"
-    """
+    """  # noqa: E501, W505
 
     # Regex patterns
     EXPR_PATTERN: Pattern = re.compile(r"\$expr{([^}]+)}")
@@ -72,6 +86,11 @@ class TemplateEngine:
         "!=": operator.ne,
         "&&": lambda x, y: x and y,
     }
+    OPERATOR_PRECEDENCE = [
+        ["==", "!=", ">", "<", ">=", "<="],  # Comparison operators
+        ["&&"],  # Logical AND
+        ["||"],  # Logical OR
+    ]
 
     # Safe globals for Python expression evaluation
     SAFE_GLOBALS: dict[str, Callable] = {
@@ -288,29 +307,47 @@ class TemplateEngine:
         execution_context: Optional["ExecutionContext"] = None,
     ) -> Any:
         """
-        Evaluate an expression with enhanced literal value handling.
+        Evaluate an expression with enhanced support for brackets and complex operations.
         """
+        ## INFO:
+        # To access any node heirarcy inside a `$expr{}` WITHOUT a `py:` expression,
+        # list the node heirarcy seperated with a `.`
+        # Eg: $expr{initial_repo_analysis.outcome.results}
+        #  To access any node heirarcy inside a `py:` expression, add a `$node.` before the node heirarcy.
+        # This was required as we are already inside a special template kw, `$expr`
+
         # Handle Python expressions
         if expr.startswith("py:"):
-            # Extract the Python expression
-            py_expr = expr[3:].strip()
+            return cls._evaluate_python_expression(expr[3:].strip(), variables, execution_context)
 
-            # Create a context dictionary with all variables
-            eval_context = variables.copy()
+        # Handle bracketed expressions first
+        bracket_pattern = re.compile(r"\(([^()]*)\)")
 
-            # Add special functions for accessing node results
-            eval_context["$node"] = NodeAccessHelper(execution_context)
+        while True:
+            match = bracket_pattern.search(expr)
+            if not match:
+                break
 
-            # Evaluate the Python expression with this context
-            return cls._evaluate_python_expression(py_expr, eval_context)
+            # Evaluate the expression inside brackets
+            inner_expr = match.group(1)
+            inner_result = cls._evaluate_expression(inner_expr, variables, execution_context)
+
+            # Replace the bracketed expression with its result
+            expr = expr[: match.start()] + str(inner_result) + expr[match.end() :]
 
         # Handle binary operators
-        for op_text, op_func in cls.OPERATORS.items():
-            if op_text in expr:
-                parts = expr.split(op_text, 1)
-                left = cls._evaluate_expression(parts[0].strip(), variables, execution_context)
-                right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
-                return op_func(left, right)
+        # for op_text, op_func in cls.OPERATORS.items():
+        for precedence_group in cls.OPERATOR_PRECEDENCE:
+            for op_text in precedence_group:
+                op_func = cls.OPERATORS[op_text]
+                if op_text in expr:
+                    pass
+
+                if op_text in expr:
+                    parts = expr.split(op_text, 1)
+                    left = cls._evaluate_expression(parts[0].strip(), variables, execution_context)
+                    right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
+                    return op_func(left, right)
 
         # Handle literal values before attempting path resolution
         literal_value = cls._try_parse_literal(expr)
@@ -452,27 +489,51 @@ class TemplateEngine:
         return None
 
     @classmethod
-    def _evaluate_python_expression(cls, expr: str, variables: dict[str, Any]) -> Any:
+    def _evaluate_python_expression(
+        cls,
+        expr: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> Any:
         """
-        Evaluate a Python expression with safety constraints.
-
-        Only a limited set of built-in functions are available.
-
-        Args:
-            expr: Python expression string
-            variables: Variables for evaluation
-
-        Returns:
-            Result of evaluating the expression
-
-        Raises:
-            ValueError: If there's an error during evaluation
+        Evaluate a Python expression with enhanced node access support.
         """
         try:
+            # Create eval context with node accessors
+            eval_variables = variables.copy()
+            if execution_context:
+                # Add node helper without $ to variables
+                eval_variables["node"] = NodeAccessHelper(execution_context)
+
+                # Process the expression to handle $node references
+                processed_expr = expr.replace("$node.", "node.")
+            else:
+                processed_expr = expr
+
+            # Add special function to resolve node paths directly
+            def resolve_node_path(path):
+                """Helper function to resolve a node path from execution context"""
+                if not execution_context:
+                    return None
+                parts = path.split(".")
+                node_id = parts[0]
+                result = execution_context.get_context_variable_value_hierarchical(node_id)
+                if result is None or len(parts) == 1:
+                    return result
+
+                # Access nested properties
+                for part in parts[1:]:
+                    result = cls._access_property(result, part)
+                    if result is None:
+                        break
+                return result
+
+            # eval_variables["resolve_node"] = resolve_node_path
+
             # Create a safe execution environment
-            return eval(expr, {"__builtins__": cls.SAFE_GLOBALS}, variables)
+            return eval(processed_expr, {"__builtins__": cls.SAFE_GLOBALS}, eval_variables)
         except Exception as e:
-            logger.error(f"Error evaluating Python expression '{expr}': {e}")
+            logger.error(f"Error evaluating Python expression '{expr}': {e}", exc_info=True)
             return f"Error: {e!s}"
 
 
@@ -486,14 +547,50 @@ class NodeAccessHelper:
         """Allow accessing node results with dot notation: node.node_id"""
         result = self.execution_context.get_context_variable_value_hierarchical(node_id)
         if result is None:
-            # return EmptyNodeResult()  # Return a safe empty object instead of None
-            return {}
+            # Return a proxy object that returns None for any attribute
+            return NodeNullProxy(f"No node result found for '{node_id}'")
         return result
 
     def get(self, node_id, default=None):
         """Safe way to get node results with a default value"""
         result = self.execution_context.get_context_variable_value_hierarchical(node_id)
         return result if result is not None else default
+
+
+class NodeNullProxy:
+    """A proxy object that returns itself for any attribute access and None for operations."""
+
+    def __init__(self, error_message="Missing node data"):
+        self.error_message = error_message
+
+    def __getattr__(self, name):
+        return self
+
+    def __str__(self):
+        return f"<{self.error_message}>"
+
+    def __repr__(self):
+        return self.__str__()
+
+    # Support common operations by returning None
+    def __bool__(self):
+        return False
+
+    # Make it work with operations
+    def __eq__(self, other):
+        return False
+
+    def __gt__(self, other):
+        return False
+
+    def __lt__(self, other):
+        return False
+
+    def __ge__(self, other):
+        return False
+
+    def __le__(self, other):
+        return False
 
 
 # TODO: Test  document and delete below
