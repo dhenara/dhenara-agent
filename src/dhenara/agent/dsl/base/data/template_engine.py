@@ -338,7 +338,7 @@ class TemplateEngine:
         # Then try to resolve as a node result if execution context is available
         elif execution_context is not None:
             # Use the hierarchical node resolution method
-            node_result = execution_context.get_node_result_hierarchical(first_part)
+            node_result = execution_context.get_context_variable_value_hierarchical(first_part)
             if node_result is not None:
                 current = node_result
             else:

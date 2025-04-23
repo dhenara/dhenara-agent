@@ -124,7 +124,6 @@ class DADTemplateEngine(TemplateEngine):
 
         dad_dynamic_variables = execution_context.get_dad_dynamic_variables()
         run_env_params = execution_context.run_context.run_env_params
-        iteration_variables = execution_context.iteration_variables
 
         # Combine all variables with precedence: kwargs > variables > node_results > run_env
         combined_variables = {}
@@ -143,8 +142,6 @@ class DADTemplateEngine(TemplateEngine):
         if kwargs:
             combined_variables.update(kwargs)
 
-        # Add iteration_variables
-        combined_variables.update(iteration_variables)
         # Add DAD variables
         combined_variables.update(cls.get_dad_template_keywords_static_vars(run_env_params))
         combined_variables.update(cls.get_dad_template_keywords_dynamic_vars(dad_dynamic_variables))
