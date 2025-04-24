@@ -21,7 +21,7 @@ from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
 
 from .defs import NodeID
-from .enums import ExecutableTypeEnum, ExecutionStatusEnum
+from .enums import ControlBlockTypeEnum, ExecutableTypeEnum, ExecutionStatusEnum
 
 
 class StreamingStatusEnum(BaseEnum):
@@ -49,6 +49,7 @@ class ExecutionContext(BaseModelABC):
     # It is not necessary to fix this soon as the execution context is used at runtime
 
     executable_type: ExecutableTypeEnum = Field(...)
+    control_block_type: ControlBlockTypeEnum | None = Field(default=None)
     component_id: NodeID  # TODO: Cehck if this is needed
     component_definition: Any  # Type of ComponentDefinition
     context_id: uuid.UUID = Field(default_factory=uuid.uuid4)
@@ -371,13 +372,32 @@ class ExecutionContext(BaseModelABC):
             "node_hier": self.get_hierarchy_path(path_joiner="/"),
         }
 
-    def get_context_variables(self) -> Any:
-        return {
-            # INFO: Execution results should be handled with $hier{}
-            # **self.execution_results,
-            **self.iteration_variables,
-            **self.condition_variables,
-        }
+    def get_context_variables_hierarchical(self) -> dict:
+        """
+        Recursively gets iteration_variables/ condition_variables through the execution context hierarchy.
+
+        This method first looks in the current execution context for the specified variable,
+        and then searches through parent contexts recursively.
+
+        """
+        variables = {}
+
+        # INFO: Execution results should be handled with $hier{}
+        # variable = {**self.execution_results}
+
+        if self.control_block_type == ControlBlockTypeEnum.conditional:
+            variables.update(self.condition_variables)
+        elif self.control_block_type == ControlBlockTypeEnum.foreach:
+            variables.update(self.iteration_variables)
+        else:
+            pass
+
+        # If not found, check parent contexts recursively
+        if self.parent:
+            _pvars = self.parent.get_context_variables_hierarchical()
+            variables.update(_pvars)
+
+        return variables
 
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)

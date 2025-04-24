@@ -358,7 +358,7 @@ class TemplateEngine:
         Evaluate an expression with enhanced support for brackets and complex operations.
         """
         # Update variables with the loop/conditional variables in context
-        variables.update(execution_context.get_context_variables())
+        variables.update(execution_context.get_context_variables_hierarchical())
 
         # Handle bracketed expressions first
         bracket_pattern = re.compile(r"\(([^()]*)\)")
@@ -605,8 +605,14 @@ class TemplateEngine:
         # Here theere will be only one part in the path
         if len(path_str_parts) == 1:
             target_node_id = path_str_parts[0]
+            print(f"AJ: execution_context.execution_results keys= {execution_context.execution_results.keys()}")
+
+            # Check for current context
             if target_node_id in execution_context.execution_results:
                 return execution_context.execution_results[target_node_id]
+            # Check for current context's parent if current context is
+            elif execution_context.parent and target_node_id in execution_context.parent.execution_results:
+                return execution_context.parent.execution_results[target_node_id]
             else:
                 logger.error(f"Failed to find node_id {target_node_id} in current context")
                 return None

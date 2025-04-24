@@ -5,6 +5,7 @@ from .enums import (
     ExecutionStatusEnum,
     ExecutionStrategyEnum,
     ExecutableTypeEnum,
+    ControlBlockTypeEnum,
 )
 from .defs import NodeID
 
@@ -48,6 +49,7 @@ __all__ = [
     "ComponentTypeEnum",
     "Conditional",
     "ContextT",
+    "ControlBlockTypeEnum",
     "DADTemplateEngine",
     "Executable",
     "ExecutableComponent",

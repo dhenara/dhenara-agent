@@ -6,6 +6,7 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentDefT,
     ContextT,
+    ControlBlockTypeEnum,
     NodeID,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
@@ -69,6 +70,7 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         # Execute the appropriate branch
         if evaluation_result:
             true_branch_context = execution_context.__class__(
+                control_block_type=ControlBlockTypeEnum.conditional,
                 component_id=true_id,
                 component_definition=self.true_branch,
                 run_context=execution_context.run_context,
@@ -84,6 +86,7 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
             return result
         elif self.false_branch:
             false_branch_context = execution_context.__class__(
+                control_block_type=ControlBlockTypeEnum.conditional,
                 component_id=false_id,
                 component_definition=self.false_branch,
                 run_context=execution_context.run_context,
@@ -155,6 +158,7 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
 
             # Create a new execution context for this iteration
             iteration_context = execution_context.__class__(
+                control_block_type=ControlBlockTypeEnum.foreach,
                 component_id=iteration_id,
                 component_definition=self.body,
                 run_context=execution_context.run_context,

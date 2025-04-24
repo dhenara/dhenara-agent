@@ -7,6 +7,11 @@ class ExecutableTypeEnum(BaseEnum):
     agent = "agent"
 
 
+class ControlBlockTypeEnum(BaseEnum):
+    conditional = "conditional"
+    foreach = "foreach"
+
+
 # Enum for component type to be used in tracing and logging, similar to NodeTypeEnum. This is purely for tracing.
 class ComponentTypeEnum(BaseEnum):
     flow = "flow"
