@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from dhenara.agent.dsl.base import NodeInput
+from dhenara.agent.dsl.base.context_registry import ExecutionContextRegistry
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.run.registry import resource_config_registry
@@ -53,6 +54,9 @@ class RunContext:
         self.run_id = run_id
         self.previous_run_id = previous_run_id
         self.start_hierarchy_path = start_hierarchy_path
+        self.execution_context_registry = ExecutionContextRegistry(
+            enable_caching=True,
+        )
 
         self.event_bus = EventBus()
         self.setup_completed = False
@@ -260,7 +264,7 @@ class RunContext:
             )
             logger.info(f"Copied previous execution result artifacts for {hierarchy_path}")
 
-        return await self._load_previous_run_execution_result_dict(
+        return self.load_previous_run_execution_result_dict(
             hierarchy_path=hierarchy_path,
             is_component=is_component,
         )
@@ -329,7 +333,7 @@ class RunContext:
             #        except Exception as e:
             #            logger.warning(f"Failed to copy additional file {src_file.name} for node {node_id}: {e}")
 
-    async def _load_previous_run_execution_result_dict(
+    def load_previous_run_execution_result_dict(
         self,
         hierarchy_path: str,
         is_component: bool,
@@ -353,7 +357,7 @@ class RunContext:
         result_file = src_input_dir / "result.json"
 
         if src_input_dir.exists() and result_file.exists():
-            with open(result_file) as f:  # noqa: ASYNC230
+            with open(result_file) as f:
                 _results = json.load(f)
                 return _results
 
@@ -465,3 +469,12 @@ class RunContext:
             init_endpoints=True,
         )
         return resource_config
+
+    def set_execution_context_caching(self, enabled: bool = True):
+        """
+        Enable or disable context caching to optimize memory usage.
+
+        When disabled, only path relationships are maintained, but actual context
+        objects are not stored, significantly reducing memory usage for complex flows.
+        """
+        self.execution_context_registry.set_caching_enabled(enabled)

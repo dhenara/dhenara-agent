@@ -41,6 +41,10 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         )
         evaluation_result = _rendered
 
+        execution_context.logger.info(
+            f"Conditional {component_id}: Statement '{self.statement}' evaluated to {evaluation_result}"
+        )
+
         if evaluation_result is None or isinstance(evaluation_result, str):
             execution_context.logger.error(
                 f"Conditional statement '{self.statement}' evaluated to a type {type(evaluation_result)} "
@@ -49,10 +53,6 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
             return result
 
         evaluation_result = bool(evaluation_result)
-
-        execution_context.logger.info(
-            f"Conditional {component_id}: Statement '{self.statement}' evaluated to {evaluation_result}"
-        )
 
         # Create branch-specific IDs
         # true_id = f"{component_id}_is_true"
@@ -126,12 +126,14 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
             execution_context=execution_context,
         )
         items = _rendered
+        execution_context.logger.debug(
+            f"ForEach {component_id}: Statement '{self.statement}' evaluated to a type {type(items)} with value {items}"
+        )
 
         if not items:
             execution_context.logger.error(f"ForEach statement '{self.statement}' evaluated to empty or None")
             return []
 
-        execution_context.logger.debug(f"ForEach {component_id}: Statement '{self.statement}' evaluated to {items}")
         results = []
 
         # Apply iteration limit if configured

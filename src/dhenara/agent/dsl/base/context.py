@@ -116,13 +116,21 @@ class ExecutionContext(BaseModelABC):
     def hierarchy_path(self) -> ResourceConfig:
         return self.get_hierarchy_path(path_joiner=".")
 
+    def model_post_init(self, __context: Any) -> None:
+        """Register this context after initialization."""
+        self.run_context.execution_context_registry.register(self)
+
+    def get_children(self) -> list["ExecutionContext"]:
+        """Get all children of this context."""
+        return self.run_context.execution_context_registry.get_children(self)
+
     @property
     def should_execute(self) -> bool:
         """
         Determine if the current node should be executed based on the start_hierarchy_path.
         This is used to skip nodes that are not part of the current execution path.
 
-        NOTE: The resutl should be cached while using as calling this will reset the start_hierarchy_path
+        NOTE: The return value should be cached while using as calling this will reset the start_hierarchy_path
         in the run context when the current node is the start node.
         """
         current_node_hierarchy_path = self.get_hierarchy_path(path_joiner=".")
@@ -179,7 +187,7 @@ class ExecutionContext(BaseModelABC):
         # if not self.component_definition:
         #    return node_id
 
-        component_path_parts = self._find_parent_component_ids()
+        component_path_parts = self.find_parent_component_ids()
 
         if not node_id:
             # If no node_id is provided, use the current node identifier
@@ -195,7 +203,7 @@ class ExecutionContext(BaseModelABC):
         except Exception as e:
             raise ValueError(f"get_hierarchy_path: Error: {e}")
 
-    def _find_parent_component_ids(self) -> list[str]:
+    def find_parent_component_ids(self) -> list[str]:
         comp_path_parts = [self.component_id]
 
         parent_ctx = self.parent
@@ -363,37 +371,13 @@ class ExecutionContext(BaseModelABC):
             "node_hier": self.get_hierarchy_path(path_joiner="/"),
         }
 
-    def get_context_variable_value_hierarchical(self, variable: str) -> Any:
-        """
-        Recursively search for a variable in node-execution-result/ iteration_variables/ condition_variables
-        through the execution context hierarchy.
-
-        This method first looks in the current execution context for the specified variable.
-        If not found, it searches through parent contexts recursively.
-
-        Args:
-            variable: The variable  to find
-
-        Returns:
-            The variable value in node-execution-result/ iteration_variables/ condition_variables
-            if found, None otherwise
-        """
-        # Check if the node ID exists in the current context
-        if variable in self.execution_results:
-            return self.execution_results[variable]
-
-        if variable in self.iteration_variables:
-            return self.iteration_variables[variable]
-
-        if variable in self.condition_variables:
-            return self.condition_variables[variable]
-
-        # If not found, check parent contexts recursively
-        if self.parent:
-            return self.parent.get_context_variable_value_hierarchical(variable)
-
-        # Not found in any context
-        return None
+    def get_context_variables(self) -> Any:
+        return {
+            # INFO: Execution results should be handled with $hier{}
+            # **self.execution_results,
+            **self.iteration_variables,
+            **self.condition_variables,
+        }
 
 
 ContextT = TypeVar("ContextT", bound=ExecutionContext)

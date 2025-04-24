@@ -1,6 +1,7 @@
 import logging
 import operator
 import re
+import uuid
 from collections.abc import Callable
 from re import Pattern
 from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar
@@ -27,24 +28,12 @@ class TemplateEngine:
        - Array/list indexing (items[0])
        - Operators (>, <, ==, ||, &&, etc.)
        - Python expression evaluation (py:...)
+    3. Hierarchical access with $hier{...} to access execution context elements
 
     Escape sequences:
     - Use $$var{} to output a literal "$var{}" string
     - Use $$expr{} to output a literal "$expr{}" string
-
-    Node heirarcy:
-        To access any node heirarcy inside a `$expr{}` WITHOUT a `py:` expression,
-        list the node heirarcy seperated with a `.`
-            Example:
-
-            expression="$expr{initial_repo_analysis.outcome.results}"
-
-        To access any node heirarcy inside a `py:` expression,
-        add a `$node.` before the node heirarcy.
-            Example:
-
-            expression="$expr{py: len($node.initial_repo_analysis.outcome.results) >=1  and all(chld.word_count > 10 for rslt in $node.initial_repo_analysis.outcome.results for chld in rslt.analysis.children)}"
-
+    - Use $$hier{} to output a literal "$hier{}" string
 
     Examples:
         # Variable substitution
@@ -55,24 +44,21 @@ class TemplateEngine:
         TemplateEngine.render_template("Count: $expr{data.count}", {"data": {"count": 42}})
         # Output: "Count: 42"
 
-        # Expression mode with operators
-        TemplateEngine.render_template("Result: $expr{value > 10}", {"value": 15})
-        # Output: "Result: True"
+        # Hierarchical access with nested expressions
+        TemplateEngine.render_template("Task: $expr{$hier{planner.plan_generator}.structured.task_name}", {})
+        # Output: "Task: Create project plan"
 
-        # Escape sequences
-        TemplateEngine.render_template("Literal: $$expr{not.evaluated}", {})
-        # Output: "Literal: $expr{not.evaluated}"
+        # Python expression with hierarchical access
+        TemplateEngine.render_template("Valid: $expr{py: $hier{planner.plan_generator}.structured is not None}", {})
+        # Output: "Valid: True"
+    """
 
-        # Regular braces are left untouched
-        TemplateEngine.render_template("Braces: {not.a.placeholder}", {})
-        # Output: "Braces: {not.a.placeholder}"
-    """  # noqa: E501, W505
-
-    # Regex patterns
     EXPR_PATTERN: Pattern = re.compile(r"\$expr{([^}]+)}")
     VAR_PATTERN: Pattern = re.compile(r"\$var{([^}]+)}")
+    HIER_PATTERN: Pattern = re.compile(r"\$hier{([^}]+)}")
     ESCAPED_EXPR_PATTERN: Pattern = re.compile(r"\$\$expr{([^}]+)}")
     ESCAPED_VAR_PATTERN: Pattern = re.compile(r"\$\$var{([^}]+)}")
+    ESCAPED_HIER_PATTERN: Pattern = re.compile(r"\$\$hier{([^}]+)}")
     INDEX_PATTERN: Pattern = re.compile(r"(.*)\[(\d+)\]")
 
     # Supported operators and their functions
@@ -130,15 +116,9 @@ class TemplateEngine:
         """
         Render a string template with context support.
 
-        Args:
-            template: String template to render
-            variables: Variables for substitution/evaluation
-            execution_context: Execution context for node result resolution
-            mode: Rendering mode
-            max_words: Maximum number of words in output
-
-        Returns:
-            Rendered template string
+        This function evaluates template expressions and returns a string that replaces the
+        expressions with their STRING representation.
+        Used for String Template evaluation.
 
         Examples:
             >>> TemplateEngine.render_template("Hello $var{name}", {"name": "World"})
@@ -159,25 +139,74 @@ class TemplateEngine:
         # Process $var{} regardless of mode
         template = cls._process_var_substitutions(template, variables)
 
-        # Process $expr{} only in expression mode
+        # Process $expr{}/ $hier{} only in expression mode
         if mode == "expression":
-            template = cls._process_expr_substitutions(template, variables, execution_context)
+            # Create a copy of variables to avoid modifying the original
+            working_vars = variables.copy()
+
+            # Process hierarchical references first, replacing with placeholders
+            template, placeholder_vars = cls._process_hier_with_placeholders(
+                template=template,
+                variables=working_vars,
+                execution_context=execution_context,
+            )
+
+            # Add placeholder variables to working variables
+            working_vars.update(placeholder_vars)
+
+            # Process expressions with the enhanced variables
+            template = cls._process_expr_substitutions(
+                template=template,
+                variables=working_vars,
+                execution_context=execution_context,
+                result_as_string=True,
+            )
 
         # Apply word limit if specified
         return cls._apply_word_limit(template, max_words)
 
     @classmethod
+    def evaluate_template(
+        cls,
+        expr_template: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> Any:
+        """
+        Evaluate template expression and return the raw result of evaluating the expression,
+        preserving its type without string conversion.
+        Used for ObjectTemplate evaluation.
+        """
+        if not expr_template:
+            return expr_template
+
+        # First handle escape sequences
+        expr_template = cls._process_escape_sequences(expr_template)
+
+        # Create a copy of variables to avoid modifying the original
+        working_vars = variables.copy()
+
+        # Process hierarchical references first, replacing with placeholders
+        expr_template, placeholder_vars = cls._process_hier_with_placeholders(
+            template=expr_template,
+            variables=working_vars,
+            execution_context=execution_context,
+        )
+
+        # Add placeholder variables to working variables
+        working_vars.update(placeholder_vars)
+
+        # Process expressions with the enhanced variables
+        return cls._process_expr_substitutions(
+            template=expr_template,
+            variables=working_vars,
+            execution_context=execution_context,
+            result_as_string=False,
+        )
+
+    @classmethod
     def _process_escape_sequences(cls, template: str) -> str:
-        """
-        Process escape sequences ($$var{} and $$expr{}) by replacing them
-        with single $ versions.
-
-        Args:
-            template: Template string containing escape sequences
-
-        Returns:
-            String with escape sequences converted to their literal form
-        """
+        """Process escape sequences ($$ to $) in templates."""
         if not template:
             return template
 
@@ -186,6 +215,9 @@ class TemplateEngine:
 
         # Replace $$var{} with $var{}
         template = cls.ESCAPED_VAR_PATTERN.sub(r"$var{\1}", template)
+
+        # Replace $$hier{} with $hier{}
+        template = cls.ESCAPED_HIER_PATTERN.sub(r"$hier{\1}", template)
 
         return template
 
@@ -214,30 +246,82 @@ class TemplateEngine:
         return cls.VAR_PATTERN.sub(replace_var, template)
 
     @classmethod
+    def _process_hier_with_placeholders(
+        cls,
+        template: str,
+        variables: dict[str, Any],
+        execution_context: Optional["ExecutionContext"] = None,
+    ) -> tuple[str, dict[str, Any]]:
+        """
+        Process $hier{} references by replacing them with unique placeholders.
+
+        Returns:
+            tuple: (modified template string, dictionary of placeholder variables)
+        """
+        if not template:
+            return template, {}
+
+        placeholder_vars = {}
+
+        def replace_hier(match: re.Match) -> str:
+            hier_path = match.group(1).strip()
+            try:
+                # Generate a unique placeholder variable name
+                placeholder = f"__hier_placeholder_{uuid.uuid4().hex[:8]}__"
+
+                # Resolve the hierarchical path
+                result = cls._resolve_hierarchical_path_with_exe_result(hier_path, execution_context)
+
+                # Store the result with the placeholder name
+                placeholder_vars[placeholder] = result
+
+                # Return the placeholder variable name
+                return placeholder
+
+            except Exception as e:
+                logger.error(f"Error processing hierarchical path '{hier_path}': {e}")
+                # Return a placeholder for the error to avoid breaking the template
+                error_placeholder = f"__hier_error_{uuid.uuid4().hex[:8]}__"
+                placeholder_vars[error_placeholder] = f"Error: {e!s}"
+                return error_placeholder
+
+        # Replace all $hier{} expressions with placeholders
+        modified_template = cls.HIER_PATTERN.sub(replace_hier, template)
+
+        return modified_template, placeholder_vars
+
+    @classmethod
     def _process_expr_substitutions(
         cls,
         template: str,
         variables: dict[str, Any],
         execution_context: Optional["ExecutionContext"] = None,
-    ) -> str:
+        result_as_string: bool = False,
+    ) -> Any:
         """
-        Process expressions in a template with context support, converting results to strings.
-
-        Args:
-            template: Template string containing expressions
-            variables: Variables for evaluation
-            execution_context: Execution context for node result resolution
-
-        Returns:
-            Template with expressions evaluated and converted to strings
+        Process expressions in a template with context support.
+        Returns the result directly if there's a single expression,
+        otherwise returns the string with substitutions.
         """
         if not template:
             return template
 
+        # For a single expression that encompasses the entire template,
+        # evaluate and return the raw result
+        if not result_as_string:
+            full_match = cls.EXPR_PATTERN.fullmatch(template)
+            if full_match:
+                expr = full_match.group(1).strip()
+                try:
+                    return cls._evaluate_expression(expr, variables, execution_context)
+                except Exception as e:
+                    logger.error(f"Error evaluating expression '{expr}': {e}")
+                    return f"Error: {e!s}"
+
+        # For multiple expressions or mixing with text, perform substitutions
         def replace_expr(match: re.Match) -> str:
             expr = match.group(1).strip()
             try:
-                # Evaluate the expression and convert result to string
                 result = cls._evaluate_expression(expr, variables, execution_context)
                 return str(result) if result is not None else ""
             except Exception as e:
@@ -264,61 +348,17 @@ class TemplateEngine:
         return text
 
     @classmethod
-    def evaluate_single_expression(
-        cls,
-        expr_template: str,
-        variables: dict[str, Any],
-        execution_context: Optional["ExecutionContext"] = None,
-    ) -> Any:
-        """
-        Evaluate a single expression and return the raw result without string conversion.
-        Used primarily for ObjectTemplate evaluation.
-
-        Args:
-            expr_template: Expression template like "$expr{...}"
-            variables: Dictionary of variables accessible to the expressions
-
-        Returns:
-            Raw result of evaluating the expression, preserving its type
-        """
-        if not expr_template:
-            return expr_template
-
-        # First handle escape sequences
-        expr_template = cls._process_escape_sequences(expr_template)
-
-        # Extract the expression from $expr{...}
-        match = cls.EXPR_PATTERN.search(expr_template)
-        if match:
-            expr = match.group(1).strip()
-            try:
-                return cls._evaluate_expression(expr, variables, execution_context)
-            except Exception as e:
-                return f"Error: {e!s}"
-
-        # If no expression found, return the template unchanged
-        return expr_template  # Return the original template
-
-    @classmethod
     def _evaluate_expression(
         cls,
         expr: str,
         variables: dict[str, Any],
-        execution_context: Optional["ExecutionContext"] = None,
+        execution_context: ExecutionContext,
     ) -> Any:
         """
         Evaluate an expression with enhanced support for brackets and complex operations.
         """
-        ## INFO:
-        # To access any node heirarcy inside a `$expr{}` WITHOUT a `py:` expression,
-        # list the node heirarcy seperated with a `.`
-        # Eg: $expr{initial_repo_analysis.outcome.results}
-        #  To access any node heirarcy inside a `py:` expression, add a `$node.` before the node heirarcy.
-        # This was required as we are already inside a special template kw, `$expr`
-
-        # Handle Python expressions
-        if expr.startswith("py:"):
-            return cls._evaluate_python_expression(expr[3:].strip(), variables, execution_context)
+        # Update variables with the loop/conditional variables in context
+        variables.update(execution_context.get_context_variables())
 
         # Handle bracketed expressions first
         bracket_pattern = re.compile(r"\(([^()]*)\)")
@@ -335,27 +375,90 @@ class TemplateEngine:
             # Replace the bracketed expression with its result
             expr = expr[: match.start()] + str(inner_result) + expr[match.end() :]
 
-        # Handle binary operators
-        # for op_text, op_func in cls.OPERATORS.items():
+        # 1. Handle Python expressions
+        if expr.startswith("py:"):
+            _pyexpr = expr[3:].strip()
+
+            # ---------------- Attribute-style access in Python: BEGINS -------
+            #
+            # Below part was required only to allow attribute-style access to a dict INSIDE the execution result
+            # Example:
+            #   1. expression="$expr{ $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
+            #   2. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured['implementation_tasks'] }"
+            #   3. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
+            #
+            # In a normal $expr evaluation like in Eg:1, we take care of attribute-style (dotted) access of execution
+            # result properties.
+            # But in python expression $expr{py: }, it won't work, thus we need to access the individual properties
+            # as if like in a python statement, structured['implementation_tasks']
+            # Below fixes are to enables same attribute-style (dot) access for :py expressions as well
+            #
+
+            # Look for patterns with hierarchical placeholders followed by dot notation
+            # This pattern matches "__hier_placeholder_XXXX__.something.else"
+            hier_path_pattern = re.compile(r"(__hier_placeholder_[a-f0-9]{8}__(?:\.[a-zA-Z0-9_]+)+)")
+
+            # Find all matches in the Python expression
+            matches = hier_path_pattern.findall(_pyexpr)
+
+            # Create evaluation variables by copying the original
+            eval_vars = variables.copy()
+
+            # Process each match
+            for match in matches:
+                try:
+                    # Resolve the full path using our path resolver
+                    resolved_value = cls._resolve_object_path(match, variables)
+
+                    # Create a temporary variable for this resolved value
+                    temp_var_name = f"__temp_var_{uuid.uuid4().hex[:8]}__"
+                    eval_vars[temp_var_name] = resolved_value
+
+                    # Replace the path with the temporary variable in the expression
+                    _pyexpr = _pyexpr.replace(match, temp_var_name)
+
+                    logger.debug(f"Resolved path {match} to value and assigned to {temp_var_name}")
+                except Exception as e:  # noqa: PERF203
+                    logger.error(f"Error resolving path '{match}': {e}")
+
+            # ---------------- Attribute-style access in Python: ENDS -------
+
+            # Evaluate the modified Python expression
+            try:
+                result = eval(_pyexpr, {"__builtins__": cls.SAFE_GLOBALS}, eval_vars)
+                # logger.debug(f"Evaluated Python expression: {_pyexpr} = {result}")
+                return result
+            except Exception as e:
+                logger.error(f"Error evaluating Python expression '{_pyexpr}': {e}")
+                return f"Error: {e!s}"
+
+        # Regular expression handling (non-Python)
+
+        # 2. Handle binary operators by precedence
         for precedence_group in cls.OPERATOR_PRECEDENCE:
             for op_text in precedence_group:
                 op_func = cls.OPERATORS[op_text]
-                if op_text in expr:
-                    pass
-
                 if op_text in expr:
                     parts = expr.split(op_text, 1)
                     left = cls._evaluate_expression(parts[0].strip(), variables, execution_context)
                     right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
                     return op_func(left, right)
 
-        # Handle literal values before attempting path resolution
+        # 3. Handle literal values before attempting variable resolution
         literal_value = cls._try_parse_literal(expr)
         if literal_value is not None:
             return literal_value
 
-        # If not a literal, handle path resolution
-        return cls._resolve_hierarchical_path(expr, variables, execution_context)
+        # 4. Check if it's a direct variable reference
+        if expr in variables:
+            return variables[expr]
+
+        # 5.Handle path resolution for nested properties
+        if "." in expr:
+            return cls._resolve_object_path(expr, variables)
+
+        # Not found - return None
+        return None
 
     @classmethod
     def _try_parse_literal(cls, expr: str) -> Any:
@@ -394,41 +497,25 @@ class TemplateEngine:
         return None
 
     @classmethod
-    def _resolve_hierarchical_path(
-        cls,
-        path: str,
-        variables: dict[str, Any],
-        execution_context: Optional["ExecutionContext"] = None,
-    ) -> Any:
+    def _resolve_object_path(cls, path: str, variables: dict[str, Any]) -> Any:
         """
-        Resolves a path expression with full support for hierarchical node results.
-
-        This is an improved version of _get_value_from_path that better handles
-        node result hierarchies and complex expressions.
+        Resolve a dot-notation path within variables.
+        E.g., "user.profile.name" will access variables["user"]["profile"]["name"]
         """
-        if not path or not path.strip():
+        if not path or not variables:
             return None
 
-        path = path.strip()
         parts = path.split(".")
-        first_part = parts[0]
-
-        # First check in the variables dictionary
-        if first_part in variables:
-            current = variables[first_part]
-        # Then try to resolve as a node result if execution context is available
-        elif execution_context is not None:
-            # Use the hierarchical node resolution method
-            node_result = execution_context.get_context_variable_value_hierarchical(first_part)
-            if node_result is not None:
-                current = node_result
-            else:
-                return None
-        else:
-            # Not found in variables and no execution context
+        if not parts:
             return None
 
-        # Enhanced navigation through remaining parts
+        # Start with the first component
+        if parts[0] not in variables:
+            return None
+
+        current = variables[parts[0]]
+
+        # Navigate through the path
         for part in parts[1:]:
             # Handle array/list indexing with [n] syntax
             index_match = cls.INDEX_PATTERN.match(part)
@@ -443,19 +530,18 @@ class TemplateEngine:
                     if current is None:
                         return None
 
-                # Access by index with better error handling
+                # Access by index
                 if isinstance(current, (list, tuple)):
                     if 0 <= idx < len(current):
                         current = current[idx]
                     else:
                         return None
                 elif isinstance(current, dict) and str(idx) in current:
-                    # Support dictionary access by numeric key
                     current = current[str(idx)]
                 else:
                     return None
             else:
-                # Regular property access with improved error handling
+                # Regular property access
                 current = cls._access_property(current, part)
                 if current is None:
                     return None
@@ -489,144 +575,89 @@ class TemplateEngine:
         return None
 
     @classmethod
-    def _evaluate_python_expression(
+    def _resolve_hierarchical_path_with_exe_result(
         cls,
-        expr: str,
-        variables: dict[str, Any],
+        path_str: str,
         execution_context: Optional["ExecutionContext"] = None,
     ) -> Any:
         """
-        Evaluate a Python expression with enhanced node access support.
+        Resolve a hierarchical path expression in the execution context.
+
+        The path format is "component1.component2.node_id" where:
+        - All parts except the last represent the component hierarchy
+        - The last part is a node ID that has execution results
+
+        Args:
+            path: Hierarchical path like "planner.plan_generator"
+            execution_context: Current execution context
+
+        Returns:
+            The resolved node execution result or None if not found
         """
-        try:
-            # Create eval context with node accessors
-            eval_variables = variables.copy()
-            if execution_context:
-                # Add node helper without $ to variables
-                eval_variables["node"] = NodeAccessHelper(execution_context)
+        if not execution_context:
+            return None
+        # Parse the path
+        path_str_parts = path_str.split(".")
+        if not path_str_parts:
+            return None
 
-                # Process the expression to handle $node references
-                processed_expr = expr.replace("$node.", "node.")
+        # First look for a direct node reference inside current currenct context
+        # Here theere will be only one part in the path
+        if len(path_str_parts) == 1:
+            target_node_id = path_str_parts[0]
+            if target_node_id in execution_context.execution_results:
+                return execution_context.execution_results[target_node_id]
             else:
-                processed_expr = expr
+                logger.error(f"Failed to find node_id {target_node_id} in current context")
+                return None
 
-            # Add special function to resolve node paths directly
-            def resolve_node_path(path):
-                """Helper function to resolve a node path from execution context"""
-                if not execution_context:
-                    return None
-                parts = path.split(".")
-                node_id = parts[0]
-                result = execution_context.get_context_variable_value_hierarchical(node_id)
-                if result is None or len(parts) == 1:
-                    return result
+        # The path doesn't necessarly be the full path, it can be a relative one from the current context.
+        # So, first build the full hierarchy path of the incoming path
+        # Now its sure that the incoming path is referring to a component hierarcy
 
-                # Access nested properties
-                for part in parts[1:]:
-                    result = cls._access_property(result, part)
-                    if result is None:
-                        break
-                return result
+        target_node_id = path_str_parts[-1]
+        component_path_parts = path_str_parts[:-1]
+        component_path = ".".join(component_path_parts)
 
-            # eval_variables["resolve_node"] = resolve_node_path
+        execution_result = None
 
-            # Create a safe execution environment
-            return eval(processed_expr, {"__builtins__": cls.SAFE_GLOBALS}, eval_variables)
-        except Exception as e:
-            logger.error(f"Error evaluating Python expression '{expr}': {e}", exc_info=True)
-            return f"Error: {e!s}"
+        execution_context_registry = execution_context.run_context.execution_context_registry
+        fetch_context = True if execution_context_registry.enable_caching else False
 
+        logger.debug(f"Looking for cached context for path {path_str}")
+        component_path, component_ctx = execution_context_registry.lookup_context_by_partial_path(
+            partial_path=component_path,
+            current_context_path=execution_context.get_hierarchy_path(path_joiner="."),
+            fetch_context=fetch_context,
+        )
 
-class NodeAccessHelper:
-    """Helper class that makes accessing node results more intuitive in expressions."""
+        ## If execution_context caching is enabled navigate through the execution context
+        if fetch_context:
+            if component_ctx is None:
+                logger.error(f"Failed to find context for component path {component_path}")
+                return None
 
-    def __init__(self, execution_context):
-        self.execution_context = execution_context
+            if target_node_id in component_ctx.execution_results:
+                execution_result = component_ctx.execution_results[target_node_id]
+                return execution_result
+            else:
+                logger.error(f"Failed to find node_id {target_node_id} in context for component path {component_path}")
 
-    def __getattr__(self, node_id):
-        """Allow accessing node results with dot notation: node.node_id"""
-        result = self.execution_context.get_context_variable_value_hierarchical(node_id)
-        if result is None:
-            # Return a proxy object that returns None for any attribute
-            return NodeNullProxy(f"No node result found for '{node_id}'")
-        return result
+        # If not found, get it from the file filesystem,
+        results = execution_context.run_context.load_previous_run_execution_result_dict(
+            hierarchy_path=component_path,
+            is_component=False,
+        )
 
-    def get(self, node_id, default=None):
-        """Safe way to get node results with a default value"""
-        result = self.execution_context.get_context_variable_value_hierarchical(node_id)
-        return result if result is not None else default
+        if results is None:
+            return None
 
+        if target_node_id in results:
+            execution_result = component_ctx.execution_results[target_node_id]
+            return execution_result
+        else:
+            logger.error(
+                f"Failed to find node_id {target_node_id} in context for component path {component_path} via filesystem"
+            )
 
-class NodeNullProxy:
-    """A proxy object that returns itself for any attribute access and None for operations."""
-
-    def __init__(self, error_message="Missing node data"):
-        self.error_message = error_message
-
-    def __getattr__(self, name):
-        return self
-
-    def __str__(self):
-        return f"<{self.error_message}>"
-
-    def __repr__(self):
-        return self.__str__()
-
-    # Support common operations by returning None
-    def __bool__(self):
-        return False
-
-    # Make it work with operations
-    def __eq__(self, other):
-        return False
-
-    def __gt__(self, other):
-        return False
-
-    def __lt__(self, other):
-        return False
-
-    def __ge__(self, other):
-        return False
-
-    def __le__(self, other):
-        return False
-
-
-# TODO: Test  document and delete below
-"""
-Usage Examples:
-# Context with nested data
-context = {
-    "node1": {
-        "data": {
-            "items": [{"name": "Item 1"}, {"name": "Item 2"}],
-            "count": 2
-        }
-    },
-    "node2": {
-        "result": True
-    }
-}
-
-# Basic property access
-ExpressionParser.parse_and_evaluate("Result is $expr{node1.data.count}", context)
-# Output: "Result is 2"
-
-# Array indexing
-ExpressionParser.parse_and_evaluate("First item: $expr{node1.data.items[0].name}", context)
-# Output: "First item: Item 1"
-
-# Conditional operator
-ExpressionParser.parse_and_evaluate("Status: $expr{node1.data.count > 1 && node2.result}", context)
-# Output: "Status: True"
-
-# Fallback operator
-ExpressionParser.parse_and_evaluate("Value: $expr{node1.missing || node1.data.count}", context)
-# Output: "Value: 2"
-
-# Python expression (advanced)
-ExpressionParser.parse_and_evaluate("Total: $expr{py:sum([item['name'].count('Item') for item in node1.data.items])}", context)
-# Output: "Total: 2"
-
-"""  # noqa: E501, W505
+        return None

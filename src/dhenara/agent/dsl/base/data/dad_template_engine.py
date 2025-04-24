@@ -149,7 +149,7 @@ class DADTemplateEngine(TemplateEngine):
         try:
             # Handle ObjectTemplate - preserves type
             if isinstance(template, ObjectTemplate):
-                return cls.evaluate_single_expression(template.expression, combined_variables, execution_context)
+                return cls.evaluate_template(template.expression, combined_variables, execution_context)
 
             # Handle string templates
             elif isinstance(template, str):
