@@ -11,9 +11,9 @@ class FolderAnalyzerNode(FlowNodeDefinition):
     """Folder analyzer node."""
 
     node_type: str = FlowNodeTypeEnum.folder_analyzer.value
-    settings: FolderAnalyzerSettings = Field(
+    settings: FolderAnalyzerSettings | None = Field(
         default=None,
-        description="Folder analyzer settings",
+        description="Folder analyzer settings. Must be provided either in definition or via inputs",
     )
 
     def get_executor_class(self):
@@ -21,6 +21,6 @@ class FolderAnalyzerNode(FlowNodeDefinition):
 
     @model_validator(mode="after")
     def validate_node_settings(self):
-        if not self.settings:
-            raise ValueError("settings is required for FolderAnalyzerNode")
+        if not self.settings and not self.pre_execute_input_required:
+            raise ValueError("settings is required for FolderAnalyzerNode when not requiring input")
         return self

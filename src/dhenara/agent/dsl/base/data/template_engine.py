@@ -396,10 +396,19 @@ class TemplateEngine:
 
             # Look for patterns with hierarchical placeholders followed by dot notation
             # This pattern matches "__hier_placeholder_XXXX__.something.else"
-            hier_path_pattern = re.compile(r"(__hier_placeholder_[a-f0-9]{8}__(?:\.[a-zA-Z0-9_]+)+)")
 
-            # Find all matches in the Python expression
-            matches = hier_path_pattern.findall(_pyexpr)
+            # hier_path_pattern = re.compile(r"(__hier_placeholder_[a-f0-9]{8}__(?:\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+)")
+            ## Find all matches in the Python expression
+            # matches = hier_path_pattern.findall(_pyexpr)
+
+            # Find all hierarchical placeholder patterns in the expression
+            matches = []
+            # First, look for placeholders with at least one dot notation
+            for var_name in variables:
+                if var_name.startswith("__hier_placeholder_") and var_name.endswith("__"):
+                    # For each placeholder, look for it plus dot notation in the expression
+                    path_pattern = re.compile(f"{re.escape(var_name)}(?:\\.[a-zA-Z0-9_]+)+")
+                    matches.extend(match.group(0) for match in path_pattern.finditer(_pyexpr))
 
             # Create evaluation variables by copying the original
             eval_vars = variables.copy()

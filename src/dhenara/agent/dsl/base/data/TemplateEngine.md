@@ -1,3 +1,5 @@
+# TODO: This doc is obsolute. Rewrite
+
 # Template Engine Documentation
 
 ## Quick Start
@@ -37,6 +39,7 @@ $var{variable_name}
 ```
 
 Example:
+
 ```python
 TemplateEngine.render_template("Welcome, $var{username}!", {"username": "Alice"})
 # Output: "Welcome, Alice!"
@@ -51,12 +54,14 @@ $expr{expression}
 ```
 
 Expressions can include:
+
 - Property access with dot notation
 - Array/list indexing
 - Comparison and logical operators
 - Conditional operations
 
 Example:
+
 ```python
 TemplateEngine.render_template(
     "Account: $expr{user.premium ? 'Premium' : 'Basic'}",
@@ -73,6 +78,7 @@ To include literal template syntax in your output:
 - `$$expr{}` → renders as `$expr{}`
 
 Example:
+
 ```python
 TemplateEngine.render_template("Template syntax: $$var{name}", {})
 # Output: "Template syntax: $var{name}"
@@ -116,6 +122,7 @@ TemplateEngine.render_template(
 - `<=` - Less than or equal to
 
 Example:
+
 ```python
 TemplateEngine.render_template(
     "Status: $expr{temperature > 30 ? 'Hot' : 'Pleasant'}",
@@ -130,6 +137,7 @@ TemplateEngine.render_template(
 - `||` - Logical OR (also serves as a fallback operator)
 
 Example:
+
 ```python
 TemplateEngine.render_template(
     "Access: $expr{user.active && user.permissions.admin}",
@@ -172,6 +180,7 @@ TemplateEngine.render_template(
 ### Available Functions in Python Mode
 
 The following functions are available in Python expression mode:
+
 - Basic functions: `len`, `str`, `int`, `float`, `bool`
 - Collections: `list`, `dict`, `set`
 - Iteration/filtering: `filter`, `map`, `all`, `any`, `sorted`, `enumerate`, `zip`, `range`
@@ -179,6 +188,7 @@ The following functions are available in Python expression mode:
 - Inspection: `isinstance`, `getattr`, `hasattr`
 
 Example:
+
 ```python
 TemplateEngine.render_template(
     "Stats: $expr{py: {'min': min(values), 'max': max(values), 'avg': sum(values)/len(values)}}",
@@ -263,21 +273,25 @@ TemplateEngine.render_template(
 ## Best Practices
 
 1. **Use fallback values** with the `||` operator to handle missing data:
+
    ```
    $expr{user.nickname || user.name || 'Anonymous'}
    ```
 
 2. **Group complex expressions** with parentheses for clarity:
+
    ```
    $expr{(price > 100) && (discount > 0.1)}
    ```
 
 3. **For complex logic**, use Python expressions rather than chained operators:
+
    ```
    $expr{py: 'High' if price > 100 and in_stock else 'Standard'}
    ```
 
 4. **Escape template syntax** when you need to display it literally:
+
    ```
    To use variables, use the $$var{} syntax
    ```

@@ -45,7 +45,7 @@ class SearchConfig(BaseModel):
         ...,
         description="Search pattern to match in filenames",
     )
-    exclude_patterns: list[str] = Field(
+    exclude_patterns: list[str] | None = Field(
         default_factory=list,
         description="Patterns to exclude from search results (glob format supported)",
     )

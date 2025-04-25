@@ -11,9 +11,9 @@ class FileOperationNode(FlowNodeDefinition):
     """File operation node."""
 
     node_type: str = FlowNodeTypeEnum.file_operation.value
-    settings: FileOperationNodeSettings = Field(
+    settings: FileOperationNodeSettings | None = Field(
         default=None,
-        description="File operation settings",
+        description="File operation settings. Must be provided either in definition or via inputs",
     )
 
     def get_executor_class(self):
