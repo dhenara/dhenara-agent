@@ -1,90 +1,61 @@
-# TODO: This doc is obsolute. Rewrite
-
 # Template Engine Documentation
 
-## Quick Start
+## Overview
 
-The Template Engine allows you to create dynamic text with variable substitution and complex expressions.
+The `TemplateEngine` is a powerful template system that provides variable substitution and complex expression evaluation capabilities. It supports hierarchical context access and complex expressions beyond what standard Python templating systems offer.
+
+## Template Syntax
+
+The engine supports three primary syntax patterns:
+
+### 1. Variable Substitution: `$var{variable_name}`
+
+Simple variable replacement from the provided context:
 
 ```python
-from your_module import TemplateEngine
-
-# Simple variable substitution
-result = TemplateEngine.render_template("Hello $var{name}!", {"name": "World"})
+TemplateEngine.render_template("Hello $var{name}!", {"name": "World"})
 # Output: "Hello World!"
+```
 
-# Expression evaluation
-result = TemplateEngine.render_template(
+### 2. Expression Evaluation: `$expr{expression}`
+
+Complex expressions with property access, operators, and conditional logic:
+
+```python
+TemplateEngine.render_template(
     "Status: $expr{user.active ? 'Online' : 'Offline'}",
     {"user": {"active": True}}
 )
 # Output: "Status: Online"
-
-# Accessing data properties
-result = TemplateEngine.render_template(
-    "You have $expr{cart.items.length} items worth $expr{cart.total} in your cart.",
-    {"cart": {"items": ["item1", "item2"], "total": 25.99}}
-)
-# Output: "You have 2 items worth 25.99 in your cart."
 ```
 
-## Template Syntax
+### 3. Hierarchical Access: `$hier{component.node_id}`
 
-### Variable Substitution: `$var{}`
-
-The simplest form of substitution that replaces a variable placeholder with its value.
-
-```
-$var{variable_name}
-```
-
-Example:
-
-```python
-TemplateEngine.render_template("Welcome, $var{username}!", {"username": "Alice"})
-# Output: "Welcome, Alice!"
-```
-
-### Expression Evaluation: `$expr{}`
-
-Evaluates expressions and replaces the placeholder with the result.
-
-```
-$expr{expression}
-```
-
-Expressions can include:
-
-- Property access with dot notation
-- Array/list indexing
-- Comparison and logical operators
-- Conditional operations
-
-Example:
+Access execution results from other components in the execution context:
 
 ```python
 TemplateEngine.render_template(
-    "Account: $expr{user.premium ? 'Premium' : 'Basic'}",
-    {"user": {"premium": True}}
+    "Task: $expr{$hier{planner.plan_generator}.structured.task_name}",
+    {},
+    execution_context
 )
-# Output: "Account: Premium"
+# Output: "Task: Create project plan"
 ```
 
 ### Escape Sequences
 
-To include literal template syntax in your output:
+To output literal template syntax in your text, use double dollar signs:
 
 - `$$var{}` → renders as `$var{}`
 - `$$expr{}` → renders as `$expr{}`
-
-Example:
+- `$$hier{}` → renders as `$hier{}`
 
 ```python
 TemplateEngine.render_template("Template syntax: $$var{name}", {})
 # Output: "Template syntax: $var{name}"
 ```
 
-## Data Access
+## Feature Details
 
 ### Property Access
 
@@ -92,15 +63,15 @@ Access nested properties using dot notation:
 
 ```python
 TemplateEngine.render_template(
-    "Address: $expr{user.address.city}",
+    "City: $expr{user.address.city}",
     {"user": {"address": {"city": "New York"}}}
 )
-# Output: "Address: New York"
+# Output: "City: New York"
 ```
 
 ### Array/List Indexing
 
-Access array elements using square brackets:
+Access array elements using bracket notation:
 
 ```python
 TemplateEngine.render_template(
@@ -110,9 +81,9 @@ TemplateEngine.render_template(
 # Output: "First item: apple"
 ```
 
-## Operators
+### Supported Operators
 
-### Comparison Operators
+#### Comparison Operators
 
 - `==` - Equal to
 - `!=` - Not equal to
@@ -121,17 +92,7 @@ TemplateEngine.render_template(
 - `>=` - Greater than or equal to
 - `<=` - Less than or equal to
 
-Example:
-
-```python
-TemplateEngine.render_template(
-    "Status: $expr{temperature > 30 ? 'Hot' : 'Pleasant'}",
-    {"temperature": 35}
-)
-# Output: "Status: Hot"
-```
-
-### Logical Operators
+#### Logical Operators
 
 - `&&` - Logical AND
 - `||` - Logical OR (also serves as a fallback operator)
@@ -139,6 +100,7 @@ TemplateEngine.render_template(
 Example:
 
 ```python
+# Logical AND
 TemplateEngine.render_template(
     "Access: $expr{user.active && user.permissions.admin}",
     {"user": {"active": True, "permissions": {"admin": False}}}
@@ -153,21 +115,9 @@ TemplateEngine.render_template(
 # Output: "Display name: John"
 ```
 
-### Parentheses for Grouping
+### Python Expression Mode
 
-Use parentheses to control evaluation order:
-
-```python
-TemplateEngine.render_template(
-    "Result: $expr{(value > 10) && (value < 20)}",
-    {"value": 15}
-)
-# Output: "Result: True"
-```
-
-## Python Expressions
-
-For complex logic, use Python expressions with the `py:` prefix:
+For advanced logic, use Python expressions with the `py:` prefix:
 
 ```python
 TemplateEngine.render_template(
@@ -175,88 +125,73 @@ TemplateEngine.render_template(
     {"scores": [85, 90, 95]}
 )
 # Output: "Average: 90.0"
+
+# With hierarchical access
+TemplateEngine.render_template(
+    "Valid: $expr{py: $hier{planner.plan_generator}.structured is not None}",
+    {}
+)
+# Output: "Valid: True"
 ```
 
-### Available Functions in Python Mode
+#### Available Functions in Python Mode
 
 The following functions are available in Python expression mode:
 
-- Basic functions: `len`, `str`, `int`, `float`, `bool`
-- Collections: `list`, `dict`, `set`
-- Iteration/filtering: `filter`, `map`, `all`, `any`, `sorted`, `enumerate`, `zip`, `range`
+- Basic functions: `len`, `str`, `int`, `float`, `bool`, `list`, `dict`, `set`
 - Math: `sum`, `min`, `max`
-- Inspection: `isinstance`, `getattr`, `hasattr`
+- Collection operations: `all`, `any`, `filter`, `sorted`, `enumerate`, `zip`, `range`
+- Inspection: `isinstance`, `getattr`, `hasattr`, `map`
 
-Example:
+## API Reference
 
-```python
-TemplateEngine.render_template(
-    "Stats: $expr{py: {'min': min(values), 'max': max(values), 'avg': sum(values)/len(values)}}",
-    {"values": [10, 20, 30, 40, 50]}
-)
-# Output: "Stats: {'min': 10, 'max': 50, 'avg': 30.0}"
-```
-
-## Node Hierarchy Access
-
-### Direct Access in Regular Expressions
-
-Access the node hierarchy directly:
+### `render_template`
 
 ```python
 TemplateEngine.render_template(
-    "Analysis: $expr{initial_repo_analysis.outcome.results}",
-    variables,
-    execution_context
-)
+    template: str,
+    variables: dict[str, Any],
+    execution_context: Optional[ExecutionContext] = None,
+    mode: Literal["standard", "expression"] = "expression",
+    max_words: int | None = None,
+    debug_mode: bool = False,
+) -> str
 ```
 
-### Access in Python Expressions
+Renders a string template with context support, evaluating expressions and returning a string.
 
-In Python expressions, prefix node paths with `$node.`:
+**Parameters:**
+
+- `template`: String template containing variable/expression patterns
+- `variables`: Dictionary of variables for substitution
+- `execution_context`: Optional execution context for hierarchical lookups
+- `mode`: "standard" for basic substitution only, "expression" for advanced evaluation
+- `max_words`: Optional word limit for output text
+- `debug_mode`: Enable debug logging
+
+**Returns:** String with template expressions evaluated and replaced
+
+### `evaluate_template`
 
 ```python
-TemplateEngine.render_template(
-    "Count: $expr{py: len($node.initial_repo_analysis.outcome.results)}",
-    variables,
-    execution_context
-)
+TemplateEngine.evaluate_template(
+    expr_template: str,
+    variables: dict[str, Any],
+    execution_context: Optional[ExecutionContext] = None,
+    debug_mode: bool = False,
+) -> Any
 ```
 
-## Advanced Features
+Evaluates a template expression and returns the raw result of the evaluation, preserving its type.
 
-### Conditional Output Based on Node Data
+**Parameters:**
 
-```python
-TemplateEngine.render_template(
-    "Status: $expr{py: 'Complete' if len($node.analysis.children) > 5 else 'Incomplete'}",
-    variables,
-    execution_context
-)
-```
+- `expr_template`: Template expression to evaluate
+- `variables`: Dictionary of variables for substitution
+- `execution_context`: Optional execution context for hierarchical lookups
+- `debug_mode`: Enable debug logging
 
-### Complex Filtering and Validation
-
-```python
-TemplateEngine.render_template(
-    "Quality: $expr{py: 'High' if all(child.word_count > 20 for child in $node.analysis.children) else 'Low'}",
-    variables,
-    execution_context
-)
-```
-
-### Word Count Limiting
-
-Limit the output to a specific number of words:
-
-```python
-TemplateEngine.render_template(
-    "Long description: $expr{product.description}",
-    {"product": {"description": "This is a very long product description that continues for many words"}},
-    max_words=5
-)
-# Output: "Long description: This is a very long product"
-```
+**Returns:** Raw result of expression evaluation (preserves type)
 
 ## Error Handling
 
@@ -270,9 +205,30 @@ TemplateEngine.render_template(
 # Output: "Result: Error: 'nonexistent' not found"
 ```
 
+## DAD Template Engine
+
+The `DADTemplateEngine` extends the base `TemplateEngine` with additional context from RunEnvParams and node execution results specifically for the Dhenara Agent DSL (DAD).
+
+### `render_dad_template`
+
+```python
+DADTemplateEngine.render_dad_template(
+    template: str | Prompt | TextTemplate | ObjectTemplate,
+    variables: dict[str, Any],
+    execution_context: ExecutionContext,
+    mode: Literal["standard", "expression"] = "expression",
+    max_words: int | None = None,
+    max_words_file: int | None = None,
+    debug_mode: bool = False,
+    **kwargs: Any,
+) -> Any
+```
+
+Renders a template with DAD-specific context and hierarchical node resolution, supporting various template types.
+
 ## Best Practices
 
-1. **Use fallback values** with the `||` operator to handle missing data:
+1. **Use fallback values** with the `||` operator for missing data:
 
    ```
    $expr{user.nickname || user.name || 'Anonymous'}
@@ -284,16 +240,19 @@ TemplateEngine.render_template(
    $expr{(price > 100) && (discount > 0.1)}
    ```
 
-3. **For complex logic**, use Python expressions rather than chained operators:
+3. **Use Python expressions** for complex logic:
 
    ```
    $expr{py: 'High' if price > 100 and in_stock else 'Standard'}
    ```
 
-4. **Escape template syntax** when you need to display it literally:
+4. **Hierarchical access** for execution context data:
 
    ```
-   To use variables, use the $$var{} syntax
+   $expr{$hier{component.node_id}.property}
    ```
 
-5. **Validate template inputs** to prevent errors in production.
+5. **Set word limits** when appropriate to control output length:
+   ```python
+   TemplateEngine.render_template(template, variables, max_words=100)
+   ```
