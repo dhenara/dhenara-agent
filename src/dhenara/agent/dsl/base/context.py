@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import uuid
 from asyncio import Event
 from collections.abc import AsyncGenerator
@@ -58,7 +59,9 @@ class ExecutionContext(BaseModelABC):
     parent: Optional["ExecutionContext"] = Field(default=None)
 
     # Flow-specific tracking
+    # current_element_identifiers
     current_node_identifier: NodeID | None = Field(default=None)
+    current_subcomponent_identifier: NodeID | None = Field(default=None)
 
     # TODO_FUTURE: An option to statically override node settings
     # initial_inputs: NodeInputs = Field(default_factory=dict)
@@ -117,6 +120,19 @@ class ExecutionContext(BaseModelABC):
     def hierarchy_path(self) -> ResourceConfig:
         return self.get_hierarchy_path(path_joiner=".")
 
+    @property
+    def current_element_identifier(self):
+        return self.current_node_identifier if self.current_node_identifier else self.current_subcomponent_identifier
+
+    def set_current_node(self, identifier: str):
+        """Set the current node being executed."""
+        self.current_node_identifier = identifier
+        self.current_subcomponent_identifier = None
+
+    def set_current_subcomponent(self, identifier: str):
+        self.current_node_identifier = None
+        self.current_subcomponent_identifier = identifier
+
     def model_post_init(self, __context: Any) -> None:
         """Register this context after initialization."""
         self.run_context.execution_context_registry.register(self)
@@ -134,30 +150,18 @@ class ExecutionContext(BaseModelABC):
         NOTE: The return value should be cached while using as calling this will reset the start_hierarchy_path
         in the run context when the current node is the start node.
         """
-        current_node_hierarchy_path = self.get_hierarchy_path(path_joiner=".")
-
         # No start hierarchy path, execute normally
         start_hierarchy_path = self.run_context.start_hierarchy_path
         if not start_hierarchy_path:
             return True
 
-        # Check if we need to execute this component or skip it
-        should_execute = True
-        # If this is a component we should be at or within
-        if start_hierarchy_path.startswith(current_node_hierarchy_path):
-            # We are in the right path, but need to check if we should
-            # execute the whole component or just a sub-part
-            if start_hierarchy_path == current_node_hierarchy_path:
-                # This is exactly where we want to start, so clear the flag
-                self.run_context.start_hierarchy_path = None
-            else:
-                # We're in the right component, but need to continue down to the target
-                should_execute = True
-        elif current_node_hierarchy_path.startswith(start_hierarchy_path):
-            # We're past the target, execute normally
+        current_context_hierarchy_path = self.get_hierarchy_path(path_joiner=".")
+
+        if current_context_hierarchy_path.endswith(start_hierarchy_path):
+            # This is exactly where we want to start, so clear the flag
             should_execute = True
         else:
-            # We're in a different branch, skip
+            # Need to continue down to the target
             should_execute = False
 
         return should_execute
@@ -165,9 +169,12 @@ class ExecutionContext(BaseModelABC):
     async def load_from_previous_run(
         self,
         copy_artifacts: bool = True,
-        node_id: NodeID | None = None,
+        element_id: NodeID | None = None,
     ) -> dict | None:
-        hierarchy_path = self.get_hierarchy_path(path_joiner="/", node_id=node_id)
+        hierarchy_path = self.get_hierarchy_path(
+            path_joiner=os.sep,
+            element_id=element_id,
+        )
 
         result_data = await self.run_context.load_from_previous_run(
             hierarchy_path=hierarchy_path,
@@ -179,23 +186,27 @@ class ExecutionContext(BaseModelABC):
     def get_hierarchy_path(
         self,
         path_joiner: str = "/",
-        node_id: NodeID | None = None,
+        element_id: NodeID | None = None,
+        exclude_element_id: bool = False,
     ) -> str:
         """
-        Determine the hierarchical path of a node within a component definition.
+        Determine the hierarchical path of an element (node/sub-component) within a component definition.
         """
-        # Skip if no component definition
-        # if not self.component_definition:
-        #    return node_id
 
         component_path_parts = self.find_parent_component_ids()
 
-        if not node_id:
-            # If no node_id is provided, use the current node identifier
-            node_id = self.current_node_identifier
+        if exclude_element_id:
+            final_path_parts = [*component_path_parts]
+        else:
+            if not element_id:
+                # If no element_id is provided, use the current node identifier
+                element_id = self.current_element_identifier
 
-        if node_id:
-            final_path_parts = [*component_path_parts, node_id]
+            # if not element_id:
+            #    raise ValueError("get_hierarchy_path: element_id is None when exclude_element_id is not set")
+
+        if element_id:
+            final_path_parts = [*component_path_parts, element_id]
         else:
             final_path_parts = [*component_path_parts]
 
@@ -270,9 +281,6 @@ class ExecutionContext(BaseModelABC):
         self.logger.error(f"Execution failed: {message}")
 
     # Node specific methods
-    def set_current_node(self, identifier: str):
-        """Set the current node being executed."""
-        self.current_node_identifier = identifier
 
     def get_initial_input(self) -> NodeInput:
         """Get the input for the current node."""
@@ -366,10 +374,14 @@ class ExecutionContext(BaseModelABC):
         # Similar to record_outcome but with iteration-specific values
         pass
 
-    def get_dad_dynamic_variables(self) -> dict:
+    def get_dad_template_dynamic_variables(self) -> dict:
+        # Update CURRENT component/ element/ hier
+        # NOTE: These are used to derived the artifact record's name/dir via NodeRecordSettings
+
         return {
-            "node_id": self.current_node_identifier,
-            "node_hier": self.get_hierarchy_path(path_joiner="/"),
+            # "component_id": str(self.component_id),
+            "element_id": str(self.current_element_identifier),
+            "element_hier_path": str(self.get_hierarchy_path(path_joiner=os.sep)),
         }
 
     def get_context_variables_hierarchical(self) -> dict:

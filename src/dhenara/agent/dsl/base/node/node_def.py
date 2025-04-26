@@ -57,7 +57,9 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         node_id: NodeID,
         execution_context: ContextT,
     ) -> Any:
-        execution_context.set_current_node(node_id)
+        # NOTE: set_current_node() will be done in the component executer as its where it decides should_execute,
+        # which as depenency with current_node_identifier
+        # execution_context.set_current_node(node_id)
 
         node_executor = self.get_node_executor()
 
@@ -103,7 +105,8 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         node_id: NodeID,
         execution_context: ContextT,
     ) -> Any:
-        execution_context.set_current_node(node_id)
+        # NOTE: set_current_node() will be done in the component executer
+        # execution_context.set_current_node(node_id)
 
         executer = self.get_node_executor()
         result_class = executer.get_result_class()

@@ -614,7 +614,6 @@ class TemplateEngine:
         # Here theere will be only one part in the path
         if len(path_str_parts) == 1:
             target_node_id = path_str_parts[0]
-            print(f"AJ: execution_context.execution_results keys= {execution_context.execution_results.keys()}")
 
             # Check for current context
             if target_node_id in execution_context.execution_results:
@@ -645,6 +644,10 @@ class TemplateEngine:
             current_context_path=execution_context.get_hierarchy_path(path_joiner="."),
             fetch_context=fetch_context,
         )
+
+        if not (component_path or component_ctx):
+            logger.error(f"No match found for {component_path}")
+            return None
 
         ## If execution_context caching is enabled navigate through the execution context
         if fetch_context:

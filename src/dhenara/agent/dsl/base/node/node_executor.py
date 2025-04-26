@@ -346,7 +346,7 @@ class NodeExecutor(ABC):
 
         return NodeExecutionResult(
             node_identifier=node_id,
-            status=ExecutionStatusEnum.FAILED,
+            execution_status=ExecutionStatusEnum.FAILED,
             input=None,
             output=None,
             outcome=None,

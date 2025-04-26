@@ -280,14 +280,14 @@ class RunContext:
 
         # Determine the hierarchy path for this node
         try:
-            node_hier_dir = hierarchy_path.replace(".", os.sep)
+            element_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
             logger.error(f"Error while deriving heirarchy for prevoious run artifacts: Error: {e}")
             return
 
         # Define source and target directories
-        src_input_dir = self.previous_run_dir / node_hier_dir
-        dst_input_dir = self.run_dir / node_hier_dir
+        src_input_dir = self.previous_run_dir / element_hier_dir
+        dst_input_dir = self.run_dir / element_hier_dir
 
         # Ensure target directory exists
         dst_input_dir.mkdir(parents=True, exist_ok=True)
@@ -343,9 +343,9 @@ class RunContext:
             return None
 
         try:
-            node_hier_dir = hierarchy_path.replace(".", os.sep)
+            element_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
-            logger.error(f"Error while reloading results: node_hier_dir:{node_hier_dir}, Error: {e}")
+            logger.error(f"Error while reloading results: element_hier_dir:{element_hier_dir}, Error: {e}")
             return
 
         # NOTE: Currently there us nothing to copy for components
@@ -353,7 +353,7 @@ class RunContext:
             return
 
         # Define source and target directories
-        src_input_dir = self.previous_run_dir / node_hier_dir
+        src_input_dir = self.previous_run_dir / element_hier_dir
         result_file = src_input_dir / "result.json"
 
         if src_input_dir.exists() and result_file.exists():
@@ -478,3 +478,23 @@ class RunContext:
         objects are not stored, significantly reducing memory usage for complex flows.
         """
         self.execution_context_registry.set_caching_enabled(enabled)
+
+    def get_dad_template_static_variables(self) -> dict:
+        """Get static variables from run environment parameters."""
+        # Guaranteed vars
+        variables = {
+            # --- Externally exposed vars
+            #    1.environment variables
+            "run_id": self.run_env_params.run_id,
+            "run_dir": str(self.run_env_params.run_dir),
+            "run_root": str(self.run_env_params.run_root),
+            # --- Internal vars
+            #    1. state variables
+            # "_dad_trace_dir": str(self.run_env_params.trace_dir),
+        }
+
+        # Optional vars
+        if self.run_env_params.outcome_repo_dir:
+            variables["outcome_repo_dir"] = str(self.run_env_params.outcome_repo_dir)
+
+        return variables

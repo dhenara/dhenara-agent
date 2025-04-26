@@ -157,16 +157,20 @@ class ComponentExecutor(BaseModelABC):
     ) -> list[Any]:
         """Execute all elements in this component sequentially."""
         results = []
-        execution_context.set_current_node(component_id)
+
         for element in component_definition.elements:
             element_start_time = datetime.now()
             if isinstance(element, ExecutableNode):
                 # For regular nodes
                 node = element
 
+                # Set current node in the context
+                execution_context.set_current_node(node.id)
+
                 # Check if this is where we should start
                 # NOTE: cache should_execute into a variable as it will reset the run context hierarchy upon hitting the
                 # start_hierarchy_path
+
                 should_execute = execution_context.should_execute
                 if should_execute:
                     # Log node execution
@@ -207,6 +211,18 @@ class ComponentExecutor(BaseModelABC):
                 subcomponent = element
                 self.logger.info(f"Processing child component {subcomponent.id}")
 
+                # Set current node in the context
+                execution_context.set_current_subcomponent(subcomponent.id)
+
+                # INFO: We will always execute the subcomponent. There is no load_from_previous_run()
+                # fn for subcomponents, as we don't save the subcomponent results in a result.json file.
+                # When the subcomponent is executed, it will load its children node's results, and thus form the
+                # complete result that component.
+
+                # But still call the should_execute() method to correctly reset the hierarchy path if in case
+                # the start_hierarchy_path is the current subcomponent
+                should_execute = execution_context.should_execute
+
                 # Create the component execution context
                 component_execution_context = subcomponent.definition.context_class(
                     component_id=subcomponent.id,
@@ -216,16 +232,7 @@ class ComponentExecutor(BaseModelABC):
                     parent=execution_context,
                 )
 
-                # INFO: We will always execute the subcomponent. There is no load_from_previous_run()
-                # fn for subcomponents, as we don't save the subcomponent results in a result.json file.
-                # When the subcomponent is executed, it will load its children node's results, and thus form the
-                # complete result that component.
-
-                # But still call the should_execute() method to correctly reset the hierarchy path if in case
-                # the start_hierarchy_path is the current subcomponent
-                should_execute = component_execution_context.should_execute
-
-                if True:
+                if True:  # See comments above
                     log_with_context(
                         self.logger,
                         logging.INFO,

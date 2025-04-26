@@ -101,7 +101,7 @@ class ExecutionContextRegistry:
 
         fetch_matching_context = self.enable_caching and fetch_context
 
-        logger.debug(f"Searching for context: partial_path={partial_path}, current_path={current_context_path}")
+        # logger.debug(f"Searching for context: partial_path={partial_path}, current_path={current_context_path}")
 
         # Track the matching path when found
         matching_path = None
@@ -181,8 +181,6 @@ class ExecutionContextRegistry:
                 f"Found match: path={matching_path}, "
                 f" context={matching_context.component_id if matching_context else None}"
             )
-        else:
-            logger.error(f"No match found for {partial_path}")
 
         return (matching_path, matching_context)
 
