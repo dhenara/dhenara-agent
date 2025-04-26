@@ -103,7 +103,7 @@ class DADTemplateEngine(TemplateEngine):
         combined_variables.update(dad_dynamic_variables)
 
         if debug_mode:
-            logger.debug(f"dad_template: {combined_variables}")
+            logger.debug(f"dad_template variables: {combined_variables}")
 
         try:
             # Handle ObjectTemplate - preserves type
@@ -205,6 +205,23 @@ class DADTemplateEngine(TemplateEngine):
         max_words: int | None,
         debug_mode: bool = False,
     ) -> str:
+        # Add variables diefault values, if missing in the incoming variables
+        variables_defaults = text_template.get_args_default_values()
+        missing_variables_with_defaults = {
+            key: value for key, value in variables_defaults.items() if key not in variables.keys()
+        }
+
+        variables.update(missing_variables_with_defaults)
+
+        # Do a final check if still some variable are missing
+        missing_variable_names = [var for var in text_template.get_variable_names() if var not in variables.keys()]
+        if missing_variable_names:
+            logger.error(
+                "Some variabes in the TextTemplate were not provided with any values. "
+                "This could lead to unexpected behaviours. "
+                f"Misssing variables are {missing_variable_names}"
+            )
+
         parsed_text = cls.render_template(
             template=text_template.text,
             variables=variables,

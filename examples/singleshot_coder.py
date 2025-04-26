@@ -7,7 +7,7 @@ from dhenara.agent.dsl import (
     EventType,
     FileOperationNode,
     FileOperationNodeSettings,
-    Flow,
+    FlowDefinition,
     FolderAnalyzerNode,
     FolderAnalyzerSettings,
     NodeRecordSettings,
@@ -20,170 +20,152 @@ from dhenara.ai.types import (
     ResourceConfigItem,
 )
 
-
-class SingleShotCodeChanges(BaseModel):
-    file_operations: list[FileOperation] = Field(..., description="File changes to make")
-    description: str = Field(..., description="Precise description of changes in markdown format")
-    # commands: list[CommandToRun] = Field(..., description="Commands to run")
-    # test_commands: list[CommandToRun] | None = Field(
-    #    None, description="Commands to verify the changes"
-    # )
+# Common flow vars
+repo_dir = "$expr{run_root}/global_data/repo"
 
 
-# Create the flow for a single-shot coder
-flow = (
-    Flow()
-    ## Clone the repository
-    # .node(
-    #    "repo_clone",
-    #    CommandNode(
-    #        settings=CommandNodeSettings(
-    #            commands=[
-    #                "mkdir -p $expr{run_dir}/repo",
-    #                "git clone $expr{repo_url} $expr{run_dir}/repo",
-    #                "cd $expr{run_dir}/repo && git checkout $expr{branch || 'main'}",
-    #                "cd $expr{run_dir}/repo && ls -la",
-    #            ],
-    #            working_dir="$expr{run_dir}",
-    #            timeout=300,  # 5 minutes timeout for cloning
-    #        )
-    #    ),
-    # )
-    # Analyze the repository structure
-    .node(
-        "repo_analysis",
-        FolderAnalyzerNode(
-            settings=FolderAnalyzerSettings(
-                base_directory="$expr{run_root}/global_data/repo",
-                operations=[
-                    FolderAnalysisOperation(
-                        operation_type="analyze_folder",
-                        path="src",
-                        # path="$expr{run_root}/global_data/repo/src/dhenara/agent/dsl/base/utils",
-                        max_depth=100,
-                        include_stats=False,
-                        respect_gitignore=True,
-                        read_content=True,
-                        content_read_mode="structure",
-                        content_structure_detail_level="detailed",
-                        include_content_preview=False,
-                        max_words_per_file=None,  # Read all
-                        max_total_words=None,
-                        generate_tree_diagram=True,
-                    ),
-                ],
-            ),
+class TaskImplementation(BaseModel):
+    """
+    Contains the concrete file operations to implement a specific task of the plan.
+    This is the output generated after analyzing the context specified in the TaskSpec.
+    """
+
+    task_id: str = Field(
+        ...,
+        description=(
+            "ID of the corresponding TaskSpec that this implements if it was given in the inputs, "
+            "or a unique human readable task ID"
         ),
     )
-    # Single-shot coding solution
-    .node(
-        "generate_solution",
-        AIModelNode(
-            resources=ResourceConfigItem.with_model("claude-3-7-sonnet"),
-            # resources=ResourceConfigItem.with_model("gemini-2.0-flash-lite"),
-            # resources=ResourceConfigItem.with_model("claude-3-5-haiku"),
-            # resources=ResourceConfigItem.with_model("gpt-4o-mini"),
-            pre_events=[EventType.node_input_required],
-            settings=AIModelNodeSettings(
-                system_instructions=[
-                    "You are a precise code modification assistant that produces minimal changes to a codebase.",
-                    "Your task is to generate the exact file operations necessary to implement requested changes - nothing more, nothing less.",
-                    "",
-                    "CRITICAL REQUIREMENTS:",
-                    "- Group all modifications for the same file together in a single operation.",
-                    "- Use EXACT patterns that uniquely identify edit points.",
-                    "- Maintain correct indentation in all content.",
-                    "- Do not duplicate existing code in bulk unless absolutely necessary.",
-                    "- Ensure patterns match only once - expand context when needed.",
-                    "- For sequential modifications, account for earlier changes to the same file.",
-                    "",
-                    "FORMAT SPECIFICATIONS:",
-                    "- For new files: Use 'create_file' with complete content.",
-                    "- For modifying file contents: Use 'edit_file' with exact match patterns.",
-                    "- For selective content deletions: Use 'edit_file' with empty content string.",
-                    "- For directories: Use 'create_directory' or 'delete_directory.'",
-                    "",
-                    "TOKEN MANAGEMENT:",
-                    "- Prioritize complete, structured output over quantity",
-                    "- Focus on core functionality first if token limits are a concern",
-                ],
-                prompt=Prompt.with_dad_text(
-                    text=(
-                        "I need you to implement the following task for the Dhenara agent package:"
-                        ""
-                        "Task: $var{task_description}"
-                        ""
-                        "Current repository structure and relevant files:"
-                        ""
-                        "$expr{repo_analysis.outcome.analysis}"
-                        ""
-                        "YOUR RESPONSE MUST:"
-                        "1. Include only the necessary file operations to implement the task"
-                        "2. Group all modifications to the same file in one operation"
-                        "3. Use unique matching patterns that won't match multiple locations"
-                        "4. Ensure operations can be applied programmatically without human intervention"
-                        ""
-                    ),
-                    variables={
-                        "task_description": {"default": "Generate test"},
-                    },
-                    disable_checks=True,
-                ),
-                model_call_config=AIModelCallConfig(
-                    structured_output=SingleShotCodeChanges,
-                    max_output_tokens=16000,
-                    # reasoning=True,
-                    # max_reasoning_tokens=4000,
-                    options={
-                        # "temperature": 0.1,
-                    },
-                    test_mode=False,
-                ),
-            ),
-            record_settings=NodeRecordSettings.with_outcome_format("json"),
-        ),
+    file_operations: list[FileOperation] = Field(
+        ...,
+        description="Ordered list of file operations to execute for this implementation task",
     )
-    # Implement the solution (create/modify files)
-    .node(
-        "implement_solution",
-        FileOperationNode(
-            settings=FileOperationNodeSettings(
-                # base_directory="$expr{run_dir}/repo",
-                base_directory="$expr{run_root}/global_data/repo/src",
-                operations_template=ObjectTemplate(
-                    expression="$expr{generate_solution.outcome.structured.file_operations}",
-                ),
-            )
-        ),
+    execution_commands: list[dict] | None = Field(
+        None,
+        description="Optional shell commands to run after file operations (e.g., for build or setup)",
     )
+    verification_commands: list[dict] | None = Field(
+        None,
+        description="Optional commands to verify the changes work as expected",
+    )
+
+    def get_operation_summary(self) -> dict:
+        """Returns a summary of the operations by type"""
+        summary = {}
+        for op in self.file_operations:
+            if op.type in summary:
+                summary[op.type] += 1
+            else:
+                summary[op.type] = 1
+        return summary
+
+
+# Implementation Agent Flow
+implementation_flow = FlowDefinition()
+
+## Clone the repository
+# .node(
+#    "repo_clone",
+#    CommandNode(
+#        settings=CommandNodeSettings(
+#            commands=[
+#                "mkdir -p $expr{run_dir}/repo",
+#                "git clone $expr{repo_url} $expr{run_dir}/repo",
+#                "cd $expr{run_dir}/repo && git checkout $expr{branch || 'main'}",
+#                "cd $expr{run_dir}/repo && ls -la",
+#            ],
+#            working_dir="$expr{run_dir}",
+#            timeout=300,  # 5 minutes timeout for cloning
+#        )
+#    ),
+# )
+
+# Analyze the repository structure
+# 1. Dynamic Folder Analysis (based on planner output)
+implementation_flow.node(
+    "dynamic_repo_analysis",
+    FolderAnalyzerNode(
+        # pre_events=[EventType.node_input_required],
+        # settings=None,
+        settings=FolderAnalyzerSettings(
+            base_directory=repo_dir,
+            operations=[
+                FolderAnalysisOperation(
+                    operation_type="analyze_folder",
+                    path="src",
+                    max_depth=100,
+                    include_stats_and_meta=False,
+                    respect_gitignore=True,
+                    read_content=True,
+                    content_read_mode="structure",
+                    content_structure_detail_level="detailed",
+                    include_content_preview=False,
+                    max_words_per_file=None,  # Read all
+                    max_total_words=None,
+                    generate_tree_diagram=True,
+                ),
+            ],
+        ),
+    ),
 )
-"""
-    # Run any provided test commands
-    .node(
-        "run_commands",
-        CommandNode(
-            settings=CommandNodeSettings(
-                commands_from_list="$expr{generate_solution.outcome.commands}",
-                working_dir="$expr{run_dir}/repo",
-                timeout=300,  # 5 minutes timeout
-                fail_fast=False,  # Continue even if some commands fail
-            )
+# 2. Code Generation Node
+implementation_flow.node(
+    "code_generator",
+    AIModelNode(
+        resources=ResourceConfigItem.with_model("claude-3-7-sonnet"),
+        pre_events=[EventType.node_input_required],
+        settings=AIModelNodeSettings(
+            system_instructions=[
+                "You are a professional code implementation agent.",
+                "Your task is to generate the exact file operations necessary to implement requested changes - nothing more, nothing less.",
+                "You should generate precise file operations that can be executed automatically.",
+                "The file operations should be any of create_file, edit_file, delete_file, create_directory, create_directory, move_file",
+                "DO NOT use any of list_directory, search_files, get_file_metadata, list_allowed_directories",
+                "",
+                "For each file edit, provide exact patterns that uniquely identify the edit location.",
+                "Ensure your implementation follows best practices and maintains code quality.",
+                "To completely replace content of a file, do it in 2 steps with  delete_file and create_file operations instead doing it in a single edit_file."
+                "",
+                "TOKEN MANAGEMENT:",
+                "- Prioritize complete, structured output over quantity",
+                "- Focus on core functionality first if token limits are a concern",
+            ],
+            prompt=Prompt.with_dad_text(
+                text=(
+                    "Implement the following batch of code changes:\n\n"
+                    "Task: $var{task_description} \n"
+                    # "Context Files info :\n $expr{ $hier{dynamic_repo_analysis}.outcome.results }\n\n\n"
+                    "Context Files info :\n $expr{py: [result.model_dump() for result in $hier{dynamic_repo_analysis}.outcome.results] }\n\n\n"
+                    "Please implement these changes with precise file operations (create_file, edit_file etc) that can be executed programmatically without human intervention.\n"
+                    "For each file edit, provide an exact pattern that uniquely identifies the location to edit.\n"
+                    "Ensure your implementation maintains the existing code style and follows best practices.\n"
+                    "Return a TaskImplementation object.\n"
+                ),
+                disable_checks=True,
+            ),
+            model_call_config=AIModelCallConfig(
+                structured_output=TaskImplementation,
+                max_output_tokens=8000,  # Limiting the output tokens to preserve context window
+            ),
         ),
-    )
-    # Commit the changes
-    .node(
-        "commit_changes",
-        CommandNode(
-            settings=CommandNodeSettings(
-                commands=[
-                    "cd $expr{run_dir}/repo && git add .",
-                    "cd $expr{run_dir}/repo && git status",
-                    'cd $expr{run_dir}/repo && git config --local user.email "agent@dhenara.com"',
-                    'cd $expr{run_dir}/repo && git config --local user.name "Dhenara Agent"',
-                    'cd $expr{run_dir}/repo && git commit -m "Implemented: $expr{commit_message}"',
-                ],
-                working_dir="$expr{run_dir}",
-            )
+        record_settings=NodeRecordSettings.with_outcome_format("json"),
+    ),
+)
+
+
+# 3. File Operation Node
+implementation_flow.node(
+    "code_generator_file_ops",
+    FileOperationNode(
+        settings=FileOperationNodeSettings(
+            base_directory=repo_dir,
+            operations_template=ObjectTemplate(
+                expression="$expr{ $hier{code_generator}.outcome.structured.file_operations }",
+            ),
+            stage=True,
+            commit=False,  # Commit handled in the coordinator
+            commit_message="$var{run_id}: Implemented plan step",
         ),
-    )
-"""
+    ),
+)

@@ -2,7 +2,7 @@ from dhenara.agent.dsl import (
     AIModelNode,
     AIModelNodeSettings,
     EventType,
-    Flow,
+    FlowDefinition,
     NodeRecordSettings,
     SpecialNodeIDEnum,
 )
@@ -20,8 +20,9 @@ from dhenara.ai.types import (
 
 test_mode = False
 
-flow = (
-    Flow()
+
+chatbot_flow = (
+    FlowDefinition()
     .node(
         "ai_model_call_1",
         AIModelNode(

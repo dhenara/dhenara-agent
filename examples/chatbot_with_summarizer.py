@@ -2,7 +2,7 @@ from dhenara.agent.dsl import (
     AIModelNode,
     AIModelNodeSettings,
     EventType,
-    Flow,
+    FlowDefinition,
     NodeRecordSettings,
 )
 from dhenara.ai.types import (
@@ -19,8 +19,8 @@ from dhenara.ai.types import (
 
 test_mode = False
 
-flow = (
-    Flow()
+chatbot_flow = (
+    FlowDefinition()
     .node(
         "ai_model_call_1",
         AIModelNode(
@@ -84,7 +84,7 @@ flow = (
                     "You are a summarizer which generate a title text under 60 characters from the prompts.",
                 ],
                 prompt=Prompt.with_dad_text(
-                    text="Summarize in plane text under $var{number_of_chars} characters. $expr{ai_model_call_1.outcome.text}",  # noqa: E501
+                    text="Summarize in plane text under $var{number_of_chars} characters. $expr{ $hier{ai_model_call_1}.outcome.text }",  # noqa: E501
                     variables={
                         "number_of_chars": {
                             "default": 60,
