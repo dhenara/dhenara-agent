@@ -92,7 +92,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # 1. Fix node resource
         # -------------------
         user_selected_resource = None
-        resources_override = node_input.resources if node_input and node_input.resources_override else []
+        resources_override = node_input.resources_override if node_input and node_input.resources_override else []
 
         if len(resources_override) == 1:
             user_selected_resource = resources_override[0]

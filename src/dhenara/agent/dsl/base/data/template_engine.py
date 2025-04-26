@@ -112,6 +112,7 @@ class TemplateEngine:
         execution_context: Optional["ExecutionContext"] = None,
         mode: Literal["standard", "expression"] = "expression",
         max_words: int | None = None,
+        debug_mode: bool = False,
     ) -> str:
         """
         Render a string template with context support.
@@ -149,6 +150,7 @@ class TemplateEngine:
                 template=template,
                 variables=working_vars,
                 execution_context=execution_context,
+                debug_mode=debug_mode,
             )
 
             # Add placeholder variables to working variables
@@ -160,6 +162,7 @@ class TemplateEngine:
                 variables=working_vars,
                 execution_context=execution_context,
                 result_as_string=True,
+                debug_mode=debug_mode,
             )
 
         # Apply word limit if specified
@@ -171,6 +174,7 @@ class TemplateEngine:
         expr_template: str,
         variables: dict[str, Any],
         execution_context: Optional["ExecutionContext"] = None,
+        debug_mode: bool = False,
     ) -> Any:
         """
         Evaluate template expression and return the raw result of evaluating the expression,
@@ -191,6 +195,7 @@ class TemplateEngine:
             template=expr_template,
             variables=working_vars,
             execution_context=execution_context,
+            debug_mode=debug_mode,
         )
 
         # Add placeholder variables to working variables
@@ -202,6 +207,7 @@ class TemplateEngine:
             variables=working_vars,
             execution_context=execution_context,
             result_as_string=False,
+            debug_mode=debug_mode,
         )
 
     @classmethod
@@ -251,6 +257,7 @@ class TemplateEngine:
         template: str,
         variables: dict[str, Any],
         execution_context: Optional["ExecutionContext"] = None,
+        debug_mode: bool = False,
     ) -> tuple[str, dict[str, Any]]:
         """
         Process $hier{} references by replacing them with unique placeholders.
@@ -297,6 +304,7 @@ class TemplateEngine:
         variables: dict[str, Any],
         execution_context: Optional["ExecutionContext"] = None,
         result_as_string: bool = False,
+        debug_mode: bool = False,
     ) -> Any:
         """
         Process expressions in a template with context support.
@@ -313,7 +321,12 @@ class TemplateEngine:
             if full_match:
                 expr = full_match.group(1).strip()
                 try:
-                    return cls._evaluate_expression(expr, variables, execution_context)
+                    return cls._evaluate_expression(
+                        expr,
+                        variables,
+                        execution_context,
+                        debug_mode=debug_mode,
+                    )
                 except Exception as e:
                     logger.error(f"Error evaluating expression '{expr}': {e}")
                     return f"Error: {e!s}"
@@ -322,7 +335,12 @@ class TemplateEngine:
         def replace_expr(match: re.Match) -> str:
             expr = match.group(1).strip()
             try:
-                result = cls._evaluate_expression(expr, variables, execution_context)
+                result = cls._evaluate_expression(
+                    expr,
+                    variables,
+                    execution_context,
+                    debug_mode=debug_mode,
+                )
                 return str(result) if result is not None else ""
             except Exception as e:
                 logger.error(f"Error evaluating expression '{expr}': {e}")
@@ -353,95 +371,47 @@ class TemplateEngine:
         expr: str,
         variables: dict[str, Any],
         execution_context: ExecutionContext,
+        debug_mode: bool = False,
     ) -> Any:
         """
-        Evaluate an expression with enhanced support for brackets and complex operations.
+        Evaluate an expression  with enhanced support for brackets and complex operations.
         """
         # Update variables with the loop/conditional variables in context
         variables.update(execution_context.get_context_variables_hierarchical())
 
-        # Handle bracketed expressions first
-        bracket_pattern = re.compile(r"\(([^()]*)\)")
-
-        while True:
-            match = bracket_pattern.search(expr)
-            if not match:
-                break
-
-            # Evaluate the expression inside brackets
-            inner_expr = match.group(1)
-            inner_result = cls._evaluate_expression(inner_expr, variables, execution_context)
-
-            # Replace the bracketed expression with its result
-            expr = expr[: match.start()] + str(inner_result) + expr[match.end() :]
-
-        # 1. Handle Python expressions
+        # If we are evaluating a Python expression, do it immediately without further pre-processing
+        # 0. Handle Python expressions
         if expr.startswith("py:"):
             _pyexpr = expr[3:].strip()
 
             # ---------------- Attribute-style access in Python: BEGINS -------
-            #
-            # Below part was required only to allow attribute-style access to a dict INSIDE the execution result
-            # Example:
-            #   1. expression="$expr{ $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
-            #   2. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured['implementation_tasks'] }"
-            #   3. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
-            #
-            # In a normal $expr evaluation like in Eg:1, we take care of attribute-style (dotted) access of execution
-            # result properties.
-            # But in python expression $expr{py: }, it won't work, thus we need to access the individual properties
-            # as if like in a python statement, structured['implementation_tasks']
-            # Below fixes are to enables same attribute-style (dot) access for :py expressions as well
-            #
-
-            # Look for patterns with hierarchical placeholders followed by dot notation
-            # This pattern matches "__hier_placeholder_XXXX__.something.else"
-
-            # hier_path_pattern = re.compile(r"(__hier_placeholder_[a-f0-9]{8}__(?:\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+)")
-            ## Find all matches in the Python expression
-            # matches = hier_path_pattern.findall(_pyexpr)
-
-            # Find all hierarchical placeholder patterns in the expression
-            matches = []
-            # First, look for placeholders with at least one dot notation
-            for var_name in variables:
-                if var_name.startswith("__hier_placeholder_") and var_name.endswith("__"):
-                    # For each placeholder, look for it plus dot notation in the expression
-                    path_pattern = re.compile(f"{re.escape(var_name)}(?:\\.[a-zA-Z0-9_]+)+")
-                    matches.extend(match.group(0) for match in path_pattern.finditer(_pyexpr))
-
-            # Create evaluation variables by copying the original
-            eval_vars = variables.copy()
-
-            # Process each match
-            for match in matches:
-                try:
-                    # Resolve the full path using our path resolver
-                    resolved_value = cls._resolve_object_path(match, variables)
-
-                    # Create a temporary variable for this resolved value
-                    temp_var_name = f"__temp_var_{uuid.uuid4().hex[:8]}__"
-                    eval_vars[temp_var_name] = resolved_value
-
-                    # Replace the path with the temporary variable in the expression
-                    _pyexpr = _pyexpr.replace(match, temp_var_name)
-
-                    logger.debug(f"Resolved path {match} to value and assigned to {temp_var_name}")
-                except Exception as e:  # noqa: PERF203
-                    logger.error(f"Error resolving path '{match}': {e}")
-
+            _pyexpr, eval_vars = cls._process_object_path_with_hier_variables(
+                expr_with_hier_vars=_pyexpr,
+                variables=variables,
+                debug_mode=debug_mode,
+            )
             # ---------------- Attribute-style access in Python: ENDS -------
 
             # Evaluate the modified Python expression
             try:
-                result = eval(_pyexpr, {"__builtins__": cls.SAFE_GLOBALS}, eval_vars)
+                return eval(_pyexpr, {"__builtins__": cls.SAFE_GLOBALS}, eval_vars)
                 # logger.debug(f"Evaluated Python expression: {_pyexpr} = {result}")
-                return result
             except Exception as e:
                 logger.error(f"Error evaluating Python expression '{_pyexpr}': {e}")
                 return f"Error: {e!s}"
 
-        # Regular expression handling (non-Python)
+        # 1. For non-python expressions, first process bracketed subexpressions
+        if debug_mode:
+            logger.debug(f"_evaluate_expression: expr={expr}, variables={variables.keys()}")
+
+        bracket_pattern = re.compile(r"\(([^()]*)\)")
+        while True:
+            match = bracket_pattern.search(expr)
+            if not match:
+                break
+            inner_expr = match.group(1)
+            inner_result = cls._evaluate_expression(inner_expr, variables, execution_context, debug_mode=debug_mode)
+            expr = expr[: match.start()] + str(inner_result) + expr[match.end() :]
 
         # 2. Handle binary operators by precedence
         for precedence_group in cls.OPERATOR_PRECEDENCE:
@@ -449,8 +419,18 @@ class TemplateEngine:
                 op_func = cls.OPERATORS[op_text]
                 if op_text in expr:
                     parts = expr.split(op_text, 1)
-                    left = cls._evaluate_expression(parts[0].strip(), variables, execution_context)
-                    right = cls._evaluate_expression(parts[1].strip(), variables, execution_context)
+                    left = cls._evaluate_expression(
+                        parts[0].strip(),
+                        variables,
+                        execution_context,
+                        debug_mode=debug_mode,
+                    )
+                    right = cls._evaluate_expression(
+                        parts[1].strip(),
+                        variables,
+                        execution_context,
+                        debug_mode=debug_mode,
+                    )
                     return op_func(left, right)
 
         # 3. Handle literal values before attempting variable resolution
@@ -506,7 +486,74 @@ class TemplateEngine:
         return None
 
     @classmethod
-    def _resolve_object_path(cls, path: str, variables: dict[str, Any]) -> Any:
+    def _process_object_path_with_hier_variables(
+        cls,
+        expr_with_hier_vars: str,
+        variables: dict[str, Any],
+        debug_mode: bool = False,
+    ) -> tuple[str, dict]:
+        # ---------------- Attribute-style access in Python: BEGINS -------
+        #
+        # Below part was required only to allow attribute-style access to a dict INSIDE the execution result
+        # Example:
+        #   1. expression="$expr{ $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
+        #   2. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured['implementation_tasks'] }"
+        #   3. expression="$expr{py: $hier{planner.plan_generator}.outcome.structured.implementation_tasks }",
+        #
+        # In a normal $expr evaluation like in Eg:1, we take care of attribute-style (dotted) access of execution
+        # result properties.
+        # But in python expression $expr{py: }, it won't work, thus we need to access the individual properties
+        # as if like in a python statement, structured['implementation_tasks']
+        # Below fixes are to enables same attribute-style (dot) access for :py expressions as well
+        #
+
+        # Look for patterns with hierarchical placeholders followed by dot notation
+        # This pattern matches "__hier_placeholder_XXXX__.something.else"
+
+        # hier_path_pattern = re.compile(r"(__hier_placeholder_[a-f0-9]{8}__(?:\.[a-zA-Z0-9_]+)*\.[a-zA-Z0-9_]+)")
+        ## Find all matches in the Python expression
+        # matches = hier_path_pattern.findall(expr_with_hier_vars)
+
+        # Create evaluation variables by copying the original
+        eval_vars = variables.copy()
+
+        # Find all hierarchical placeholder patterns in the expression
+        matches = []
+        # Find placeholders that might include method calls
+        for var_name in variables:
+            if var_name.startswith("__hier_placeholder_") and var_name.endswith("__"):
+                # For each placeholder, look for it plus dot notation in the expression
+                path_pattern = re.compile(f"{re.escape(var_name)}(?:\\.[a-zA-Z0-9_]+)+")
+                matches.extend(match.group(0) for match in path_pattern.finditer(expr_with_hier_vars))
+
+        # Process each match
+        for match in matches:
+            try:
+                # Resolve the full path using our path resolver
+                resolved_value = cls._resolve_object_path(match, variables, debug_mode=debug_mode)
+
+                # Create a temporary variable for this resolved value
+                temp_var_name = f"__temp_var_{uuid.uuid4().hex[:8]}__"
+                eval_vars[temp_var_name] = resolved_value
+
+                # Replace the path with the temporary variable in the expression
+                expr_with_hier_vars = expr_with_hier_vars.replace(match, temp_var_name)
+
+                if debug_mode:
+                    logger.debug(f"Processed path {match} in Python expression and assigned to {temp_var_name}")
+
+            except Exception as e:  # noqa: PERF203
+                logger.error(f"Error resolving path '{match}': {e}")
+
+        return expr_with_hier_vars, eval_vars
+
+    @classmethod
+    def _resolve_object_path(
+        cls,
+        path: str,
+        variables: dict[str, Any],
+        debug_mode: bool = False,
+    ) -> Any:
         """
         Resolve a dot-notation path within variables.
         E.g., "user.profile.name" will access variables["user"]["profile"]["name"]

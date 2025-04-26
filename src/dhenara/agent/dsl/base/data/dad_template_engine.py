@@ -63,6 +63,7 @@ class DADTemplateEngine(TemplateEngine):
         mode: Literal["standard", "expression"] = "expression",
         max_words: int | None = None,
         max_words_file: int | None = None,
+        debug_mode: bool = False,  # To selectively enable debug for certain calls manually
         **kwargs: Any,
     ) -> Any:
         """
@@ -101,6 +102,9 @@ class DADTemplateEngine(TemplateEngine):
         combined_variables.update(dad_static_variables)
         combined_variables.update(dad_dynamic_variables)
 
+        if debug_mode:
+            logger.debug(f"dad_template: {combined_variables}")
+
         try:
             # Handle ObjectTemplate - preserves type
             if isinstance(template, ObjectTemplate):
@@ -108,7 +112,13 @@ class DADTemplateEngine(TemplateEngine):
 
             # Handle string templates
             elif isinstance(template, str):
-                rendered_text = cls.render_template(template, combined_variables, execution_context, mode)
+                rendered_text = cls.render_template(
+                    template=template,
+                    variables=combined_variables,
+                    execution_context=execution_context,
+                    mode=mode,
+                    debug_mode=debug_mode,
+                )
                 return cls._apply_word_limit(rendered_text, max_words)
 
             # Handle Prompt objects
@@ -122,9 +132,16 @@ class DADTemplateEngine(TemplateEngine):
                         execution_context=execution_context,
                         mode=mode,
                         max_words=max_words,
+                        debug_mode=debug_mode,
                     )
                 elif isinstance(template.text, str):
-                    rendered_text = cls.render_template(template.text, combined_variables, execution_context, mode)
+                    rendered_text = cls.render_template(
+                        template=template.text,
+                        variables=combined_variables,
+                        execution_context=execution_context,
+                        mode=mode,
+                        debug_mode=debug_mode,
+                    )
                     return cls._apply_word_limit(rendered_text, max_words)
                 else:
                     raise ValueError(f"Unsupported prompt.text type: {type(template.text)}")
@@ -136,6 +153,7 @@ class DADTemplateEngine(TemplateEngine):
                     execution_context=execution_context,
                     mode=mode,
                     max_words=max_words,
+                    debug_mode=debug_mode,
                 )
 
             else:
@@ -153,11 +171,18 @@ class DADTemplateEngine(TemplateEngine):
         execution_context: Optional["ExecutionContext"],
         mode: Literal["standard", "expression"],
         max_words: int | None,
+        debug_mode: bool = False,
     ) -> str:
         """Process a PromptText object."""
         if prompt_text.content:
             template_text = prompt_text.content.get_content()
-            parsed_text = cls.render_template(template_text, variables, execution_context, mode)
+            parsed_text = cls.render_template(
+                template=template_text,
+                variables=variables,
+                execution_context=execution_context,
+                mode=mode,
+                debug_mode=debug_mode,
+            )
             return cls._apply_word_limit(parsed_text, max_words)
         else:
             # If no content, use the template text directly
@@ -167,6 +192,7 @@ class DADTemplateEngine(TemplateEngine):
                 execution_context=execution_context,
                 mode=mode,
                 max_words=max_words,
+                debug_mode=debug_mode,
             )
 
     @classmethod
@@ -177,8 +203,15 @@ class DADTemplateEngine(TemplateEngine):
         execution_context: Optional["ExecutionContext"],
         mode: Literal["standard", "expression"],
         max_words: int | None,
+        debug_mode: bool = False,
     ) -> str:
-        parsed_text = cls.render_template(text_template.text, variables, execution_context, mode)
+        parsed_text = cls.render_template(
+            template=text_template.text,
+            variables=variables,
+            execution_context=execution_context,
+            mode=mode,
+            debug_mode=debug_mode,
+        )
         return cls._apply_word_limit(parsed_text, max_words)
 
     @staticmethod

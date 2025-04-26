@@ -50,6 +50,26 @@ class ComponentDefinition(
         ),
     )
 
+    # variables: dict[str, TextTemplateVariableProps | None] = Field(
+    variables: dict[str, str] = Field(
+        default_factory=dict,
+        description="Variables avaialbe in this flow, which can be used in nodes",
+    )
+
+    # -------------------------------------------------------------------------
+    # Factory methods for creating components
+    def vars(
+        self,
+        variables=dict[str, Any],
+    ) -> "ComponentDefinition":
+        """Add variables to the component."""
+
+        if not isinstance(variables, dict):
+            raise ValueError(f"Variables should be a dict not {type(variables)}")
+
+        self.variables.update(variables)
+        return self
+
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins
     def _get_element_identifier(self, element) -> str:
