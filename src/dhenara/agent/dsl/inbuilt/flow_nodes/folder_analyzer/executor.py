@@ -4,6 +4,7 @@ import mimetypes
 from datetime import datetime
 from pathlib import Path
 from stat import filemode
+from typing import Literal
 
 from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
@@ -680,30 +681,50 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         return patterns
 
     def _should_exclude(self, path: Path, exclude_patterns: list[str], include_hidden: bool) -> bool:
-        """Check if a path should be excluded based on patterns and hidden status."""
+        """
+        Check if a path should be excluded based on patterns and hidden status.
+
+        Args:
+            path: The path to check
+            exclude_patterns: List of exclusion patterns
+            include_hidden: Whether to include hidden files/directories
+        """
         # Check for hidden files/directories
         if not include_hidden and path.name.startswith("."):
             return True
 
-        # Check exclude patterns
+        # For simple filename patterns (no path separators)
+        if any("/" not in pattern and fnmatch.fnmatch(path.name, pattern) for pattern in exclude_patterns):
+            # prnt(f"Excluding {path}: matched filename pattern")
+            return True
+
+        # For path-based patterns
+        str_path = str(path)
         for pattern in exclude_patterns:
-            # Handle directory-only patterns ending with /
-            if pattern.endswith("/") and path.is_dir():
-                dir_pattern = pattern.rstrip("/")
-                if fnmatch.fnmatch(path.name, dir_pattern):
+            # Handle directory patterns (ending with /)
+            if pattern.endswith("/"):
+                pattern = pattern.rstrip("/")
+                if path.is_dir() and str_path.endswith(pattern):
+                    # prnt(f"Excluding {path}: matched directory pattern {pattern}")
                     return True
-            # Regular glob pattern matching
-            elif fnmatch.fnmatch(path.name, pattern):
-                return True
-            # Handle path-based patterns (like "dir/subdir/*.py")
+
+            # General path pattern matching
             elif "/" in pattern:
-                try:
-                    rel_path_str = str(path.relative_to(path.parent.parent))
-                    if fnmatch.fnmatch(rel_path_str, pattern):
+                # Check if pattern is a substring of the path
+                if pattern in str_path:
+                    # prnt(f"Excluding {path}: matched path pattern {pattern}")
+                    return True
+
+                # Also try fnmatch for glob patterns
+                path_parts = str_path.split("/")
+                pattern_parts = pattern.split("/")
+
+                # Try to match the end of the path
+                if len(path_parts) >= len(pattern_parts):
+                    path_suffix = "/".join(path_parts[-len(pattern_parts) :])
+                    if fnmatch.fnmatch(path_suffix, pattern):
+                        # prnt(f"Excluding {path}: matched path suffix pattern {pattern}")
                         return True
-                except ValueError:
-                    # Can't compute relative path, skip this check
-                    pass
 
         return False
 
@@ -965,6 +986,14 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                                     # Read full content
                                     content = f.read()
 
+                                    # Apply content exclusions if specified
+                                    if operation.content_exclusions and operation.content_read_mode == "full":
+                                        content = self._apply_content_exclusions(
+                                            content,
+                                            path.suffix.lower(),
+                                            operation.content_exclusions,
+                                        )
+
                                     # Apply word limit per file if specified
                                     if operation.max_words_per_file:
                                         words = content.split()
@@ -1003,6 +1032,122 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 result.is_text = is_text
 
         return result, words_read
+
+    def _apply_content_exclusions(
+        self,
+        content: str,
+        file_extension: str,
+        exclusions: list[Literal["doc_strings", "comments", "blank_lines"]],
+    ) -> str:
+        """
+        Apply content exclusions to file content.
+
+        Args:
+            content: The file content
+            file_extension: The file extension (e.g. ".py")
+            exclusions: List of exclusion types
+
+        Returns:
+            Modified content with specified elements excluded
+        """
+        if not exclusions:
+            return content
+
+        # Process different file types
+        if file_extension in [".py"]:
+            # Python-specific processing
+            if "doc_strings" in exclusions:
+                content = self._remove_python_docstrings(content)
+            if "comments" in exclusions:
+                content = self._remove_python_comments(content)
+        elif file_extension in [".js", ".ts", ".java", ".c", ".cpp", ".go"]:
+            # C-style comments
+            if "doc_strings" in exclusions or "comments" in exclusions:
+                content = self._remove_c_style_comments(content)
+
+        # Language-agnostic processing
+        if "blank_lines" in exclusions:
+            # Remove blank lines
+            content = "\n".join(line for line in content.splitlines() if line.strip())
+
+        return content
+
+    def _remove_python_docstrings(self, content: str) -> str:
+        """Remove Python docstrings from content."""
+        import re
+
+        # Pattern for triple single or double quotes docstrings
+        pattern = r"(\'\'\'[\s\S]*?\'\'\'|\"\"\"[\s\S]*?\"\"\")"
+        return re.sub(pattern, "", content)
+
+    def _remove_python_comments(self, content: str) -> str:
+        """Remove Python single-line and inline comments."""
+        result = []
+        for line in content.splitlines():
+            # Find hash character that isn't in a string
+            comment_pos = -1
+            in_single_quote = False
+            in_double_quote = False
+
+            for i, char in enumerate(line):
+                if char == "'" and (i == 0 or line[i - 1] != "\\"):
+                    in_single_quote = not in_single_quote
+                elif char == '"' and (i == 0 or line[i - 1] != "\\"):
+                    in_double_quote = not in_double_quote
+                elif char == "#" and not in_single_quote and not in_double_quote:
+                    comment_pos = i
+                    break
+
+            if comment_pos >= 0:
+                # Keep the part before the comment
+                result.append(line[:comment_pos])
+            else:
+                result.append(line)
+
+        return "\n".join(result)
+
+    def _remove_c_style_comments(self, content: str) -> str:
+        """Remove C-style comments (/* ... */ and // ...)."""
+        import re
+
+        # First remove multi-line comments
+        content = re.sub(r"/\*[\s\S]*?\*/", "", content)
+        # Then remove single-line comments
+        result = []
+        for line in content.splitlines():
+            comment_pos = line.find("//")
+            if comment_pos >= 0:
+                # Check if // is inside a string
+                in_string = False
+                string_char = None
+                escape = False
+                valid_comment = True
+
+                for _i, char in enumerate(line[:comment_pos]):
+                    if escape:
+                        escape = False
+                        continue
+
+                    if char == "\\":
+                        escape = True
+                    elif in_string and char == string_char:
+                        in_string = False
+                    elif not in_string and (char == '"' or char == "'"):
+                        in_string = True
+                        string_char = char
+
+                if in_string:
+                    # // is inside a string, keep the whole line
+                    valid_comment = False
+
+                if valid_comment:
+                    result.append(line[:comment_pos])
+                else:
+                    result.append(line)
+            else:
+                result.append(line)
+
+        return "\n".join(result)
 
     def word_count(self, filepath):
         """Get the word count of a file using wc command"""

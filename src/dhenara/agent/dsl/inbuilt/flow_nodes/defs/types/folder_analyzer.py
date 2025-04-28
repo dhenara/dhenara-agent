@@ -172,6 +172,18 @@ class FolderAnalysisOperation(BaseModel):
         ),
     )
 
+    content_exclusions: list[Literal["doc_strings", "comments", "blank_lines"]] = Field(
+        default_factory=list,
+        description=(
+            "Elements to exclude when reading file content in 'full' mode. Options include:\n"
+            "- 'doc_strings': Remove docstrings (triple-quoted strings) from the content\n"
+            "- 'comments': Remove single-line and inline comments\n"
+            "- 'blank_lines': Remove empty lines from the content\n"
+            "This helps reduce token usage while retaining the core code logic. Only applies when "
+            "content_read_mode is 'full'."
+        ),
+    )
+
     content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
         default="basic",
         description=(
@@ -183,6 +195,7 @@ class FolderAnalysisOperation(BaseModel):
             "This is primarily useful for Python files to focus on API structure rather than implementation details."
         ),
     )
+
     include_content_preview: bool = Field(
         default=False,
         description=(
