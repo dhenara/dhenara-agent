@@ -11,7 +11,7 @@ class FolderAnalysisOperationResult(BaseModel):
     operation_type: str = Field(..., description="Type of operation performed")
     path: str = Field(..., description="Path of the folder/file analyzed")
     success: bool = Field(..., description="Whether the operation succeeded")
-    errors: list[str] = Field(default_factory=list)
+    errors: list[str] | None = Field(default=None)
 
     # Different result fields based on operation type
     analysis: DirectoryInfo | None = Field(None, description="Analysis results for folder analysis")

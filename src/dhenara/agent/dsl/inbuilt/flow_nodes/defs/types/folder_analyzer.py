@@ -8,13 +8,11 @@ from .file_operation import FileMetadata
 class FileInfo(BaseModel):
     """Information about a file."""
 
-    type: Literal["file"] = Field(default="file", description="Type of the object")
-    name: str = Field(..., description="Name of the file")
-    path: str = Field(..., description="Path to the file")
-    extension: str = Field(default="", description="File extension")
+    path: str = Field(..., description="Path to the file with name and extension")
 
     content_preview: str | None = Field(default=None, description="Preview of the file content")
     content: str | None = Field(default=None, description="Full content of the file")
+    truncated: bool | None = Field(default=None, description="Whether the content was forced to truncate")
     # Currently content_structure read is only supported for python files
     content_structure: str | None = Field(default=None, description="Structure of the content (e.g., for Python files)")
 
@@ -26,29 +24,15 @@ class FileInfo(BaseModel):
     mime_type: str | None = Field(default=None, description="MIME type of the file")
     summary: str | None = Field(default=None, description="Summary of the file content")
 
-    def get_with_content_fields(self) -> dict:
-        """Select minimum set of fields related to contents.
-        This can be used to give context to LLM for passing content."""
-
-        exclude_fields = ["metadata", "is_text", "mime_type", "summary"]
-        if self.content:
-            exclude_fields.extend(["content_preview", "content_structure"])
-        elif self.content_structure:
-            exclude_fields.extend(["content_preview", "content"])
-
-        return self.model_dump(exclude=exclude_fields)
-
 
 class DirectoryInfo(BaseModel):
     """Information about a directory."""
 
-    type: Literal["directory"] = Field(default="directory", description="Type of the object")
-    name: str = Field(..., description="Name of the directory")
-    path: str = Field(..., description="Path to the directory")
+    path: str = Field(..., description="Path to the directory with name")
     children: list[Any] = Field(default_factory=list, description="List of children. Can be FileInfo or DirectoryInfo")
-    file_count: int = Field(default=0, description="Number of files in the directory")
-    dir_count: int = Field(default=0, description="Number of subdirectories in the directory")
-    truncated: bool = Field(default=False, description="Whether the directory listing was truncated")
+    file_count: int | None = Field(default=None, description="Number of files in the directory")
+    dir_count: int | None = Field(default=None, description="Number of subdirectories in the directory")
+    truncated: bool | None = Field(default=None, description="Whether the directory listing was truncated")
     # Dir metadata fields
     size: int | None = Field(default=None, description="Size of the directory in bytes")
     created: str | None = Field(default=None, description="Creation timestamp")
@@ -56,15 +40,15 @@ class DirectoryInfo(BaseModel):
     accessed: str | None = Field(default=None, description="Last accessed timestamp")
     permissions: str | None = Field(default=None, description="File permissions in octal format")
 
-    errors: list[str] = Field(
-        default_factory=list, description="Error messages of failed reads ( could be multiple for a dir"
+    errors: list[str] | None = Field(
+        default=None, description="Error messages of failed reads ( could be multiple for a dir"
     )
-    word_count: int = Field(default=0, description="Total words in the file/dir")
-    file_types: dict[str, int] = Field(default_factory=dict, description="Type of files and their count in dir")
-    total_files: int = Field(default=0, description="Total files analyzed")
-    total_directories: int = Field(default=0, description="Total directories analyzed")
-    total_size: int = Field(default=0, description="Total size of analyzed items")
-    gitignore_patterns: list[str] = Field(default_factory=list, description="gitignore patterns in dir")
+    word_count: int | None = Field(default=None, description="Total words in the file/dir")
+    file_types: dict[str, int] | None = Field(default=None, description="Type of files and their count in dir")
+    total_files: int | None = Field(default=None, description="Total files analyzed")
+    total_directories: int | None = Field(default=None, description="Total directories analyzed")
+    total_size: int | None = Field(default=None, description="Total size of analyzed items")
+    gitignore_patterns: list[str] | None = Field(default=None, description="gitignore patterns in dir")
 
 
 class FolderAnalysisOperation(BaseModel):
@@ -238,6 +222,15 @@ class FolderAnalysisOperation(BaseModel):
     )
 
     # Analysis and display options
+    include_primary_meta: bool = Field(
+        default=False,
+        description=(
+            "Whether to include primary metadata of file/directory statistics and metadata ( total_files, "
+            "total_directories, total_size, mime_type, is_text, truncated, etc.). Enable this when you need to analyze "
+            "file properties beyond content, such as identifying recently modified files or understanding "
+            "file sizes. Typically set to False when sending results to LLMs to save context space."
+        ),
+    )
     include_stats_and_meta: bool = Field(
         default=False,
         description=(

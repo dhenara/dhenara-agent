@@ -175,12 +175,21 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         successful_operations = 0
         failed_operations = 0
         errors = []
-        total_files = 0
-        total_directories = 0
-        total_size = 0
+        total_word_count = 0
+        total_words_read = 0
+
+        total_files = None
+        total_directories = None
+        total_size = None
         file_types = {}
         total_word_count = 0
         total_words_read = 0
+
+        # Then conditionally set them if include_primary_meta
+        if any(op.include_primary_meta for op in operations):
+            total_files = 0
+            total_directories = 0
+            total_size = 0
 
         add_trace_attribute("operations_count", len(operations), TracingDataCategory.primary)
 
@@ -253,20 +262,22 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                     successful_operations += 1
 
                     if result.analysis:
-                        if result.analysis.total_files:
-                            total_files += result.analysis.total_files
-                        if result.analysis.total_directories:
-                            total_directories += result.analysis.total_directories
-                        if result.analysis.total_size:
-                            total_size += result.analysis.total_size
-                        if result.analysis.word_count:
+                        if result.analysis.word_count is not None:
                             total_word_count += result.analysis.word_count
-                        if result.analysis.file_types:
-                            for ext, count in result.analysis.file_types.items():
-                                if ext in file_types:
-                                    file_types[ext] += count
-                                else:
-                                    file_types[ext] = count
+
+                        if operation.include_primary_meta:
+                            if result.analysis.total_files:
+                                total_files += result.analysis.total_files
+                            if result.analysis.total_directories:
+                                total_directories += result.analysis.total_directories
+                            if result.analysis.total_size:
+                                total_size += result.analysis.total_size
+                            if result.analysis.file_types:
+                                for ext, count in result.analysis.file_types.items():
+                                    if ext in file_types:
+                                        file_types[ext] += count
+                                    else:
+                                        file_types[ext] = count
 
                     if result.file_info:
                         if result.file_info.word_count:
@@ -742,10 +753,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         Recursively analyze a folder structure with enhanced options.
         Returns DirectoryInfo and stats.
         """
-        # Initialize stats
         # Check max depth
         if operation.max_depth is not None and current_depth > operation.max_depth:
-            return DirectoryInfo(type="directory", name=path.name, path=str(path), truncated=True), 0
+            return DirectoryInfo(
+                path=str(path),
+                truncated=True,
+            ), 0
 
         # Format path for result
         path_str = self._get_path_str_for_result(
@@ -756,11 +769,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         )
 
         result = DirectoryInfo(
-            type="directory",
-            name=path.name,
             path=path_str,
             children=[],
         )
+
+        # Initialize errors list if needed
+        if result.errors is None:
+            result.errors = []
 
         # Include stats if requested
         if operation.include_stats_and_meta:
@@ -776,9 +791,17 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 errors = [f"Failed to get stats for {path}: {e}"]
                 result.errors.extend(errors)
 
-        # Process children
-        file_count = 0
-        dir_count = 0
+        # Initialize counters properly
+        file_count = 0 if operation.include_primary_meta else None
+        dir_count = 0 if operation.include_primary_meta else None
+
+        # Initialize total counters properly
+        if operation.include_primary_meta:
+            result.total_files = 0
+            result.total_directories = 0
+            result.total_size = 0
+            result.file_types = {}  # Initialize file_types dictionary
+
         total_words_read = 0
 
         try:
@@ -788,8 +811,11 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                     continue
 
                 if item.is_dir():
-                    dir_count += 1
-                    result.total_directories += 1
+                    if file_count is not None:
+                        dir_count += 1
+
+                    if operation.include_primary_meta:
+                        result.total_directories += 1
 
                     # Recursively analyze subdirectory
                     child_result, words_read = self._analyze_folder(
@@ -803,25 +829,30 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                     )
 
                     # Merge stats
-                    result.total_files += child_result.total_files
-                    result.total_directories += child_result.total_directories
-                    result.total_size += child_result.total_size
                     total_words_read += words_read
+                    if operation.include_primary_meta:
+                        result.total_files += child_result.total_files or 0
+                        result.total_directories += child_result.total_directories or 0
+                        result.total_size += child_result.total_size or 0
 
-                    # Merge file types
-                    for ext, count in child_result.file_types.items():
-                        if ext in result.file_types:
-                            result.file_types[ext] += count
-                        else:
-                            result.file_types[ext] = count
+                        # Merge file types
+                        if child_result.file_types:
+                            if result.file_types is None:
+                                result.file_types = {}
+                            for ext, count in child_result.file_types.items():
+                                result.file_types[ext] = result.file_types.get(ext, 0) + count
 
                     # Merge errors
-                    result.errors.extend(child_result.errors)
+                    if child_result.errors:
+                        result.errors.extend(child_result.errors)
                     result.children.append(child_result)
 
                 elif item.is_file():
-                    file_count += 1
-                    result.total_files += 1
+                    if file_count is not None:
+                        file_count += 1
+
+                    if operation.include_primary_meta:
+                        result.total_files += 1
 
                     # Check if we've reached the word limit
                     if operation.max_total_words and total_words_read + result.words_read >= operation.max_total_words:
@@ -841,17 +872,23 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         )
                         total_words_read += words_read
 
-                    # Update file type stats
-                    ext = file_result.extension.lower()
-                    if ext in result.file_types:
-                        result.file_types[ext] += 1
-                    else:
-                        result.file_types[ext] = 1
+                    if operation.include_primary_meta:
+                        # Update file type stats
+                        ext = item.suffix.lower()
+                        if result.file_types is None:
+                            result.file_types = {}
+                        if ext in result.file_types:
+                            result.file_types[ext] += 1
+                        else:
+                            result.file_types[ext] = 1
 
                     if file_result.metadata and file_result.metadata.size:
-                        result.total_size += file_result.metadata.size
+                        if result.total_size is not None:
+                            result.total_size += file_result.metadata.size
 
                     if file_result.error:
+                        if result.errors is None:
+                            result.errors = []
                         result.errors.append(file_result.error)
 
                     result.children.append(file_result)
@@ -860,12 +897,18 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             result.file_count = file_count
             result.dir_count = dir_count
 
+            # Reset errors to None if there are not errors, so that this field will be excluded in model_dump()
+            if not result.errors:
+                result.errors = None
+
             return result, total_words_read
 
         except (PermissionError, OSError) as e:
-            errors = [f"Failed to read directory {path}: {e}"]
-            result.errors = errors
-            result.errors.extend(errors)
+            error_msg = f"Failed to read directory {path}: {e}"
+            if result.errors is None:
+                result.errors = [error_msg]
+            else:
+                result.errors.append(error_msg)
             return result, total_words_read
 
     def _analyze_file(
@@ -888,10 +931,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         )
 
         result = FileInfo(
-            type="file",
-            name=path.name,
             path=path_str,
-            extension=path.suffix.lower(),
         )
 
         # Include stats if requested
@@ -916,12 +956,14 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
 
         # Track words read
         words_read = 0
+        truncated = None
 
         # Use unix cmds to get wordcount irrespective of the content_read_mode
-        try:
-            result.word_count = self.word_count(path)
-        except Exception as e:
-            logger.debug(f"Error getting word count: {e}")
+        if operation.include_primary_meta:
+            try:
+                result.word_count = self.word_count(path)
+            except Exception as e:
+                logger.debug(f"Error getting word count: {e}")
 
         should_read_content = operation.include_content_preview or operation.read_content
         if should_read_content:
@@ -998,6 +1040,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                                     if operation.max_words_per_file:
                                         words = content.split()
                                         if len(words) > operation.max_words_per_file:
+                                            truncated = True
                                             content = " ".join(words[: operation.max_words_per_file])
                                             content += f"\n... [truncated after {operation.max_words_per_file} words]"
 
@@ -1028,8 +1071,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 except Exception as e:
                     result.error = f"Error analyzing content: {e}"
 
-                result.mime_type = mime_type or "application/octet-stream"
-                result.is_text = is_text
+                if truncated is not None:
+                    result.truncated = truncated
+
+                if operation.include_primary_meta:
+                    result.mime_type = mime_type or "application/octet-stream"
+                    result.is_text = is_text
 
         return result, words_read
 
