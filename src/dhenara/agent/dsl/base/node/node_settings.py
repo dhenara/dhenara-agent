@@ -38,6 +38,14 @@ class RecordSettingsItem(BaseModel):
     )
 
 
+DEFAULT_STATE_RECORD_SETTINGS = RecordSettingsItem(
+    enabled=True,
+    path="$var{element_hier_path}/",  # Use element_hier_path instead of element_id
+    filename="state.json",
+    file_format=RecordFileFormatEnum.json,
+)
+
+
 DEFAULT_RESULT_RECORD_SETTINGS = RecordSettingsItem(
     enabled=True,
     path="$var{element_hier_path}/",  # Use element_hier_path instead of element_id
@@ -54,6 +62,11 @@ DEFAULT_OUTCOME_RECORD_SETTINGS = RecordSettingsItem(
 
 
 class NodeRecordSettings(BaseModel):
+    # NOTE: State is implemented only for AI-Call nodes
+    state: RecordSettingsItem = Field(
+        default_factory=lambda: DEFAULT_STATE_RECORD_SETTINGS.model_copy(deep=True),
+        description="Record settings for Node State",
+    )
     result: RecordSettingsItem = Field(
         default_factory=lambda: DEFAULT_RESULT_RECORD_SETTINGS.model_copy(deep=True),
         description="Record settings for comprehensive Node-Execution-Result",

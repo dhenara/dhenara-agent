@@ -42,7 +42,7 @@ class ArtifactManager:
 
     def record_data(
         self,
-        record_type: Literal["outcome", "result"],
+        record_type: Literal["state", "outcome", "result"],
         data: dict | str | bytes,
         record_settings: RecordSettingsItem | None,
         execution_context: ExecutionContext,

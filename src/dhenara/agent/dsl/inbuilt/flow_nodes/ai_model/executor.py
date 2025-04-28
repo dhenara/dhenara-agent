@@ -286,6 +286,22 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # Add a trace attribute just before the API call
         add_trace_attribute("api_call_started", datetime.now().isoformat(), TracingDataCategory.tertiary)
 
+        state_data = {
+            "ai_model_ep": ai_model_ep.model_dump(),
+            "model_call_config": model_call_config.model_dump(),
+            "prompt": prompt,
+            "context": context,
+            "instructions": instructions,
+        }
+
+        # Dump  STATE for AI model calls for easy debugs
+        execution_context.artifact_manager.record_data(
+            record_type="state",
+            data=state_data,
+            record_settings=node_definition.record_settings.state,
+            execution_context=execution_context,
+        )
+
         # Make the API call
         response = await client.generate_async(
             prompt=prompt,

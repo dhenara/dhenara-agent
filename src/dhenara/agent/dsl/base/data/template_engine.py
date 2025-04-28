@@ -669,7 +669,7 @@ class TemplateEngine:
             elif execution_context.parent and target_node_id in execution_context.parent.execution_results:
                 return execution_context.parent.execution_results[target_node_id]
             else:
-                logger.error(f"Failed to find node_id {target_node_id} in current context")
+                logger.error(f"resolve_hierarchical_path: Failed to find node_id {target_node_id} in current context")
                 return None
 
         # The path doesn't necessarly be the full path, it can be a relative one from the current context.
