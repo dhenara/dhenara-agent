@@ -24,6 +24,12 @@ setup(
             # Tracing Visualization
             "opentelemetry-exporter-jaeger>=1.20.0",
         ],
+        "dev": [
+            # Tests
+            "pytest>=7.0.0",
+            "pytest-asyncio>=0.18.0",
+            "pytest-cov>=3.0.0",
+        ],
     },
     python_requires=">=3.10",
     description="Dhenara Inc AI-Agent Platform SDK",
