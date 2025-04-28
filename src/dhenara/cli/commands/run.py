@@ -7,7 +7,7 @@ import click
 
 from dhenara.agent.run import IsolatedExecution
 from dhenara.agent.runner import AgentRunner
-from dhenara.agent.shared.utils import find_project_root
+from dhenara.agent.utils.shared import find_project_root
 
 from ._print_utils import print_error_summary, print_run_summary
 

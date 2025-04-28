@@ -3,8 +3,8 @@ import logging
 
 import click
 
-from dhenara.agent.shared.utils import find_project_root
 from dhenara.agent.utils.git import RunOutcomeRepository
+from dhenara.agent.utils.shared import find_project_root
 
 logger = logging.getLogger(__name__)
 

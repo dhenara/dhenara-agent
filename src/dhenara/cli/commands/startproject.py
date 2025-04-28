@@ -7,7 +7,7 @@ from pathlib import Path
 import click
 import yaml
 
-from dhenara.agent.shared.utils import generate_identifier, validate_name
+from dhenara.agent.utils.shared import generate_identifier, validate_name
 
 from .create import _create_agent
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from dhenara.agent.shared.utils import generate_identifier, is_project_dir, validate_name
+from dhenara.agent.utils.shared import generate_identifier, is_project_dir, validate_name
 
 
 def register(cli):

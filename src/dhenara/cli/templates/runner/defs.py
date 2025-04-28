@@ -1,7 +1,7 @@
 import logging
 
 from dhenara.agent.observability import ObservabilitySettings
-from dhenara.agent.shared.utils import find_project_root
+from dhenara.agent.utils.shared import find_project_root
 
 # Set up observability with console exporter
 observability_settings = ObservabilitySettings(

@@ -12,10 +12,10 @@ from dhenara.agent.dsl.base.context_registry import ExecutionContextRegistry
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.run.registry import resource_config_registry
-from dhenara.agent.shared.utils import get_project_identifier
 from dhenara.agent.types.data import RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
+from dhenara.agent.utils.shared import get_project_identifier
 from dhenara.ai.types.resource import ResourceConfig
 
 logger = logging.getLogger(__name__)
