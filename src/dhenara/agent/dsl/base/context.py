@@ -51,7 +51,7 @@ class ExecutionContext(BaseModelABC):
 
     executable_type: ExecutableTypeEnum = Field(...)
     control_block_type: ControlBlockTypeEnum | None = Field(default=None)
-    component_id: NodeID  # TODO: Cehck if this is needed
+    component_id: NodeID
     component_definition: Any  # Type of ComponentDefinition
     context_id: uuid.UUID = Field(default_factory=uuid.uuid4)
 
@@ -96,7 +96,7 @@ class ExecutionContext(BaseModelABC):
     # Logging
     logger: ClassVar = logging.getLogger("dhenara.dad.execution_ctx")
 
-    # TODO: Enable event bus
+    # TODO_FUTURE: Enable event bus
     # event_bus: EventBus = Field(default_factory=EventBus)
     # async def publish_event(self, event_type: str, data: Any):
     #    """Publish an event from the current node"""
@@ -287,7 +287,7 @@ class ExecutionContext(BaseModelABC):
         if not self.current_node_identifier:
             raise ValueError("get_initial_input: current_node_identifier is not set")
 
-        # TODO
+        # TODO_FUTURE
         # input_data = self.initial_inputs.get(self.current_node_identifier, None)
         # if isinstance(input_data, NodeInput):
         #     return input_data
@@ -310,27 +310,6 @@ class ExecutionContext(BaseModelABC):
         streaming_context.result = result
         self.execution_results[identifier] = result
         streaming_context.completion_event.set()
-
-    # ------------: TODO: Review
-    def create_iteration_context(self, iteration_data: dict[str, Any]) -> "ExecutionContext":
-        """Create a new context for a loop iteration."""
-        return ExecutionContext(
-            initial_data=iteration_data,
-            parent=self,
-            artifact_manager=self.artifact_manager,
-        )
-
-    def merge_iteration_context(self, iteration_context: "ExecutionContext") -> None:
-        """Merge results from an iteration context back to this context."""
-        for key, value in iteration_context.results.items():
-            iteration_key = f"{key}_{len([k for k in self.results if k.startswith(key + '_')])}"
-            self.results[iteration_key] = value
-
-    def create_conditional_context(self, condition_data: dict[str, Any]) -> "ExecutionContext":
-        """Create a context for a conditional branch."""
-        conditional_context = self.model_copy(deep=True)
-        conditional_context.metadata.update(condition_data)
-        return conditional_context
 
     async def record_outcome(self, node_def, result: Any) -> None:
         """Record the outcome of a node execution."""

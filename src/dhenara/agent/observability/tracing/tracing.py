@@ -95,7 +95,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 def force_flush_tracing():
     """Force flush all pending spans to be exported."""
 
-    # TODO:
+    # TODO_FUTURE:
     # If OpenTelemetry setup ever changes to use multiple span processors
     # (which is supported in the architecture),revisit below.
     if _tracer_provider:

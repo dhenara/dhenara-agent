@@ -45,7 +45,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         description="Record settings. Do not override if not sure what you are doing.",
     )
 
-    streaming: bool = False  # TODO: Remove
+    streaming: bool = False  # TODO_FUTURE: Rename and implement SSE responses
 
     @property
     def pre_execute_input_required(self):

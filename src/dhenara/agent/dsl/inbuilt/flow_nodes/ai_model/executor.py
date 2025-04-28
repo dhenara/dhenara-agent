@@ -173,7 +173,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             TracingDataCategory.primary,
         )
 
-        # TODO: template support for instructions and context?
+        # TODO_FUTURE: template support for instructions and context?
         if instructions is not None:
             for instruction in instructions:
                 if isinstance(instruction, SystemInstruction):
@@ -244,14 +244,14 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             model_call_config = settings.model_call_config
             model_call_config.options = options  # Override the refined options
         else:
-            user_id = "usr_id_abcd"  # TODO
+            # user_id = "usr_id_abcd"  # TODO_FUTURE
             model_call_config = AIModelCallConfig(
                 streaming=streaming,
                 max_output_tokens=max_output_tokens,
                 reasoning=reasoning,
                 max_reasoning_tokens=max_reasoning_tokens,
                 options=options,
-                metadata={"user_id": user_id},
+                # metadata={"user_id": user_id},
                 test_mode=test_mode,
             )
 
@@ -332,7 +332,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 stream_generator=response.stream_generator,
             )
             execution_context.stream_generator = stream_generator
-            return "abc"  # Should retrun a non None value: TODO: Fix this
+            return "abc"  # Should retrun a non None value: TODO_FUTURE: Fix this
 
         # Non streaming:
         # Get result

@@ -55,45 +55,6 @@ class JsonFileSpanExporter(SpanExporter):
             logger.error(f"Failed to export spans to file: {e}", exc_info=True)
             return SpanExportResult.FAILURE
 
-    # TODO: Delete
-    def _span_to_json(self, span: ReadableSpan) -> dict:
-        """Convert a span to a JSON-serializable dict."""
-        context = span.get_span_context()
-        # Basic span data
-        span_json = {
-            "name": span.name,
-            "context": {
-                "trace_id": format(context.trace_id, "032x"),
-                "span_id": format(context.span_id, "016x"),
-                "trace_state": f"{context.trace_state}",
-            },
-            "kind": f"{span.kind}",
-            "parent_id": format(span.parent.span_id, "016x") if span.parent else None,
-            "start_time": span.start_time.isoformat() if hasattr(span.start_time, "isoformat") else span.start_time,
-            "end_time": span.end_time.isoformat() if hasattr(span.end_time, "isoformat") else span.end_time,
-            "status": {
-                "status_code": f"{span.status.status_code.name}"
-                if hasattr(span.status.status_code, "name")
-                else f"{span.status.status_code}",
-                "description": span.status.description,
-            },
-            "attributes": dict(span.attributes),
-            "events": [
-                {
-                    "name": event.name,
-                    "timestamp": event.timestamp,
-                    "attributes": dict(event.attributes),
-                }
-                for event in span.events
-            ],
-            "links": [],
-            "resource": {
-                "attributes": dict(span.resource.attributes),
-                "schema_url": span.resource.schema_url,
-            },
-        }
-        return span_json
-
     def shutdown(self) -> None:
         """Shutdown the exporter."""
         pass

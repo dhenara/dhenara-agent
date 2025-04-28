@@ -403,13 +403,13 @@ class RunContext:
         # Use the centralized setup
         configure_observability(self.observability_settings)
 
-        # TODO
+        # TODO_FUTURE
         # self.initialize_observability_even_listing()
 
         # Log tracing info
         logger.info(f"Tracing enabled. Traces will be written to: {self.trace_file}")
 
-    # TODO: Check if below is required
+    # TODO_FUTURE: Check if below is required
     def initialize_observability_even_listing(self) -> None:
         # Instrument the event bus to capture event-related spans
         original_publish = self.event_bus.publish

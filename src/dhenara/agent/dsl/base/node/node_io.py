@@ -23,19 +23,6 @@ class NodeInputs(dict[NodeID, NodeInput]):
         super().__setitem__(key, value)
 
 
-# TODO: Enable
-# class NodeOutputEvent(BaseModel):
-#    """Event generated during node execution"""
-#
-#    event_type: str  # notification, completion, error, etc.
-#    payload: dict[str, Any]
-#    timestamp: datetime = Field(default_factory=datetime.now)
-
-
-# TODO:  Add a NodeState model and cleanup the state recording for all models.
-# Also add it to ExecutionResult
-
-
 T = TypeVar("T", bound=BaseModel)
 
 
