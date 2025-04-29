@@ -1,55 +1,88 @@
-# Dhenara Agent DSL Documentation
+# Dhenara Agent DSL (DAD) Documentation
 
-## Welcome to Dhenara Agent DSL (DAD)
+Welcome to the Dhenara Agent DSL (DAD) documentation. DAD is an open-source framework for creating and managing AI agents using a programming language-like approach. It is built on top of the `dhenara` Python package, providing a powerful domain-specific language for defining agent workflows.
 
-Dhenara Agent DSL (DAD) is the coordination service for the Dhenara Agent Platform, enabling developers to build, manage, and orchestrate AI agents using the Dhenara Agent DSL (DAD).
+## Table of Contents
 
-## Documentation Sections
+1. [Introduction](01-introduction.md)
+2. [Architecture](02-architecture.md)
+3. [Components](03-components.md)
+4. [Run System](04-run-system.md)
+5. [Observability](05-observability.md)
+6. [Resource Management](06-resource-management.md)
+7. [Practical Guide](07-practical-guide.md)
+8. [API Reference](08-api-reference.md)
 
-### Core Concepts
+## Quick Start
 
-- [Overview](overview.md) - Introduction to Dhenara Agent DSL (DAD), its purpose, and key concepts
-- [Architecture Deep Dive](architecture.md) - Detailed exploration of the system architecture
+```python
+from dhenara.agent.dsl import (
+    AIModelNode,
+    AIModelNodeSettings,
+    FlowDefinition,
+)
+from dhenara.ai.types import (
+    ResourceConfigItem,
+    Prompt,
+)
+from dhenara.agent.runner import FlowRunner
+from dhenara.agent.run import RunContext
+from pathlib import Path
+import asyncio
 
-### Developer Guides
+# Define a simple flow
+my_flow = FlowDefinition(root_id="simple_flow")
 
-- [DSL Guide](dsl-guide.md) - Comprehensive guide to the Dhenara Agent DSL
-- [Components Reference](components-reference.md) - Reference documentation for built-in components
-- [Practical Examples](examples.md) - Real-world examples and patterns
+# Add an AI model node
+my_flow.node(
+    "assistant",
+    AIModelNode(
+        resources=ResourceConfigItem.with_model("claude-3-5-sonnet"),
+        settings=AIModelNodeSettings(
+            system_instructions=["You are a helpful assistant."],
+            prompt=Prompt.with_dad_text("Answer the following question: $var{question}"),
+        ),
+    ),
+)
 
-## Getting Started
+# Create run context and runner
+run_context = RunContext(
+    root_component_id="simple_flow",
+    project_root=Path("."),
+)
 
-To get started with Dhenara Agent DSL (DAD), we recommend the following steps:
+# Register static input for the node
+from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import AIModelNodeInput
+run_context.register_node_static_input(
+    "assistant",
+    AIModelNodeInput(prompt_variables={"question": "What is Dhenara Agent DSL?"})
+)
 
-1. Read the [Overview](overview.md) to understand the core concepts
-2. Explore the [Architecture Deep Dive](architecture.md) to learn how the system works
-3. Follow the [DSL Guide](dsl-guide.md) to learn how to build agents
-4. Use the [Components Reference](components-reference.md) as you work with specific components
-5. Study the [Practical Examples](examples.md) to see real-world implementations
+# Run the flow
+async def run_flow():
+    run_context.setup_run()
+    runner = FlowRunner(my_flow, run_context)
+    result = await runner.run()
+    return result
 
-## Key Features
+# Execute the flow
+result = asyncio.run(run_flow())
+print(f"Flow execution result: {result}")
+```
 
-- **Domain-Specific Language**: Clear, declarative syntax for defining agent behaviors
-- **Hierarchical Component Model**: Compose complex agents from reusable components
-- **Event-Driven Architecture**: Enable loose coupling and extensibility
-- **Template Engine**: Build dynamic prompts and process responses
-- **Execution Context Management**: Track execution state and manage resources
+## About Dhenara
 
-## Use Cases
+Dhenara Inc is an early-stage GenAI startup with two key products:
 
-Dhenara Agent DSL (DAD) is designed for a wide range of AI agent use cases, including:
+- `dhenara`: An open-source Python package that simplifies LLM API calls across providers
+- `dhenara-agent` (DAD): A new open-source project built on top of `dhenara` for creating and managing AI agents
 
-- **Automated Development**: Code generation, testing, and documentation
-- **Content Creation**: Writing, editing, and optimization
-- **Research Assistance**: Data analysis, literature review, and insight generation
-- **Customer Support**: Automated responses, issue triage, and escalation
-- **Multi-Agent Systems**: Collaborative problem-solving with specialized agents
+DAD provides a programming language-like approach to defining and executing AI agent workflows, with robust observability and reproducibility features.
 
-## About Dhenara Inc.
+## Contributing
 
-Dhenara Inc. is an early-stage GenAI startup with two key products:
+Contributions are welcome! Please see our contribution guidelines for details on how to help improve DAD.
 
-- **dhenara**: An open-source Python package that simplifies LLM API calls across providers
-- **dhenara-agent**: A new open-source project built on top of `dhenara` for creating and managing AI agents
+## License
 
-Dhenara Agent DSL (DAD) is the coordination service that enables these products to work together seamlessly.
+Dhenara Agent DSL is open-source software. Please see the LICENSE file for details.
