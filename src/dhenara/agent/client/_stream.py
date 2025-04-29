@@ -4,6 +4,7 @@ from typing import TypeVar
 
 import httpx
 
+from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.shared.api import (
     SSEErrorCode,
     SSEErrorData,
@@ -11,7 +12,6 @@ from dhenara.ai.types.shared.api import (
     SSEEventType,
     SSEResponse,
 )
-from dhenara.ai.types.shared.base import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 

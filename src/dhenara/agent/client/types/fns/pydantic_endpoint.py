@@ -5,7 +5,7 @@ from typing import Any, TypeVar, get_type_hints
 
 from pydantic import ValidationError
 
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 

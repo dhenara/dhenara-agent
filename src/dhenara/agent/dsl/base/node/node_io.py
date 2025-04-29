@@ -4,7 +4,7 @@ from typing import Any, Generic, TypeVar
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeID, NodeSettings
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 
 class NodeInput(BaseModel):

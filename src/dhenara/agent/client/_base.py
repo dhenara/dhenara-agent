@@ -8,6 +8,7 @@ from typing_extensions import Self  # for Python <3.11
 
 from dhenara.agent.client import UrlSettings
 from dhenara.agent.config import get_config
+from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.shared.api import (
     ApiRequest,
     ApiRequestActionTypeEnum,
@@ -16,7 +17,6 @@ from dhenara.ai.types.shared.api import (
     ApiResponseStatus,
     SSEResponse,
 )
-from dhenara.ai.types.shared.base import BaseModel
 from dhenara.ai.types.shared.platform import DhenaraAPIError, DhenaraConnectionError
 
 from ._stream import StreamProcessor

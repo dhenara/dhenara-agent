@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import Field, model_validator
 
 from dhenara.agent.dsl.agent.agent_node import AgentNode
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.shared.platform import PlatformEnvTypeEnum
 
 

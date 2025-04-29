@@ -7,12 +7,12 @@ from pathlib import Path
 import yaml
 from pydantic import Field
 
-from dhenara.ai.types.shared.base import BaseModel as DhenaraBaseModel
+from dhenara.agent.types.base import BaseModel
 
 logger = logging.getLogger(__name__)
 
 
-class _GlobalConfigData(DhenaraBaseModel):
+class _GlobalConfigData(BaseModel):
     """
     Base configuration model with all possible settings.
 

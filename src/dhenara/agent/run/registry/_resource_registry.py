@@ -4,7 +4,7 @@ import threading
 from contextlib import contextmanager
 from typing import Generic, TypeVar
 
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 logger = logging.getLogger(__name__)
 

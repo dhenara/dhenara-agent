@@ -1,4 +1,4 @@
-from dhenara.ai.types.shared.base import BaseEnum
+from dhenara.agent.types.base import BaseEnum
 
 
 class ExecutableTypeEnum(BaseEnum):

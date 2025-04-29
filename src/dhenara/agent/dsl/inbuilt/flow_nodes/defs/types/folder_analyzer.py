@@ -1,6 +1,8 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from dhenara.agent.types.base import BaseModel
 
 from .file_operation import FileMetadata
 

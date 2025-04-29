@@ -1,8 +1,8 @@
 from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
+from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.genai.dhenara import AIModelCallResponse
-from dhenara.ai.types.shared.base import BaseModel
 from dhenara.ai.types.shared.file import GenericFile
 
 

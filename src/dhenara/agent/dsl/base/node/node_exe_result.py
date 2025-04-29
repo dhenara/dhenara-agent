@@ -9,7 +9,7 @@ from dhenara.agent.dsl.base import (
     NodeOutcomeT,
     NodeOutputT,
 )
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 
 class NodeExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeOutcomeT]):

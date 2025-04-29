@@ -2,7 +2,7 @@ from urllib.parse import urljoin, urlsplit
 
 from pydantic import Field, field_validator
 
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 
 class UrlSettings(BaseModel):

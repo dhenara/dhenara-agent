@@ -3,7 +3,7 @@ from typing import Any
 from pydantic import Field
 
 from dhenara.agent.dsl.base import ExecutionResult, ExecutionStatusEnum, NodeID, NodeInput
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 
 # -----------------------------------------------------------------------------

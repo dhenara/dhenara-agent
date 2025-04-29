@@ -2,7 +2,7 @@ from pydantic import Field
 
 from dhenara.agent.dsl.base import NodeOutcome, NodeOutput
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import FileMetadata
-from dhenara.ai.types.shared.base import BaseModel
+from dhenara.agent.types.base import BaseModel
 
 
 class OperationResult(BaseModel):
