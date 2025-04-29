@@ -12,6 +12,10 @@ Welcome to the Dhenara Agent DSL (DAD) documentation. DAD is an open-source fram
 6. [Resource Management](06-resource-management.md)
 7. [Practical Guide](07-practical-guide.md)
 8. [API Reference](08-api-reference.md)
+9. [CLI Architecture](09-cli-architecture.md)
+10. [Implementation Flow](10-implementation-flow.md)
+11. [Input Handling](11-input-handling.md)
+12. [Templating System](12-templating-system.md)
 
 ## Quick Start
 
