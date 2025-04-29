@@ -10,12 +10,11 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
-    NodeExecutionResult,
     NodeID,
     NodeInput,
     NodeOutput,
 )
-from dhenara.agent.dsl.components.flow import FlowNodeExecutor
+from dhenara.agent.dsl.components.flow import FlowNodeExecutionResult, FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.mixin.operations_mixin import FileSytemOperationsMixin
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import (
@@ -39,11 +38,11 @@ from .tracing import folder_analyzer_node_tracing_profile
 
 logger = logging.getLogger(__name__)
 
-FolderAnalyzerNodeExecutionResult = NodeExecutionResult[
-    FolderAnalyzerNodeInput,
-    FolderAnalyzerNodeOutput,
-    FolderAnalyzerNodeOutcome,
-]
+
+class FolderAnalyzerNodeExecutionResult(
+    FlowNodeExecutionResult[FolderAnalyzerNodeInput, FolderAnalyzerNodeOutput, FolderAnalyzerNodeOutcome]
+):
+    pass
 
 
 class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):

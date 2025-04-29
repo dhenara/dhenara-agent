@@ -8,14 +8,13 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
-    NodeExecutionResult,
     NodeID,
     NodeInput,
     NodeOutput,
     SpecialNodeIDEnum,
     StreamingStatusEnum,
 )
-from dhenara.agent.dsl.components.flow import FlowNodeExecutor
+from dhenara.agent.dsl.components.flow import FlowNodeExecutionResult, FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeInput,
     AIModelNodeOutcome,
@@ -44,11 +43,9 @@ from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 logger = logging.getLogger(__name__)
 
-AIModelNodeExecutionResult = NodeExecutionResult[
-    AIModelNodeInput,
-    AIModelNodeOutput,
-    AIModelNodeOutcome,
-]
+
+class AIModelNodeExecutionResult(FlowNodeExecutionResult[AIModelNodeInput, AIModelNodeOutput, AIModelNodeOutcome]):
+    pass
 
 
 class AIModelNodeExecutor(FlowNodeExecutor):
@@ -287,7 +284,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         add_trace_attribute("api_call_started", datetime.now().isoformat(), TracingDataCategory.tertiary)
 
         state_data = {
-            "ai_model_ep": ai_model_ep.model_dump(),
+            "ai_model": ai_model_ep.ai_model.model_name,
+            "api": ai_model_ep.api.provider,
             "model_call_config": model_call_config.model_dump(),
             "prompt": prompt,
             "context": context,

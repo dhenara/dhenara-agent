@@ -11,13 +11,12 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
-    NodeExecutionResult,
     NodeID,
     NodeInput,
     NodeOutput,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
-from dhenara.agent.dsl.components.flow import FlowNodeExecutor
+from dhenara.agent.dsl.components.flow import FlowNodeExecutionResult, FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.mixin.operations_mixin import FileSytemOperationsMixin
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import EditOperation, FileMetadata, FileOperation
@@ -32,11 +31,11 @@ from .tracing import file_operation_node_tracing_profile
 
 logger = logging.getLogger(__name__)
 
-FileOperationNodeExecutionResult = NodeExecutionResult[
-    FileOperationNodeInput,
-    FileOperationNodeOutput,
-    FileOperationNodeOutcome,
-]
+
+class FileOperationNodeExecutionResult(
+    FlowNodeExecutionResult[FileOperationNodeInput, FileOperationNodeOutput, FileOperationNodeOutcome]
+):
+    pass
 
 
 class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):

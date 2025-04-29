@@ -4,9 +4,16 @@ from .node import (
     FlowNodeDefinition,
     FlowNodeExecutor,
     FlowNodeExecutionContext,
+    FlowNodeExecutionResult,
 )
 
-from .component import Flow, FlowExecutor, FlowExecutionResult, FlowDefinition, FlowExecutionContext
+from .component import (
+    Flow,
+    FlowExecutor,
+    FlowExecutionResult,
+    FlowDefinition,
+    FlowExecutionContext,
+)
 
 __all__ = [
     "Flow",
@@ -17,5 +24,6 @@ __all__ = [
     "FlowNode",
     "FlowNodeDefinition",
     "FlowNodeExecutionContext",
+    "FlowNodeExecutionResult",
     "FlowNodeExecutor",
 ]

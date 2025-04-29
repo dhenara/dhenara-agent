@@ -9,12 +9,11 @@ from dhenara.agent.dsl.base import (
     ExecutableNodeDefinition,
     ExecutionContext,
     ExecutionStatusEnum,
-    NodeExecutionResult,
     NodeID,
     NodeInput,
     NodeOutput,
 )
-from dhenara.agent.dsl.components.flow import FlowNodeExecutor
+from dhenara.agent.dsl.components.flow import FlowNodeExecutionResult, FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import trace_node
 from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
@@ -27,11 +26,8 @@ from .tracing import command_node_tracing_profile
 logger = logging.getLogger(__name__)
 
 
-CommandNodeExecutionResult = NodeExecutionResult[
-    CommandNodeInput,
-    CommandNodeOutput,
-    CommandNodeOutcome,
-]
+class CommandNodeExecutionResult(FlowNodeExecutionResult[CommandNodeInput, CommandNodeOutput, CommandNodeOutcome]):
+    pass
 
 
 class CommandNodeExecutor(FlowNodeExecutor):

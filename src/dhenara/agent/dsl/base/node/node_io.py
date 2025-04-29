@@ -44,6 +44,6 @@ class NodeOutcome(BaseModel):
     pass
 
 
-NodeInputT = TypeVar("NodeInputT", bound=BaseModel)
-NodeOutputT = TypeVar("NodeOutputT", bound=BaseModel)
-NodeOutcomeT = TypeVar("NodeOutcomeT", bound=BaseModel)
+NodeInputT = TypeVar("NodeInputT", bound=NodeInput)
+NodeOutputT = TypeVar("NodeOutputT", bound=NodeOutput)
+NodeOutcomeT = TypeVar("NodeOutcomeT", bound=NodeOutcome)

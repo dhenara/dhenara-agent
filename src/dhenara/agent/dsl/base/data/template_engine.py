@@ -341,6 +341,20 @@ class TemplateEngine:
                     execution_context,
                     debug_mode=debug_mode,
                 )
+
+                if isinstance(result, list):
+                    processed_list = [
+                        listitem.model_dump() if hasattr(listitem, "model_dump") else listitem for listitem in result
+                    ]
+                    result = processed_list
+                elif isinstance(result, dict):
+                    processed_dict = {k: v.model_dump() if hasattr(v, "model_dump") else v for k, v in result.items()}
+                    result = processed_dict
+                elif hasattr(result, "model_dump"):
+                    result = result.model_dump()
+                else:
+                    pass
+
                 return str(result) if result is not None else ""
             except Exception as e:
                 logger.error(f"Error evaluating expression '{expr}': {e}")

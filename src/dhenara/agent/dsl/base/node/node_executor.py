@@ -1,4 +1,3 @@
-import json
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
@@ -273,9 +272,9 @@ class NodeExecutor(ABC):
             #   4. Node Error
 
             # INFO:
-            # To avoid serialization errors (like datatime), use pydatnic for json conversion and
-            # then converte back to dict, instead of `result.model_dump()`
-            result_data = json.loads(result.model_dump_json())
+            result_data = result.model_dump(
+                mode="json",  # To avoid serialization errors (like dateatime)
+            )
 
             # TODO_FUTURE: Avoid dulicate data recoding for outcome and input
             outcome_data = result.outcome
