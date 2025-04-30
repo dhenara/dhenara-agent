@@ -648,7 +648,9 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             # Get exclude patterns including gitignore if needed
             exclude_patterns = list(operation.exclude_patterns)
             if operation.respect_gitignore:
+                # Look for gitignores in the base dir and the current operation dir
                 gitignore_patterns = self._parse_gitignore(base_directory)
+                gitignore_patterns += self._parse_gitignore(path)
                 exclude_patterns.extend(gitignore_patterns)
 
             return {
