@@ -1,9 +1,12 @@
+import logging
 from collections import defaultdict
 from collections.abc import Callable
 
 from dhenara.agent.observability.logging import log_with_context
 
 from .event import BaseEvent, EventNature, EventType
+
+logger = logging.getLogger(__name__)
 
 
 class EventBus:
@@ -39,7 +42,7 @@ class EventBus:
                     raise ValueError(f"Unknown event nature {event.nature}")
         except Exception as e:
             # Log the error but don't stop event propagation
-            log_with_context(f"Error handling event {event.type}: {e}")
+            log_with_context(logger, logging.INFO, f"Error handling event {event.type}: {e}")
 
         return event
 

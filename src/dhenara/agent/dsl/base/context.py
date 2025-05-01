@@ -159,6 +159,7 @@ class ExecutionContext(BaseModelABC):
 
         if current_context_hierarchy_path.endswith(start_hierarchy_path):
             # This is exactly where we want to start, so clear the flag
+            self.run_context.start_hierarchy_path = None
             should_execute = True
         else:
             # Need to continue down to the target
