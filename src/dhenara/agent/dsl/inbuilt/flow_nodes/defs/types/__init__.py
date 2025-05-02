@@ -1,4 +1,9 @@
-from .folder_analyzer import FileInfo, DirectoryInfo, FolderAnalysisOperation
+from .folder_analyzer import (
+    FileInfo,
+    DirectoryInfo,
+    FolderAnalysisOperation,
+    FileSystemAnalysisOperation,
+)
 
 from .file_operation import (
     FileOperationType,
@@ -15,6 +20,7 @@ __all__ = [
     "FileMetadata",
     "FileOperation",
     "FileOperationType",
+    "FileSystemAnalysisOperation",
     "FolderAnalysisOperation",
     "SearchConfig",
 ]

@@ -53,9 +53,11 @@ class DirectoryInfo(BaseModel):
     gitignore_patterns: list[str] | None = Field(default=None, description="gitignore patterns in dir")
 
 
-class FolderAnalysisOperation(BaseModel):
+# INFO:
+# Splitting  FolderAnalysisOperation into 2, send simple schema for LLM strucutred output
+class FileSystemAnalysisOperation(BaseModel):
     """
-    Defines a folder analysis operation to examine files and directories in a repository.
+    Defines a file system analysis operation to examine files and directories in a repository.
     This is used to gather context about code repositories, documentation, or any file system
     to help answer user questions about their project.
     """
@@ -76,7 +78,6 @@ class FolderAnalysisOperation(BaseModel):
             "- 'get_structure': Get only the directory structure without file contents for a quick overview"
         ),
     )
-
     # Path specification
     path: str = Field(
         ...,
@@ -87,6 +88,30 @@ class FolderAnalysisOperation(BaseModel):
             "Usually this will be  relative path for sending content to LLM."
         ),
     )
+    # Content reading options
+    content_read_mode: Literal["none", "preview", "full", "structure"] = Field(
+        ...,
+        description=(
+            "How to process and represent file content:\n"
+            "- 'none': The actual content of files will NOT be read or included in the analysis results. "
+            "Use when you only need to understand file structure/organization.\n"
+            "- 'preview': Include a short preview of file contents (first few lines). "
+            "Useful for getting a glimpse of what files contain without reading everything.\n"
+            "- 'full': Return the raw text content of the file. "
+            "Use when you need to examine the code or text inside files to answer questions.\n"
+            "- 'structure': For supported file types like Python, extract structural elements like classes, "
+            "functions, and imports instead of raw text. Useful for understanding code organization without "
+            "reading all implementation details.\n"
+            "This significantly affects the amount of text returned, so choose the appropriate mode for your needs."
+        ),
+    )
+
+
+class FolderAnalysisOperation(FileSystemAnalysisOperation):
+    """
+    Defailed FileSystem Analysis operation with fine grained control.
+    FileSystemAnalysisOperation is intentionally kept simple for sending schema to LLMs
+    """
 
     include_root_in_path: bool = Field(
         default=False,
@@ -137,27 +162,6 @@ class FolderAnalysisOperation(BaseModel):
     )
 
     # Content reading options
-    read_content: bool = Field(
-        default=False,
-        description=(
-            "Whether to read and include the actual content of files in the analysis results. "
-            "Set to True when you need to examine the code or text inside files to answer questions. "
-            "Set to False if you only need to understand file structure/organization. "
-            "This significantly affects the amount of text returned, so use selectively."
-            "If reading content, use `content_read_mode` wisely to control the amout of text read."
-        ),
-    )
-    content_read_mode: Literal["full", "structure"] = Field(
-        default="full",
-        description=(
-            "How to process and represent file content:\n"
-            "- 'full': Return the raw text content of the file (useful for most code analysis)\n"
-            "- 'structure': For supported file types like Python, extract structural elements like classes, "
-            "functions, and imports instead of raw text (useful for understanding code organization without "
-            "reading all implementation details).\n"
-            "`read_content` must be set inorder to make this option works, else will be ignored."
-        ),
-    )
 
     content_exclusions: list[Literal["doc_strings", "comments", "blank_lines"]] = Field(
         default_factory=list,
@@ -172,7 +176,7 @@ class FolderAnalysisOperation(BaseModel):
     )
 
     content_structure_detail_level: Literal["basic", "standard", "detailed", "full"] = Field(
-        default="basic",
+        default="detailed",
         description=(
             "When content_read_mode is 'structure', controls how much detail to include:\n"
             "- 'basic': Just names of classes, functions, and imports\n"
@@ -183,14 +187,13 @@ class FolderAnalysisOperation(BaseModel):
         ),
     )
 
-    include_content_preview: bool = Field(
-        default=False,
-        description=(
-            "Whether to include a short preview of file contents (first few lines) instead of the full content. "
-            "This is useful for getting a glimpse of what files contain without reading everything. "
-            "Only applies when read_content is False."
-        ),
-    )
+    @property
+    def read_content(self):
+        return self.content_read_mode != "none"
+
+    @property
+    def include_content_preview(self):
+        return self.content_read_mode == "preview"
 
     # Size and content limits
     max_file_size: int | None = Field(
