@@ -12,6 +12,7 @@ from dhenara.agent.dsl.base import (
     ExecutionStatusEnum,
     NodeID,
 )
+from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
 from dhenara.agent.observability.tracing.decorators.fns import trace_component
@@ -223,6 +224,16 @@ class ComponentExecutor(BaseModelABC):
                 # the start_hierarchy_path is the current subcomponent
                 should_execute = execution_context.should_execute
 
+                component_variables = {}
+                for var_name, var_template in subcomponent.definition.variables.items():
+                    # Update the component variables
+                    _rendered = DADTemplateEngine.render_dad_template(
+                        template=var_template,
+                        variables={},
+                        execution_context=execution_context,
+                    )
+                    component_variables[var_name] = _rendered
+
                 # Create the component execution context
                 component_execution_context = subcomponent.definition.context_class(
                     component_id=subcomponent.id,
@@ -230,6 +241,7 @@ class ComponentExecutor(BaseModelABC):
                     created_at=datetime.now(),
                     run_context=execution_context.run_context,
                     parent=execution_context,
+                    component_variables=component_variables,
                 )
 
                 if True:  # See comments above

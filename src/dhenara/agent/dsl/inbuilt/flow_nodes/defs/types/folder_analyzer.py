@@ -154,7 +154,8 @@ class FolderAnalysisOperation(BaseModel):
             "- 'full': Return the raw text content of the file (useful for most code analysis)\n"
             "- 'structure': For supported file types like Python, extract structural elements like classes, "
             "functions, and imports instead of raw text (useful for understanding code organization without "
-            "reading all implementation details)"
+            "reading all implementation details).\n"
+            "`read_content` must be set inorder to make this option works, else will be ignored."
         ),
     )
 

@@ -51,12 +51,14 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         self,
         id: str,  # noqa: A002
         definition: "FlowDefinition",
+        variables: dict | None = None,
     ) -> "FlowDefinition":
         """Add a component to the flow."""
 
         if not isinstance(definition, FlowDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(definition)}. Expected FlowDefinition")
 
+        definition.update_vars(variables)
         self.elements.append(Flow(id=id, definition=definition))
         return self
 

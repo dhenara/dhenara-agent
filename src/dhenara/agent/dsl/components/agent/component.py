@@ -38,12 +38,14 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         self,
         id: str,  # noqa: A002
         definition: FlowDefinition,
+        variables: dict | None = None,
     ) -> "AgentDefinition":
         """Add a component to the agent."""
 
         if not isinstance(definition, FlowDefinition):
             raise ValueError(f"Unsupported type for body: {type(definition)}. Expected FlowDefinition")
 
+        definition.update_vars(variables)
         self.elements.append(Flow(id=id, definition=definition))
         return self
 
@@ -51,12 +53,14 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         self,
         id: str,  # noqa: A002
         definition: "AgentDefinition",
+        variables: dict | None = None,
     ) -> "AgentDefinition":
         """Add a component to the agent."""
 
         if not isinstance(definition, AgentDefinition):
             raise ValueError(f"Unsupported type for body: {type(definition)}. Expected AgentDefinition")
 
+        definition.update_vars(variables)
         self.elements.append(Agent(id=id, definition=definition))
         return self
 

@@ -344,6 +344,7 @@ class NodeExecutor(ABC):
         execution_context.execution_failed_message = message
 
         return NodeExecutionResult(
+            executable_type=node_definition.executable_type,
             node_identifier=node_id,
             execution_status=ExecutionStatusEnum.FAILED,
             input=None,

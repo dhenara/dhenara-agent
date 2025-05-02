@@ -83,7 +83,7 @@ class ExecutionContext(BaseModelABC):
     completed_at: datetime | None = Field(default=None)
 
     # Additional template rendering variables
-    condition_variables: dict[str, Any] = Field(default_factory=dict)
+    component_variables: dict[str, Any] = Field(default_factory=dict)  # Variables defined in component definition
     iteration_variables: dict[str, Any] = Field(default_factory=dict)
 
     # Streaming support
@@ -364,6 +364,10 @@ class ExecutionContext(BaseModelABC):
             "element_hier_path": str(self.get_hierarchy_path(path_joiner=os.sep)),
         }
 
+    def get_component_variables(self) -> dict:
+        # These are just like dynamic variables. Should NOT be resolved hierarchicaly
+        return self.component_variables
+
     def get_context_variables_hierarchical(self) -> dict:
         """
         Recursively gets iteration_variables/ condition_variables through the execution context hierarchy.
@@ -377,10 +381,10 @@ class ExecutionContext(BaseModelABC):
         # INFO: Execution results should be handled with $hier{}
         # variable = {**self.execution_results}
 
-        if self.control_block_type == ControlBlockTypeEnum.conditional:
-            variables.update(self.condition_variables)
-        elif self.control_block_type == ControlBlockTypeEnum.foreach:
+        if self.control_block_type == ControlBlockTypeEnum.foreach:
             variables.update(self.iteration_variables)
+        # elif self.control_block_type == ControlBlockTypeEnum.conditional:
+        #    variables.update(self.condition_variables)
         else:
             pass
 

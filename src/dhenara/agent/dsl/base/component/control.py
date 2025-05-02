@@ -61,10 +61,14 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         true_id = "is_true"
         false_id = "is_false"
 
-        condition_variables = {
-            "evaluation_result": evaluation_result,
-            "statement": self.statement,
-        }
+        # INFO: No need to add `condition_variables` similar to iteration_variables like
+        # condition_variables = {
+        #     "evaluation_result": evaluation_result,
+        #     "statement": self.statement,
+        # }
+        # as there won't be a need to access the `evaluation_result` which is always True/False.
+        # The sub component seletion is based on the result unlike in an iteration scenario
+
         # Create a new context for the branch with the evaluation result
 
         # Execute the appropriate branch
@@ -75,7 +79,6 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
                 component_definition=self.true_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
-                condition_variables=condition_variables,
             )
 
             result = await self.true_branch.execute(
@@ -91,7 +94,6 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
                 component_definition=self.false_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
-                condition_variables=condition_variables,
             )
 
             result = await self.false_branch.execute(

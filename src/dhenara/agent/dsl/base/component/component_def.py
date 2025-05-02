@@ -12,6 +12,7 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
+from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
 class ComponentDefinition(
@@ -51,7 +52,7 @@ class ComponentDefinition(
     )
 
     # variables: dict[str, TextTemplateVariableProps | None] = Field(
-    variables: dict[str, str] = Field(
+    variables: dict[str, str | ObjectTemplate] = Field(
         default_factory=dict,
         description="Variables avaialbe in this flow, which can be used in nodes",
     )
@@ -69,6 +70,26 @@ class ComponentDefinition(
 
         self.variables.update(variables)
         return self
+
+    def update_vars(
+        self,
+        variables: dict | None = None,
+    ) -> None:
+        """Checks and update variables with new values."""
+
+        if variables:
+            # Check if all keys in variables are present in definition.variables and no extra/missing keys
+            if set(variables.keys()) != set(self.variables.keys()):
+                extra_keys = set(variables.keys()) - set(self.variables.keys())
+                missing_keys = set(self.variables.keys()) - set(variables.keys())
+                error_msg = []
+                if extra_keys:
+                    error_msg.append(f"Extra variables provided: {extra_keys}")
+                if missing_keys:
+                    error_msg.append(f"Missing required variables: {missing_keys}")
+                raise ValueError(", ".join(error_msg))
+
+            self.variables = variables
 
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins

@@ -671,20 +671,24 @@ class TemplateEngine:
         if not path_str_parts:
             return None
 
-        # First look for a direct node reference inside current currenct context
-        # Here theere will be only one part in the path
+        # First look for a direct node reference (only one part in the path)
         if len(path_str_parts) == 1:
             target_node_id = path_str_parts[0]
 
-            # Check for current context
-            if target_node_id in execution_context.execution_results:
-                return execution_context.execution_results[target_node_id]
-            # Check for current context's parent if current context is
-            elif execution_context.parent and target_node_id in execution_context.parent.execution_results:
-                return execution_context.parent.execution_results[target_node_id]
-            else:
-                logger.error(f"resolve_hierarchical_path: Failed to find node_id {target_node_id} in current context")
-                return None
+            # Start from current context and traverse up through parents
+            current_ctx = execution_context
+            while current_ctx:
+                if target_node_id in current_ctx.execution_results:
+                    return current_ctx.execution_results[target_node_id]
+                current_ctx = current_ctx.parent
+
+            logger.error(
+                f"resolve_hierarchical_path: Failed to find node_id {target_node_id} "
+                "in context hierarchy while a direct node_id is given"
+            )
+            return None
+
+        # For hierarchical paths, separate component path and target node
 
         # The path doesn't necessarly be the full path, it can be a relative one from the current context.
         # So, first build the full hierarchy path of the incoming path
@@ -710,7 +714,7 @@ class TemplateEngine:
             logger.error(f"No match found for {component_path}")
             return None
 
-        ## If execution_context caching is enabled navigate through the execution context
+        # If execution_context caching is enabled, navigate through the execution context
         if fetch_context:
             if component_ctx is None:
                 logger.error(f"Failed to find context for component path {component_path}")
@@ -722,7 +726,7 @@ class TemplateEngine:
             else:
                 logger.error(f"Failed to find node_id {target_node_id} in context for component path {component_path}")
 
-        # If not found, get it from the file filesystem,
+        # If not found in the context hierarchy, attempt to load from filesystem
         results = execution_context.run_context.load_previous_run_execution_result_dict(
             hierarchy_path=component_path,
             is_component=False,
