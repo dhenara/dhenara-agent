@@ -186,23 +186,34 @@ def trace_node(
             # Get tracing context for linking spans
             current_span = trace.get_current_span()
             parent_context = current_span.get_span_context() if current_span else None
+            hierarchy_path = None
 
             # Set baggage values if execution context available
             if execution_context:
                 component_id = getattr(execution_context, "component_id", None)
                 context_id = getattr(execution_context, "context_id", None)
+                hierarchy_path = getattr(execution_context, "hierarchy_path", None)
 
                 if component_id:
                     baggage.set_baggage("component.id", str(component_id))
+                if node_id:
+                    baggage.set_baggage("node.id", str(node_id))
                 if context_id:
                     baggage.set_baggage("context.id", str(context_id))
+                if hierarchy_path:
+                    baggage.set_baggage("context.hierarchy_path", str(hierarchy_path))
+
+            span_name = f"node.{detected_node_type}.execute"
+            if hierarchy_path:
+                span_name += f" - {hierarchy_path}"
 
             # Create the span with basic attributes
             with tracer.start_as_current_span(
-                f"node.{detected_node_type}.execute",
+                span_name,
                 attributes={
                     "node.id": str(node_id),
                     "node.type": detected_node_type,
+                    "node.hierarchy": hierarchy_path or "",
                     "execution.start_time": start_time,
                 },
             ) as span:
@@ -221,11 +232,6 @@ def trace_node(
                     if execution_context:
                         # Add any fields from tracing profile
                         add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
-
-                        # Always include node hierarchy if available
-                        if hasattr(execution_context, "hierarchy_path"):
-                            hierarchy = execution_context.hierarchy_path
-                            span.set_attribute("node.hierarchy", hierarchy)
 
                     # Add input data based on profile
                     if node_input and tracing_profile.input_fields:
@@ -349,24 +355,32 @@ def trace_component(
             # Get tracing context for linking spans
             current_span = trace.get_current_span()
             parent_context = current_span.get_span_context() if current_span else None
+            hierarchy_path = None
 
             # Set baggage values if execution context available
             if execution_context:
                 component_id = getattr(execution_context, "component_id", None)
                 context_id = getattr(execution_context, "context_id", None)
+                hierarchy_path = getattr(execution_context, "hierarchy_path", None)
 
                 if component_id:
                     baggage.set_baggage("component.id", str(component_id))
                 if context_id:
                     baggage.set_baggage("context.id", str(context_id))
+                if hierarchy_path:
+                    baggage.set_baggage("context.hierarchy_path", str(hierarchy_path))
+
+            span_name = f"{detected_component_type}.execute"
+            if hierarchy_path:
+                span_name += f" - {hierarchy_path}"
 
             # Create the span with basic attributes
             with tracer.start_as_current_span(
-                # f"component.{detected_component_type}.execute",
-                f"{detected_component_type}.execute",
+                span_name,
                 attributes={
                     "component.id": str(component_id),
                     "component.type": detected_component_type,
+                    "component.hierarchy": hierarchy_path or "",
                     "execution.start_time": start_time,
                 },
             ) as span:
@@ -385,11 +399,6 @@ def trace_component(
                     if execution_context:
                         # Add any fields from tracing profile
                         add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
-
-                        # Always include component hierarchy if available
-                        if hasattr(execution_context, "hierarchy_path"):
-                            hierarchy = execution_context.hierarchy_path
-                            span.set_attribute("component.hierarchy", hierarchy)
 
                     # Add input data based on profile
                     if component_input and tracing_profile.input_fields:

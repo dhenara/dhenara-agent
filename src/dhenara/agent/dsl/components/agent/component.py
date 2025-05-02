@@ -103,6 +103,7 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         max_iterations: int | None,
         item_var: str = "item",
         index_var: str = "index",
+        start_index: int = 0,
     ) -> ForEach:
         """Add a loop to the agent."""
 
@@ -113,6 +114,7 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
             statement=statement,
             item_var=item_var,
             index_var=index_var,
+            start_index=start_index,
             body=body,
             max_iterations=max_iterations,
         )

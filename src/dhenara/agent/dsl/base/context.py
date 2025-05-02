@@ -361,7 +361,8 @@ class ExecutionContext(BaseModelABC):
         return {
             # "component_id": str(self.component_id),
             "element_id": str(self.current_element_identifier),
-            "element_hier_path": str(self.get_hierarchy_path(path_joiner=os.sep)),
+            "element_hier_path": self.get_hierarchy_path(path_joiner=os.sep),
+            "component_hier_path": self.get_hierarchy_path(path_joiner=os.sep, exclude_element_id=True),
         }
 
     def get_component_variables(self) -> dict:

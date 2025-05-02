@@ -20,7 +20,7 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
 
     statement: ObjectTemplate | None = Field(
         default=None,
-        description=("Template to evaluvate from previous node results. This should resolve to a boolean."),
+        description=("Template to evaluate from previous node results. This should resolve to a boolean."),
     )
     true_branch: ComponentDefinition = Field(..., description="Block to execute if condition is true")
     false_branch: ComponentDefinition | None = Field(default=None, description="Block to execute if condition is false")
@@ -113,6 +113,10 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
     )
     item_var: str = Field(default="item", description="Variable name for current item")
     index_var: str = Field(default="index", description="Variable name for current index")
+    start_index: int | str = Field(
+        default=0,
+        description="Start index of the loop. Should be either a positive integer or a string with $expr() if given.",
+    )
     body: ComponentDefT = Field(..., description="Block to execute for each item")
     max_iterations: int | None = Field(default=None, description="Maximum iterations")
 
@@ -141,6 +145,36 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
 
         results = []
 
+        if isinstance(self.start_index, int):
+            _start_index = self.start_index
+        elif isinstance(self.start_index, str):
+            start_index_expr = ObjectTemplate(expression=self.start_index)
+            _rendered = DADTemplateEngine.render_dad_template(
+                template=start_index_expr,
+                variables={},
+                execution_context=execution_context,
+            )
+            if isinstance(_rendered, int):
+                _start_index = _rendered
+            else:
+                execution_context.logger.error(
+                    f"ForEach statement start_index '{self.start_index}' evaluated to {_rendered}, not to an int type"
+                )
+                _start_index = 0  # Still contiue
+        else:
+            execution_context.logger.error(
+                f"ForEach statement start_index '{self.start_index}' should be "
+                f"a string/ int not {type(self.start_index)}"
+            )
+            _start_index = 0  # Still contiue
+
+        if _start_index < 0:
+            execution_context.logger.error(f"ForEach statement start_index '{self.start_index}' is negative.")
+            _start_index = 0
+
+        # Apply start_index to items
+        items = items[_start_index:]
+
         # Apply iteration limit if configured
         if self.max_iterations and len(items) > self.max_iterations:
             execution_context.logger.warning(f"Limiting loop to {self.max_iterations} iterations")
@@ -148,14 +182,15 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
 
         # Execute for each item
         for i, item in enumerate(items):
+            _index_var = i + _start_index  # The index still needs to account for the start_index offset
+
             # Create a new ID for this iteration's execution
-            # iteration_id = f"{component_id}_iter_{i}"
-            iteration_id = f"iter_{i}"
+            iteration_id = f"iter_{_index_var}"
 
             # Create iteration-specific context with the current item and index
             iteration_variables = {
                 self.item_var: item,
-                self.index_var: i,
+                self.index_var: _index_var,
             }
 
             # Create a new execution context for this iteration
