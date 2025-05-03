@@ -78,6 +78,8 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         statement: ObjectTemplate,
         true_branch: "AgentDefinition",
         false_branch: Union["AgentDefinition", None] = None,
+        true_branch_variables: dict | None = None,
+        false_branch_variables: dict | None = None,
     ) -> "AgentDefinition":
         """Add a conditional branch to the agent."""
 
@@ -86,6 +88,10 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
 
         if false_branch is not None and not isinstance(false_branch, AgentDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(false_branch)}. Expected AgentDefinition")
+
+        true_branch.update_vars(true_branch_variables)
+        if false_branch:
+            false_branch.update_vars(false_branch_variables)
 
         _conditional = AgentConditional(
             statement=statement,
@@ -104,11 +110,23 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         item_var: str = "item",
         index_var: str = "index",
         start_index: int = 0,
+        variables: dict | None = None,
     ) -> ForEach:
         """Add a loop to the agent."""
 
         if not isinstance(body, AgentDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected AgentDefinition")
+
+        # Add a placeholder for the iteration variable to bypass error checks in update_vars
+        if item_var not in variables:
+            variables[item_var] = ""
+        else:
+            raise ValueError(
+                f"Iteration variable {item_var} should not be passed into variables. "
+                "That will be included automatically"
+            )
+
+        body.update_vars(variables)
 
         _foreach = AgentForEach(
             statement=statement,

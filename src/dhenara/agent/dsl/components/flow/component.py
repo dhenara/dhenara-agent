@@ -68,6 +68,8 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         statement: ObjectTemplate,
         true_branch: "FlowDefinition",
         false_branch: Union["FlowDefinition", None] = None,
+        true_branch_variables: dict | None = None,
+        false_branch_variables: dict | None = None,
     ) -> "FlowDefinition":
         """Add a conditional branch to the flow."""
 
@@ -75,6 +77,10 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
             raise ValueError(f"Unsupported subcomponent type: {type(true_branch)}. Expected FlowDefinition")
         if false_branch is not None and not isinstance(false_branch, FlowDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(false_branch)}. Expected FlowDefinition")
+
+        true_branch.update_vars(true_branch_variables)
+        if false_branch:
+            false_branch.update_vars(false_branch_variables)
 
         _conditional = FlowConditional(
             statement=statement,
@@ -93,11 +99,23 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         item_var: str = "item",
         index_var: str = "index",
         start_index: int = 0,
+        variables: dict | None = None,
     ) -> ForEach:
         """Add a loop to the flow."""
 
         if not isinstance(body, FlowDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected FlowDefinition")
+
+        # Add a placeholder for the iteration variable to bypass error checks in update_vars
+        if item_var not in variables:
+            variables[item_var] = ""
+        else:
+            raise ValueError(
+                f"Iteration variable {item_var} should not be passed into variables. "
+                "That will be included automatically"
+            )
+
+        body.update_vars(variables)
 
         _foreach = FlowForEach(
             statement=statement,

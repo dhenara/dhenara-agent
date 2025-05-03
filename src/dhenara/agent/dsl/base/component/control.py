@@ -73,12 +73,24 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
 
         # Execute the appropriate branch
         if evaluation_result:
+            # Update component variables
+            component_variables = {}
+            for var_name, var_template in self.true_branch.variables.items():
+                # Update the component variables
+                _rendered = DADTemplateEngine.render_dad_template(
+                    template=var_template,
+                    variables={},
+                    execution_context=execution_context,
+                )
+                component_variables[var_name] = _rendered
+
             true_branch_context = execution_context.__class__(
                 control_block_type=ControlBlockTypeEnum.conditional,
                 component_id=true_id,
                 component_definition=self.true_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
+                component_variables=component_variables,
             )
 
             result = await self.true_branch.execute(
@@ -86,14 +98,25 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
                 execution_context=true_branch_context,
                 run_context=run_context,
             )
-            return result
         elif self.false_branch:
+            # Update component variables
+            component_variables = {}
+            for var_name, var_template in self.false_branch.variables.items():
+                # Update the component variables
+                _rendered = DADTemplateEngine.render_dad_template(
+                    template=var_template,
+                    variables={},
+                    execution_context=execution_context,
+                )
+                component_variables[var_name] = _rendered
+
             false_branch_context = execution_context.__class__(
                 control_block_type=ControlBlockTypeEnum.conditional,
                 component_id=false_id,
                 component_definition=self.false_branch,
                 run_context=execution_context.run_context,
                 parent=execution_context,
+                component_variables=component_variables,
             )
 
             result = await self.false_branch.execute(
@@ -193,6 +216,17 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
                 self.index_var: _index_var,
             }
 
+            # Update component variables
+            component_variables = {}
+            for var_name, var_template in self.body.variables.items():
+                # Update the component variables
+                _rendered = DADTemplateEngine.render_dad_template(
+                    template=var_template,
+                    variables={},
+                    execution_context=execution_context,
+                )
+                component_variables[var_name] = _rendered
+
             # Create a new execution context for this iteration
             iteration_context = execution_context.__class__(
                 control_block_type=ControlBlockTypeEnum.foreach,
@@ -201,6 +235,7 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
                 run_context=execution_context.run_context,
                 parent=execution_context,
                 iteration_variables=iteration_variables,
+                component_variables=component_variables,
             )
 
             # Execute the body with this context
