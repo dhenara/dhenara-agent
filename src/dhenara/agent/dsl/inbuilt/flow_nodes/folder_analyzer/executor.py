@@ -535,13 +535,16 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
     ) -> FolderAnalysisOperationResult:
         """Process a get_structure operation - returns directory structure without file contents"""
         # Create a non-content operation
-        non_content_operation = FolderAnalysisOperation(
-            **{
-                **operation.model_dump(),
-                "read_content": False,
-                "include_content_preview": False,
-            },
-        )
+
+        # non_content_operation = FolderAnalysisOperation(
+        #    **{
+        #        **operation.model_dump(),
+        #        "read_content": False,
+        #        "include_content_preview": False,
+        #    },
+        # )
+
+        non_content_operation = operation
 
         # Get path info
         path_info = self._get_operation_path_info(base_directory, operation, settings)
@@ -559,11 +562,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         exclude_patterns = path_info["exclude_patterns"]
 
         # Generate tree diagram
-        tree_diagram = self._generate_tree_diagram(
-            path=path,
-            operation=non_content_operation,
-            exclude_patterns=exclude_patterns,
-        )
+        tree_diagram = None
+        if non_content_operation.generate_tree_diagram:
+            tree_diagram = self._generate_tree_diagram(
+                path=path,
+                operation=non_content_operation,
+                exclude_patterns=exclude_patterns,
+            )
 
         # If it's a directory, get the structure
         if path.is_dir():
@@ -651,6 +656,20 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 # Look for gitignores in the base dir and the current operation dir
                 gitignore_patterns = self._parse_gitignore(base_directory)
                 gitignore_patterns += self._parse_gitignore(path)
+
+                # Add patterns from additional gitignore files if specified
+                if operation.additional_gitignore_paths:
+                    for gitignore_path_str in operation.additional_gitignore_paths:
+                        # Convert the gitignore path to a Path object
+                        if Path(gitignore_path_str).is_absolute():
+                            gitignore_path = Path(gitignore_path_str).resolve()
+                        else:
+                            gitignore_path = (base_directory / gitignore_path_str).resolve()
+
+                        # Parse the additional gitignore file
+                        if gitignore_path.exists() and gitignore_path.is_file():
+                            gitignore_patterns += self._parse_gitignore(gitignore_path.parent)
+
                 exclude_patterns.extend(gitignore_patterns)
 
             return {

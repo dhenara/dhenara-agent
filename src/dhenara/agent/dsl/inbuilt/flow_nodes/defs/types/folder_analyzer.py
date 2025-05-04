@@ -1,6 +1,6 @@
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from dhenara.agent.types.base import BaseModel
 
@@ -105,6 +105,25 @@ class FileSystemAnalysisOperation(BaseModel):
             "This significantly affects the amount of text returned, so choose the appropriate mode for your needs."
         ),
     )
+
+    additional_gitignore_paths: list[str] | None = Field(
+        default=None,
+        description=(
+            "Additional paths to .gitignore files that should be considered when analyzing files. "
+            "These paths can be relative to the base directory or absolute. "
+            "By default, the system automatically processes the .gitignore file in the specified "
+            "path (if it exists) as well as any .gitignore files in parent directories. "
+            "Use this parameter while setting the `path` to a sub dir of the a git repo."
+            "Example: ['configs/.custom-ignore', '/path/to/another/.gitignore']"
+        ),
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_content_read_mode(cls, values):
+        if values.get("operation_type") in ["get_structure", "find_files"]:
+            values["content_read_mode"] = "none"
+        return values
 
 
 class FolderAnalysisOperation(FileSystemAnalysisOperation):
