@@ -117,16 +117,9 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         if not isinstance(body, AgentDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected AgentDefinition")
 
-        # Add a placeholder for the iteration variable to bypass error checks in update_vars
-        if item_var not in variables:
-            variables[item_var] = ""
-        else:
-            raise ValueError(
-                f"Iteration variable {item_var} should not be passed into variables. "
-                "That will be included automatically"
-            )
-
-        body.update_vars(variables)
+        # Foreach should take care of iter var
+        _updated_vars = AgentForEach.check_iter_var_in_variable_update(variables)
+        body.update_vars(_updated_vars)
 
         _foreach = AgentForEach(
             statement=statement,

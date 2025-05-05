@@ -106,16 +106,9 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         if not isinstance(body, FlowDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected FlowDefinition")
 
-        # Add a placeholder for the iteration variable to bypass error checks in update_vars
-        if item_var not in variables:
-            variables[item_var] = ""
-        else:
-            raise ValueError(
-                f"Iteration variable {item_var} should not be passed into variables. "
-                "That will be included automatically"
-            )
-
-        body.update_vars(variables)
+        # Foreach should take care of iter var
+        _updated_vars = FlowForEach.check_iter_var_in_variable_update(variables)
+        body.update_vars(_updated_vars)
 
         _foreach = FlowForEach(
             statement=statement,

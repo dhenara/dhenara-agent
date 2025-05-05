@@ -74,15 +74,7 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
         # Execute the appropriate branch
         if evaluation_result:
             # Update component variables
-            component_variables = {}
-            for var_name, var_template in self.true_branch.variables.items():
-                # Update the component variables
-                _rendered = DADTemplateEngine.render_dad_template(
-                    template=var_template,
-                    variables={},
-                    execution_context=execution_context,
-                )
-                component_variables[var_name] = _rendered
+            component_variables = self.true_branch.get_processed_component_variables(execution_context)
 
             true_branch_context = execution_context.__class__(
                 control_block_type=ControlBlockTypeEnum.conditional,
@@ -100,15 +92,7 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
             )
         elif self.false_branch:
             # Update component variables
-            component_variables = {}
-            for var_name, var_template in self.false_branch.variables.items():
-                # Update the component variables
-                _rendered = DADTemplateEngine.render_dad_template(
-                    template=var_template,
-                    variables={},
-                    execution_context=execution_context,
-                )
-                component_variables[var_name] = _rendered
+            component_variables = self.false_branch.get_processed_component_variables(execution_context)
 
             false_branch_context = execution_context.__class__(
                 control_block_type=ControlBlockTypeEnum.conditional,
@@ -217,15 +201,7 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
             }
 
             # Update component variables
-            component_variables = {}
-            for var_name, var_template in self.body.variables.items():
-                # Update the component variables
-                _rendered = DADTemplateEngine.render_dad_template(
-                    template=var_template,
-                    variables={},
-                    execution_context=execution_context,
-                )
-                component_variables[var_name] = _rendered
+            component_variables = self.body.get_processed_component_variables(execution_context)
 
             # Create a new execution context for this iteration
             iteration_context = execution_context.__class__(
@@ -248,3 +224,24 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
             results.append(result)
 
         return results
+
+    @staticmethod
+    def check_iter_var_in_variable_update(
+        iter_var,
+        variables: dict | None = None,
+    ) -> dict:
+        if variables is None:
+            return {}
+
+        # Create a copy
+        var_copy = variables.copy()
+
+        # Add a placeholder for the iteration variable
+        if iter_var not in var_copy:
+            var_copy[iter_var] = ""
+        else:
+            raise ValueError(
+                f"Iteration variable {iter_var} should not be passed into variables. "
+                "That will be included automatically"
+            )
+        return var_copy

@@ -9,9 +9,10 @@ from dhenara.agent.dsl.base import (
     ExecutableTypeEnum,
     NodeID,
 )
+from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
 from dhenara.agent.run.run_context import RunContext
-from dhenara.agent.types.base import BaseModelABC
+from dhenara.agent.types.base import BaseModel, BaseModelABC
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
@@ -52,7 +53,7 @@ class ComponentDefinition(
     )
 
     # variables: dict[str, TextTemplateVariableProps | None] = Field(
-    variables: dict[str, str | ObjectTemplate] = Field(
+    variables: dict[str, str | ObjectTemplate | BaseModel] = Field(
         default_factory=dict,
         description="Variables avaialbe in this flow, which can be used in nodes",
     )
@@ -201,6 +202,46 @@ class ComponentDefinition(
             )
             return None
 
+    # -------------------------------------------------------------------------
+    def get_processed_component_variables(
+        self,
+        execution_context: ContextT,
+    ) -> Any:
+        component_variables = {}
+        for var_name, var_value in self.variables.items():
+            # Update the component variables
+            _processed = self._process_component_variable(
+                variable_name=var_name,
+                variable_value=var_value,
+                execution_context=execution_context,
+            )
+            component_variables[var_name] = _processed
+
+        return component_variables
+
+    def _process_component_variable(
+        self,
+        variable_name,
+        variable_value,
+        execution_context: ContextT,
+    ):
+        if isinstance(variable_value, (str, ObjectTemplate)):
+            # Update the component variables
+            _rendered = DADTemplateEngine.render_dad_template(
+                template=variable_value,
+                variables={},
+                execution_context=execution_context,
+            )
+            return _rendered
+        # elif hasattr(variable_value, "__class__") and "BaseModel" in str(variable_value.__class__.__mro__):
+        elif hasattr(variable_value, "model_dump"):
+            return variable_value
+        else:
+            raise ValueError(
+                f"Error processng component variable {variable_name}. Unsupported value type {type(variable_value)} "
+            )
+
+    # -------------------------------------------------------------------------
     @abstractmethod
     def get_component_executor(self):
         """Get the component_executor for this component definition. This internally handles executor registry"""
