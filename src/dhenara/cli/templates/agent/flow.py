@@ -2,7 +2,7 @@ from dhenara.agent.dsl import (
     AIModelNode,
     AIModelNodeSettings,
     EventType,
-    Flow,
+    FlowDefinition,
     NodeRecordSettings,
 )
 from dhenara.ai.types import (
@@ -19,8 +19,8 @@ from dhenara.ai.types import (
 
 test_mode = False
 
-flow = Flow()
-flow.node(
+chatbot_flow = FlowDefinition()
+chatbot_flow.node(
     "ai_model_call_1",
     AIModelNode(
         resources=[
@@ -36,6 +36,10 @@ flow.node(
             ResourceConfigItem(
                 item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
                 query={ResourceQueryFieldsEnum.model_name: "gemini-2.0-flash-lite"},
+            ),
+            ResourceConfigItem(
+                item_type=ResourceConfigItemTypeEnum.ai_model_endpoint,
+                query={ResourceQueryFieldsEnum.model_name: "o3-mini"},
             ),
         ],
         pre_events=[EventType.node_input_required],
@@ -62,7 +66,7 @@ flow.node(
         record_settings=NodeRecordSettings.with_outcome_format("text"),  # Enforce test as default is json
     ),
 )
-flow.node(
+chatbot_flow.node(
     "title_generator",
     AIModelNode(
         resources=[
@@ -79,7 +83,7 @@ flow.node(
                 "You are a summarizer which generate a title text under 60 characters from the prompts.",
             ],
             prompt=Prompt.with_dad_text(
-                text="Summarize in plane text under $var{number_of_chars} characters. $expr{ai_model_call_1.outcome.text}",  # noqa: E501
+                text="Summarize in plane text under $var{number_of_chars} characters. $expr{ $hier{ai_model_call_1}.outcome.text }",  # noqa: E501
                 variables={
                     "number_of_chars": {
                         "default": 60,

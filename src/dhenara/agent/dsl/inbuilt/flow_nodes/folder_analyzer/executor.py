@@ -1030,7 +1030,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                     mime_type, _ = mimetypes.guess_type(str(path))
 
                     # For text files, try to determine encoding and sample content
-                    is_likely_text = mime_type and (
+                    _is_likely_text = mime_type and (
                         mime_type.startswith("text/")
                         or mime_type
                         in [
@@ -1041,7 +1041,8 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         ]
                     )
 
-                    if is_likely_text:
+                    # if is_likely_text:
+                    if True:
                         try:
                             with open(path, encoding="utf-8") as f:
                                 if operation.read_content:
