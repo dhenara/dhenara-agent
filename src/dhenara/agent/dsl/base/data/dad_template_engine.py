@@ -99,9 +99,11 @@ class DADTemplateEngine(TemplateEngine):
         dad_static_variables = execution_context.run_context.get_dad_template_static_variables()
         dad_dynamic_variables = execution_context.get_dad_template_dynamic_variables()
         component_variables = execution_context.get_component_variables()
+        component_parent_variables = execution_context.get_component_parent_variables()
 
         combined_variables.update(dad_static_variables)
         combined_variables.update(dad_dynamic_variables)
+        combined_variables.update(component_parent_variables)  # First add parent comp_vars so that child can overide
         combined_variables.update(component_variables)
 
         if debug_mode:

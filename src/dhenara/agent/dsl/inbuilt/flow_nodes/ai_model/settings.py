@@ -46,7 +46,7 @@ class AIModelNodeSettings(NodeSettings):
         description="Path to save the generated (image) files. Default is set to node hierarchy path inside run dir",
     )
     bytes_save_filename_prefix: str | TextTemplate | None = Field(
-        default="auto_",
+        default="auto",
         description=(
             "File name prefix for generated (image) files. "
             "Timestamp and a signature will be appended after this. "

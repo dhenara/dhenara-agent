@@ -99,7 +99,7 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         item_var: str = "item",
         index_var: str = "index",
         start_index: int = 0,
-        variables: dict | None = None,
+        body_variables: dict | None = None,
     ) -> ForEach:
         """Add a loop to the flow."""
 
@@ -107,8 +107,8 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected FlowDefinition")
 
         # Foreach should take care of iter var
-        _updated_vars = FlowForEach.check_iter_var_in_variable_update(variables)
-        body.update_vars(_updated_vars)
+        _updated_body_vars = FlowForEach.check_iter_var_in_variable_update(body_variables)
+        body.update_vars(_updated_body_vars)
 
         _foreach = FlowForEach(
             statement=statement,

@@ -1,6 +1,6 @@
-from typing import Any, Generic
+from typing import Any, Generic, Union
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
@@ -15,15 +15,47 @@ from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 
+def ensure_var(v: str):
+    if isinstance(v, str) and not v.startswith("$var{"):
+        raise ValueError("When statement is a string, it must start with '$var{'")
+    return v
+
+
+def ensure_expr(v: str):
+    if isinstance(v, str) and not v.startswith("$expr{"):
+        raise ValueError("When statement is a string, it must start with '$expr{'")
+    return v
+
+
+def ensure_var_or_expr(v: str):
+    if isinstance(v, str) and not v.startswith(("$var{", "$expr{")):
+        raise ValueError("When statement is a string, it must start with '$expr{' or '$var{'")
+    return v
+
+
+def ensure_object_template(v: str):
+    if isinstance(v, ObjectTemplate):
+        return v
+    if isinstance(v, str):
+        if v.startswith("$expr{"):
+            return ObjectTemplate(expression=v)
+    raise ValueError(f"ensure_object_template: {v} must be a instance of ObjectTemplate or string start with '$expr{{'")
+
+
 class Conditional(BaseModel, Generic[ComponentDefT]):
     """Conditional branch construct."""
 
-    statement: ObjectTemplate | None = Field(
+    statement: str | ObjectTemplate | None = Field(
         default=None,
         description=("Template to evaluate from previous node results. This should resolve to a boolean."),
     )
     true_branch: ComponentDefinition = Field(..., description="Block to execute if condition is true")
     false_branch: ComponentDefinition | None = Field(default=None, description="Block to execute if condition is false")
+
+    @field_validator("statement")
+    @classmethod
+    def validate_statement(cls, v):
+        return ensure_object_template(v)
 
     async def execute(
         self,
@@ -114,9 +146,9 @@ class Conditional(BaseModel, Generic[ComponentDefT]):
 class ForEach(BaseModel, Generic[ComponentDefT]):
     """Loop construct that executes a block for each item in a collection."""
 
-    statement: ObjectTemplate | None = Field(
+    statement: str | ObjectTemplate | None = Field(
         default=None,
-        description=("Template to evaluvate from previous node results. This should resolve to an iterable."),
+        description=("Template to evaluate from previous node results. This should resolve to an iterable."),
     )
     item_var: str = Field(default="item", description="Variable name for current item")
     index_var: str = Field(default="index", description="Variable name for current index")
@@ -126,6 +158,11 @@ class ForEach(BaseModel, Generic[ComponentDefT]):
     )
     body: ComponentDefT = Field(..., description="Block to execute for each item")
     max_iterations: int | None = Field(default=None, description="Maximum iterations")
+
+    @field_validator("statement")
+    @classmethod
+    def validate_statement(cls, v):
+        return ensure_object_template(v)
 
     async def execute(
         self,

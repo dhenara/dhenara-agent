@@ -369,6 +369,14 @@ class ExecutionContext(BaseModelABC):
         # These are just like dynamic variables. Should NOT be resolved hierarchicaly
         return self.component_variables
 
+    def get_component_parent_variables(self) -> dict:
+        # These are just like dynamic variables. Should NOT be resolved hierarchicaly
+        # But still one level up is required to connect the `Control` components from parent to child.
+        # The control component doesn't hold any variables
+        if self.parent:
+            return self.parent.get_component_variables()
+        return {}
+
     def get_context_variables_hierarchical(self) -> dict:
         """
         Recursively gets iteration_variables/ condition_variables through the execution context hierarchy.

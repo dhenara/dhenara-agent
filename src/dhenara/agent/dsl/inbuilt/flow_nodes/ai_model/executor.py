@@ -410,28 +410,31 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 text_outcome = response.chat_response.text()
         elif response.image_response:
             if settings.save_generated_bytes:
-                import uuid
-
                 path = DADTemplateEngine.render_dad_template(
                     template=settings.bytes_save_path,
                     variables={},
                     execution_context=execution_context,
                 )
+                path = str(path)  # Should be string
                 filename_prefix = DADTemplateEngine.render_dad_template(
                     template=settings.bytes_save_filename_prefix,
                     variables={},
                     execution_context=execution_context,
                 )
+                filename_prefix = str(filename_prefix)  # Should be string
                 index = 0
 
                 def _get_timestamp_sig(_prefix):
+                    # import uuid
+                    # return f"{_prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    return f"{_prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
+                    return f"{_prefix}_{timestamp}"
 
                 for choice in response.image_response.choices:
                     for image_content in choice.contents:
-                        _filename = _get_timestamp_sig(filename_prefix)
-                        _filename = f"{_filename}_{index}.png"
+                        _prefix = f"{filename_prefix}_{index}"
+                        _filename = _get_timestamp_sig(_prefix)
+                        _filename = f"{_filename}.png"
                         if image_content.content_format == ImageContentFormat.BASE64:
                             import base64
 

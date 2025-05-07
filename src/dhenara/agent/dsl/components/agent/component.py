@@ -110,16 +110,16 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         item_var: str = "item",
         index_var: str = "index",
         start_index: int = 0,
-        variables: dict | None = None,
+        body_variables: dict | None = None,
     ) -> ForEach:
         """Add a loop to the agent."""
 
         if not isinstance(body, AgentDefinition):
             raise ValueError(f"Unsupported subcomponent type: {type(body)}. Expected AgentDefinition")
 
-        # Foreach should take care of iter var
-        _updated_vars = AgentForEach.check_iter_var_in_variable_update(variables)
-        body.update_vars(_updated_vars)
+            # Foreach should take care of iter var
+        _updated_body_vars = AgentForEach.check_iter_var_in_variable_update(body_variables)
+        body.update_vars(_updated_body_vars)
 
         _foreach = AgentForEach(
             statement=statement,
