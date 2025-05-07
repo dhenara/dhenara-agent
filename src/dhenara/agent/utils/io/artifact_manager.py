@@ -42,7 +42,7 @@ class ArtifactManager:
 
     def record_data(
         self,
-        record_type: Literal["state", "outcome", "result"],
+        record_type: Literal["state", "outcome", "result", "file"],
         data: dict | str | bytes,
         record_settings: RecordSettingsItem | None,
         execution_context: ExecutionContext,
@@ -70,6 +70,12 @@ class ArtifactManager:
             elif record_settings.file_format == RecordFileFormatEnum.binary:
                 with open(output_file, "wb") as f:
                     f.write(data)
+            elif record_settings.file_format == RecordFileFormatEnum.image:
+                with open(output_file, "wb") as f:
+                    f.write(data)
+                    # from PIL import Image  # NOTE: You need to install 'Pillow' # pip install Pillow
+                    # image = Image.open(io.BytesIO(data))
+                    # image.save("generated_image_b64.png")
 
         try:
             # Resolve path and filename from templates

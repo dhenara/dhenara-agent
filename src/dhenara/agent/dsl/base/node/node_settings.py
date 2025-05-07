@@ -15,6 +15,7 @@ class RecordFileFormatEnum(BaseEnum):
     yaml = "yaml"
     text = "text"
     binary = "binary"
+    image = "image"
 
 
 class RecordSettingsItem(BaseModel):

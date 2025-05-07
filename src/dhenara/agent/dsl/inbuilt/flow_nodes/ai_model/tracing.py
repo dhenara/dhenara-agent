@@ -37,6 +37,20 @@ def format_usage(usage):
     return result
 
 
+def format_usage_charge(usage_charge):
+    """Format token usage information."""
+    if not usage_charge:
+        return None
+
+    result = {}
+    if hasattr(usage_charge, "cost"):
+        result["cost"] = f"${usage_charge.cost:.6f}" if usage_charge.cost else "N/A"
+    if hasattr(usage_charge, "charge"):
+        result["charge"] = f"${usage_charge.charge:.6f}" if usage_charge.charge else "N/A"
+
+    return result
+
+
 # Define AI Model Node tracing profile
 ai_model_node_tracing_profile = NodeTracingProfile(
     node_type=FlowNodeTypeEnum.ai_model_call.value,
@@ -93,7 +107,14 @@ ai_model_node_tracing_profile = NodeTracingProfile(
             source_path="output.data.response.full_response.usage",
             category=TracingDataCategory.primary,
             transform=format_usage,
-            description="Token usage and cost",
+            description="Token usage",
+        ),
+        TracingDataField(
+            name="token_usage",
+            source_path="output.data.response.full_response.usage_charge",
+            category=TracingDataCategory.primary,
+            transform=format_usage_charge,
+            description="Cost and Charges",
         ),
         TracingDataField(
             name="model",

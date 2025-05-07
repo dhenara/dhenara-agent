@@ -1,7 +1,7 @@
 from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import NodeSettings, SpecialNodeIDEnum
-from dhenara.ai.types.genai.dhenara import AIModelCallConfig, Prompt, SystemInstruction
+from dhenara.ai.types.genai.dhenara import AIModelCallConfig, Prompt, SystemInstruction, TextTemplate
 
 
 class AIModelNodeSettings(NodeSettings):
@@ -34,6 +34,24 @@ class AIModelNodeSettings(NodeSettings):
     model_call_config: AIModelCallConfig | None = Field(
         default=None,
         description="Structured output model for the AI model response",
+    )
+
+    # Additional setting to store images
+    save_generated_bytes: bool = Field(
+        default=True,
+        description="Whether to save generated (image) bytes into files. Applicable only for Image generation",
+    )
+    bytes_save_path: str | TextTemplate | None = Field(
+        default="$var{element_hier_path}/",
+        description="Path to save the generated (image) files. Default is set to node hierarchy path inside run dir",
+    )
+    bytes_save_filename_prefix: str | TextTemplate | None = Field(
+        default="auto_",
+        description=(
+            "File name prefix for generated (image) files. "
+            "Timestamp and a signature will be appended after this. "
+            "If multiple files are generated, the file names will end with an `_<index>`."
+        ),
     )
 
     @field_validator("context_sources")

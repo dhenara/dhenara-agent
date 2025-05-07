@@ -11,6 +11,8 @@ from dhenara.agent.dsl.base import (
     NodeID,
     NodeInput,
     NodeOutput,
+    RecordFileFormatEnum,
+    RecordSettingsItem,
     SpecialNodeIDEnum,
     StreamingStatusEnum,
 )
@@ -30,6 +32,7 @@ from dhenara.ai import AIModelClient
 from dhenara.ai.types import (
     AIModelCallConfig,
     AIModelCallResponse,
+    ImageContentFormat,
 )
 from dhenara.ai.types.genai.dhenara.request import Prompt, SystemInstruction
 from dhenara.ai.types.resource import ResourceConfig
@@ -39,6 +42,7 @@ from dhenara.ai.types.shared.api import (
     SSEErrorResponse,
     SSEEventType,
 )
+from dhenara.ai.types.shared.file import StoredFile
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 logger = logging.getLogger(__name__)
@@ -357,6 +361,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             node_input=node_input,
             model_call_config=model_call_config,
             response=response,
+            settings=settings,
         )
 
         return result
@@ -368,7 +373,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         execution_context: ExecutionContext,
         node_input: NodeInput,
         model_call_config: AIModelCallConfig,
-        response,
+        response: AIModelCallResponse,
+        settings: AIModelNodeSettings,
     ) -> AIModelNodeExecutionResult:
         # Non streaming
 
@@ -390,20 +396,96 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # Fill output and outcome in execution context
         text_outcome = None
         structured_outcome = None
+        files = []
 
-        if model_call_config.structured_output is not None:
-            structured_outcome = response.chat_response.structured()
-            if not structured_outcome:
-                logger.error("AIModelNode structured_outcome is None when node settings sets structured_output")
+        if response.chat_response:
+            if model_call_config.structured_output is not None:
+                structured_outcome = response.chat_response.structured()
+                if not structured_outcome:
+                    logger.error("AIModelNode structured_outcome is None when node settings sets structured_output")
 
-            if not isinstance(structured_outcome, dict):
-                logger.error(f"AIModelNode structured_outcome is not a dict but of type {type(structured_outcome)}")
-        else:
-            text_outcome = response.chat_response.text()
+                if not isinstance(structured_outcome, dict):
+                    logger.error(f"AIModelNode structured_outcome is not a dict but of type {type(structured_outcome)}")
+            else:
+                text_outcome = response.chat_response.text()
+        elif response.image_response:
+            if settings.save_generated_bytes:
+                import uuid
+
+                path = DADTemplateEngine.render_dad_template(
+                    template=settings.bytes_save_path,
+                    variables={},
+                    execution_context=execution_context,
+                )
+                filename_prefix = DADTemplateEngine.render_dad_template(
+                    template=settings.bytes_save_filename_prefix,
+                    variables={},
+                    execution_context=execution_context,
+                )
+                index = 0
+
+                def _get_timestamp_sig(_prefix):
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    return f"{_prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
+
+                for choice in response.image_response.choices:
+                    for image_content in choice.contents:
+                        _filename = _get_timestamp_sig(filename_prefix)
+                        _filename = f"{_filename}_{index}.png"
+                        if image_content.content_format == ImageContentFormat.BASE64:
+                            import base64
+
+                            # Convert base64 to image
+                            image_bytes = base64.b64decode(image_content.content_b64_json)
+                            # image = Image.open(io.BytesIO(image_bytes))
+                            ## Save the image
+                            # image.save("generated_image_b64.png")
+                            print("Image saved as generated_image.png")
+                        elif image_content.content_format == ImageContentFormat.BYTES:
+                            image_bytes = image_content.content_bytes
+                            ## Directly use the bytes data
+                            # image = Image.open(io.BytesIO(image_content.content_bytes))
+
+                            # Save the image
+                            # image.save("generated_image_bytes.png")
+                            print("Image saved as generated_image_from_bytes.png")
+                        elif image_content.content_format == ImageContentFormat.URL:
+                            logger.error("Image content format `url` is not supported with `save_generated_bytes` ")
+                            continue
+                        else:
+                            logger.error(
+                                f"Unknonw Image content format `{image_content.content_format}` "
+                                "with `save_generated_bytes` "
+                            )
+                            continue
+
+                        print(f"AJ: path={path}, _filename={_filename}")
+                        # save_file
+                        _saved = execution_context.artifact_manager.record_data(
+                            record_type="file",
+                            data=image_bytes,
+                            record_settings=RecordSettingsItem(
+                                enabled=True,
+                                path=path,
+                                filename=_filename,
+                                file_format=RecordFileFormatEnum.image,
+                            ),
+                            execution_context=execution_context,
+                        )
+                        if _saved:
+                            files.append(
+                                StoredFile(
+                                    name=_filename,
+                                    path=path,
+                                )
+                            )
+                        else:
+                            logger.error(f"Failed to save byte to {path} when save_generated_bytes is set")
 
         node_outcome = AIModelNodeOutcome(
             text=text_outcome,
             structured=structured_outcome,
+            files=files,
         )
 
         status = ExecutionStatusEnum.COMPLETED if response.status.successful else ExecutionStatusEnum.FAILED

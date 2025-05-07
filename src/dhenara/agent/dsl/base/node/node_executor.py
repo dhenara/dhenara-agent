@@ -78,7 +78,11 @@ class NodeExecutor(ABC):
         execution_context: ExecutionContext,
     ) -> NodeInput:
         # Request input via event
-        event = NodeInputRequiredEvent(node_id, node_definition.node_type)
+        event = NodeInputRequiredEvent(
+            node_id=node_id,
+            node_type=node_definition.node_type,
+            node_def_settings=node_definition.settings,
+        )
         await execution_context.run_context.event_bus.publish(event)
 
         # Check if any handler provided input

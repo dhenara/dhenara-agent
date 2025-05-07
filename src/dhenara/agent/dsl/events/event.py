@@ -35,16 +35,20 @@ class NodeInputRequiredEvent(BaseEvent):
     type = EventType.node_input_required
     nature = EventNature.with_wait
 
-    def __init__(self, node_id, node_type):
+    def __init__(self, node_id, node_type, node_def_settings):
         super().__init__()
         self.node_id = node_id
         self.node_type = node_type
+        self.node_def_settings = node_def_settings
         self.node_input = None  # Field to be filled by handlers
 
     def as_dict(self):
         return {
             "node_id": self.node_id,
             "node_type": self.node_type,
+            "node_def_settings": self.node_def_settings.model_dump()
+            if self.node_def_settings and hasattr(self.node_def_settings, "model_dump")
+            else None,
             "node_input": self.node_input,
         }
 
