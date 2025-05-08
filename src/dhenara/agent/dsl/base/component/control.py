@@ -1,4 +1,4 @@
-from typing import Any, Generic, Union
+from typing import Any, Generic
 
 from pydantic import Field, field_validator
 
@@ -8,38 +8,12 @@ from dhenara.agent.dsl.base import (
     ContextT,
     ControlBlockTypeEnum,
     NodeID,
+    ensure_object_template,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.run import RunContext
 from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
-
-
-def ensure_var(v: str):
-    if isinstance(v, str) and not v.startswith("$var{"):
-        raise ValueError("When statement is a string, it must start with '$var{'")
-    return v
-
-
-def ensure_expr(v: str):
-    if isinstance(v, str) and not v.startswith("$expr{"):
-        raise ValueError("When statement is a string, it must start with '$expr{'")
-    return v
-
-
-def ensure_var_or_expr(v: str):
-    if isinstance(v, str) and not v.startswith(("$var{", "$expr{")):
-        raise ValueError("When statement is a string, it must start with '$expr{' or '$var{'")
-    return v
-
-
-def ensure_object_template(v: str):
-    if isinstance(v, ObjectTemplate):
-        return v
-    if isinstance(v, str):
-        if v.startswith("$expr{"):
-            return ObjectTemplate(expression=v)
-    raise ValueError(f"ensure_object_template: {v} must be a instance of ObjectTemplate or string start with '$expr{{'")
 
 
 class Conditional(BaseModel, Generic[ComponentDefT]):

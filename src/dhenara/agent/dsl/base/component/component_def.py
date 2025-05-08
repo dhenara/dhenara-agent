@@ -1,19 +1,24 @@
+import logging
 from abc import abstractmethod
 from typing import Any, ClassVar, Generic, TypeVar
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import (
+    PLACEHOLDER,
     ComponentExeResultT,
     ContextT,
     ExecutableTypeEnum,
     NodeID,
+    auto_converr_str_to_template,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
 from dhenara.agent.run.run_context import RunContext
-from dhenara.agent.types.base import BaseModel, BaseModelABC
+from dhenara.agent.types.base import BaseModelABC
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
+
+logger = logging.getLogger(__name__)
 
 
 class ComponentDefinition(
@@ -52,32 +57,32 @@ class ComponentDefinition(
         ),
     )
 
-    # variables: dict[str, TextTemplateVariableProps | None] = Field(
-    variables: dict[str, str | ObjectTemplate | BaseModel] = Field(
+    variables: dict[str, Any | ObjectTemplate] = Field(
         default_factory=dict,
         description="Variables avaialbe in this flow, which can be used in nodes",
     )
 
-    # -------------------------------------------------------------------------
-    # Factory methods for creating components
-    def vars(
-        self,
-        variables=dict[str, Any],
-    ) -> "ComponentDefinition":
-        """Add variables to the component."""
+    @field_validator("variables")
+    @classmethod
+    def validate_variables(cls, v):
+        """Convert string variables to templates"""
+        _vars = v.copy()
+        for k, v in _vars.items():
+            _vars[k] = auto_converr_str_to_template(v)
+        return _vars
 
+    def vars(self, variables=dict[str, Any]) -> "ComponentDefinition":
+        """Add variables to the component."""
         if not isinstance(variables, dict):
             raise ValueError(f"Variables should be a dict not {type(variables)}")
 
-        self.variables.update(variables)
+        # Merge variables and validate them directly
+        combined_vars = {**self.variables, **variables}
+        self.variables = self.validate_variables(combined_vars)
         return self
 
-    def update_vars(
-        self,
-        variables: dict | None = None,
-    ) -> None:
+    def update_vars(self, variables: dict | None = None) -> None:
         """Checks and update variables with new values."""
-
         if variables:
             # Check if all keys in variables are present in definition.variables and no extra/missing keys
             if set(variables.keys()) != set(self.variables.keys()):
@@ -90,7 +95,7 @@ class ComponentDefinition(
                     error_msg.append(f"Missing required variables: {missing_keys}")
                 raise ValueError(", ".join(error_msg))
 
-            self.variables = variables
+            self.variables = self.validate_variables(variables)
 
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins
@@ -225,7 +230,7 @@ class ComponentDefinition(
         variable_value,
         execution_context: ContextT,
     ):
-        if isinstance(variable_value, (str, ObjectTemplate)):
+        if isinstance(variable_value, ObjectTemplate):
             # Update the component variables
             _rendered = DADTemplateEngine.render_dad_template(
                 template=variable_value,
@@ -233,13 +238,18 @@ class ComponentDefinition(
                 execution_context=execution_context,
             )
             return _rendered
-        # elif hasattr(variable_value, "__class__") and "BaseModel" in str(variable_value.__class__.__mro__):
-        elif hasattr(variable_value, "model_dump"):
-            return variable_value
-        else:
+        elif variable_name is PLACEHOLDER:
             raise ValueError(
-                f"Error processng component variable {variable_name}. Unsupported value type {type(variable_value)} "
+                f"Error: {variable_name}: PLACEHOLDER should be replaced with valid values before processing variable."
             )
+        elif variable_name is None:
+            logger.warning(
+                f"None value detected for component variable {variable_name} while processiing variable. "
+                "Most likey this is uninterntional and will result in unexptected flow execution results"
+            )
+        else:
+            # Allow all other values
+            return variable_value
 
     # -------------------------------------------------------------------------
     @abstractmethod

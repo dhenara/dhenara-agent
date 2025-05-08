@@ -369,13 +369,78 @@ class ExecutionContext(BaseModelABC):
         # These are just like dynamic variables. Should NOT be resolved hierarchicaly
         return self.component_variables
 
-    def get_component_parent_variables(self) -> dict:
-        # These are just like dynamic variables. Should NOT be resolved hierarchicaly
-        # But still one level up is required to connect the `Control` components from parent to child.
-        # The control component doesn't hold any variables
+    def get_control_block_immediate_parent_variables(self) -> dict:
+        #  `Control` blocks need to get variables from parent their immediate parent
+        # as they doesn't hold any variables inside thier definition.
+        # This is required for flow intutive var definitions like
+        #
+        # --        multi_image_flow = FlowDefinition()
+        # --        multi_image_flow.vars(
+        # --            {
+        # --                "image_task": PLACEHOLDER,
+        # --            }
+        # --        )
+        # --        multi_image_flow.for_each(
+        # --            id="image_gen_loop",
+        # --            statement="$expr{image_task.task_specifications}",
+        # --            item_var="task_spec",
+        # --            max_iterations=10,
+        # --            body=single_img_flow,
+        # --        )
+        #
+        #
+
+        # TODO: Fix Below
+        #
+        # Currently, with Control Blocks, there will be 2 layers of `unwanted` execution-contexts created
+        # One from the subcomponent execute() and then from the control-block execute()
+        # Therefor below check will not satify for the first level context
+        #   --  if self.control_block_type is not None and self.parent:
+        # and parent variable won't be processed as expected
+        # This need to be addressed with proper context handling.
+        # NOTE: This might also have a side effect in get_control_block_hierarchical_parent_variables() too.
+
         if self.parent:
             return self.parent.get_component_variables()
         return {}
+
+    def get_control_block_hierarchical_parent_variables(self) -> dict[str, Any]:
+        """
+        Collect component_variables from all control block parents in the execution hierarchy.
+
+        Traverses up the parent chain, gathering variables from any parent that's a control block.
+        When the same variable exists in multiple parents, the closest parent's value takes precedence.
+
+        Returns:
+            dict[str, Any]: Combined dictionary of component variables from control block parents
+        """
+        # TODO:
+        # Address comment in get_control_block_immediate_parent_variables()
+
+        control_component_vars: dict[str, Any] = {}
+        parent_vars_list: list[dict[str, Any]] = []
+        current_parent = self.parent
+        max_depth = 100  # Safety limit to prevent infinite loops
+        depth = 0
+
+        # First collect all parent variables in order
+        while current_parent and current_parent.control_block_type is not None:
+            parent_vars_list.append(current_parent.component_variables)
+            current_parent = current_parent.parent
+
+            depth += 1
+            if depth >= max_depth:
+                self.logger.warning(
+                    f"Reached maximum depth ({max_depth}) while traversing parent chain. "
+                    "Possible circular reference detected."
+                )
+                break
+
+        # Then apply them in reverse order (furthest ancestor first, closest parent last)
+        for parent_vars in reversed(parent_vars_list):
+            control_component_vars.update(parent_vars)
+
+        return control_component_vars
 
     def get_context_variables_hierarchical(self) -> dict:
         """

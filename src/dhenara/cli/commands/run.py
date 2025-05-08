@@ -20,44 +20,34 @@ def register(cli):
 
 @click.group(name="run")
 def run():
-    """Create new Dhenara components."""
+    """Run a DAD components."""
     pass
 
 
 @run.command("agent")
 @click.argument("identifier")
-@click.option("--project-root", default=None, help="Project repo root")
+@click.option("--project-root", default=None, help="Root directory of the project repo")
+@click.option("--previous-run-id", default=None, help="ID of a previous execution to inherit context from")
 @click.option(
-    "--previous-run-id",
+    "--entry-point",
     default=None,
-    help="ID of a previous run to use as a base for this run",
-)
-@click.option(
-    "--start-path",
-    default=None,
-    help="Hierarchical path to start execution from (e.g., 'agent_id/flow_id/node_id')",
+    help=(
+        "Specific point in the execution graph to begin from. "
+        "Format can be a single element ID or a dot-notation path (e.g., 'agent_id.flow_id.node_id')"
+    ),
 )
 def run_agent(
     identifier,
     project_root,
     previous_run_id,
-    start_path,
+    entry_point,
 ):
-    """Run an agent with the specified inputs.
-
-    NAME is the name of the agent.
-
-    Examples:
-        dhenara run agent my_agent                     # Run the agent normally
-        dhenara run agent my_agent --previous-run-id run_123  # Rerun a previous execution
-        dhenara run agent my_agent --start-path agent_id/flow_id/node_id  # Start execution from specific point
-    """
     asyncio.run(
         _run_agent(
             identifier=identifier,
             project_root=project_root,
             previous_run_id=previous_run_id,
-            start_hierarchy_path=start_path,
+            start_hierarchy_path=entry_point,
         )
     )
 

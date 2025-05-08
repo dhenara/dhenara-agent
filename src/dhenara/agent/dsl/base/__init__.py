@@ -1,4 +1,5 @@
 # Base Element
+
 from .enums import (
     SpecialNodeIDEnum,
     ComponentTypeEnum,
@@ -7,8 +8,8 @@ from .enums import (
     ExecutableTypeEnum,
     ControlBlockTypeEnum,
 )
-from .defs import NodeID
-
+from .defs import NodeID, PlaceholderType, PLACEHOLDER
+from .fns import ensure_object_template, auto_converr_str_to_template, is_string_hier_or_expr
 from .data.template_engine import TemplateEngine
 from .data.dad_template_engine import DADTemplateEngine
 
@@ -40,6 +41,7 @@ from .component.executor import ComponentExecutor
 from .component.component import ExecutableComponent, ComponentT
 
 __all__ = [
+    "PLACEHOLDER",
     "ComponentDefT",
     "ComponentDefinition",
     "ComponentExeResultT",
@@ -75,10 +77,14 @@ __all__ = [
     "NodeRecordSettings",
     "NodeSettings",
     "NodeT",
+    "PlaceholderType",
     "RecordFileFormatEnum",
     "RecordSettingsItem",
     "SpecialNodeIDEnum",
     "StreamingContext",
     "StreamingStatusEnum",
     "TemplateEngine",
+    "auto_converr_str_to_template",
+    "ensure_object_template",
+    "is_string_hier_or_expr",
 ]
