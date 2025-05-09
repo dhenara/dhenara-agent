@@ -1,4 +1,5 @@
 import logging
+import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -131,6 +132,9 @@ class NodeExecutor(ABC):
                     f"Input validation failed. Expects type of {self.input_model} but got a type of {type(node_input)}"
                 )
 
+        if node_definition.settings.sleep_before:
+            time.sleep(node_definition.settings.sleep_before)
+
         # Record start time for metrics
         start_time = datetime.now()
 
@@ -225,6 +229,9 @@ class NodeExecutor(ABC):
             f"Node Execution completed in {duration_ms:.2f}ms",
             {"node_id": str(node_id), "duration_ms": duration_ms, "has_result": result is not None},
         )
+
+        if node_definition.settings.sleep_after:
+            time.sleep(node_definition.settings.sleep_after)
 
         # Record results to storage
         return await self.record_results(

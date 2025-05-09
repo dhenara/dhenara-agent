@@ -386,7 +386,10 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 message=("Response in None"),
             )
 
-        logger.debug(f"call_ai_model: status={response.status if response else 'FAIL'}, response={response},")
+        logger.debug(
+            f"call_ai_model: status={response.status if response else 'FAIL'}, "
+            f"Preview of response={response.preview_dict()},"
+        )
         node_output = NodeOutput[AIModelNodeOutputData](
             data=AIModelNodeOutputData(
                 response=response,
@@ -425,10 +428,11 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                 index = 0
 
                 def _get_timestamp_sig(_prefix):
-                    # import uuid
-                    # return f"{_prefix}_{timestamp}_{uuid.uuid4().hex[:6]}"
+                    import uuid
+
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    return f"{_prefix}_{timestamp}"
+                    # return f"{_prefix}_{timestamp}"
+                    return f"{_prefix}_{timestamp}__{uuid.uuid4().hex[:6]}"
 
                 for choice in response.image_response.choices:
                     for image_content in choice.contents:
@@ -440,18 +444,11 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
                             # Convert base64 to image
                             image_bytes = base64.b64decode(image_content.content_b64_json)
-                            # image = Image.open(io.BytesIO(image_bytes))
-                            ## Save the image
-                            # image.save("generated_image_b64.png")
-                            print("Image saved as generated_image.png")
-                        elif image_content.content_format == ImageContentFormat.BYTES:
-                            image_bytes = image_content.content_bytes
-                            ## Directly use the bytes data
-                            # image = Image.open(io.BytesIO(image_content.content_bytes))
 
-                            # Save the image
-                            # image.save("generated_image_bytes.png")
-                            print("Image saved as generated_image_from_bytes.png")
+                        elif image_content.content_format == ImageContentFormat.BYTES:
+                            ## Directly use the bytes data
+                            image_bytes = image_content.content_bytes
+
                         elif image_content.content_format == ImageContentFormat.URL:
                             logger.error("Image content format `url` is not supported with `save_generated_bytes` ")
                             continue
@@ -462,7 +459,6 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                             )
                             continue
 
-                        print(f"AJ: path={path}, _filename={_filename}")
                         # save_file
                         _saved = execution_context.artifact_manager.record_data(
                             record_type="file",

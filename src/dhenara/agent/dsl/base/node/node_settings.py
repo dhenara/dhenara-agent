@@ -7,7 +7,14 @@ from dhenara.ai.types.genai.dhenara.request import TextTemplate
 class NodeSettings(BaseModel):
     """Node Settings."""
 
-    pass
+    sleep_before: int | float | None = Field(
+        default=None,
+        description="Sleep time in seconds before executing the node. Use float value for millisecond precision.",
+    )
+    sleep_after: int | float | None = Field(
+        default=None,
+        description="Sleep time in seconds after executing the node. Use float value for millisecond precision.",
+    )
 
 
 class RecordFileFormatEnum(BaseEnum):

@@ -57,10 +57,18 @@ class ArtifactManager:
         def _save_file(output_file):
             # Save data in the specified format
             if record_settings.file_format == RecordFileFormatEnum.json:
+                if not isinstance(data, (dict, list)):
+                    logger.error(f"Cannot save data as JSON: expected dict or list, got {type(data)}")
+                    # return False
+
                 with open(output_file, "w") as f:
                     json.dump(data, f, indent=2)
             elif record_settings.file_format == RecordFileFormatEnum.yaml:
                 import yaml
+
+                if not isinstance(data, (dict, list)):
+                    logger.error(f"Cannot save data as YAML: expected dict or list, got {type(data)}")
+                    # return False
 
                 with open(output_file, "w") as f:
                     yaml.dump(data, f, default_flow_style=False)
@@ -68,14 +76,28 @@ class ArtifactManager:
                 with open(output_file, "w") as f:
                     f.write(str(data))
             elif record_settings.file_format == RecordFileFormatEnum.binary:
+                if not isinstance(data, bytes):
+                    logger.error(f"Cannot save data as binary/image: expected bytes, got {type(data)}")
+                    # return False
+
                 with open(output_file, "wb") as f:
                     f.write(data)
+
             elif record_settings.file_format == RecordFileFormatEnum.image:
+                import io
+
+                from PIL import Image
+
+                if not isinstance(data, bytes):
+                    logger.error(f"Cannot save data as binary/image: expected bytes, got {type(data)}")
+                    # return False
+
+                image = Image.open(io.BytesIO(data))
+                # Using the already opened file handle "f"
                 with open(output_file, "wb") as f:
-                    f.write(data)
-                    # from PIL import Image  # NOTE: You need to install 'Pillow' # pip install Pillow
-                    # image = Image.open(io.BytesIO(data))
-                    # image.save("generated_image_b64.png")
+                    image.save(f, format="PNG")
+
+            return True
 
         try:
             # Resolve path and filename from templates
