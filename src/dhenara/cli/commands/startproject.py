@@ -52,6 +52,7 @@ def startproject(project_name, agent_name, description, git):
     project_dir.mkdir()
     dirs = [
         ".dhenara",
+        ".dhenara/.secrets",
         "src/agents",
         "src/runners",
         # "src/common/prompts",
@@ -83,7 +84,7 @@ def startproject(project_name, agent_name, description, git):
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     # Create credentials.yaml
-    _credentials_path = project_dir / ".dhenara" / "credentials.yaml"
+    _credentials_path = project_dir / ".dhenara" / ".secrets" / ".credentials.yaml"
     ResourceConfig.create_credentials_template(str(_credentials_path))
 
     # Create README
@@ -120,7 +121,7 @@ venv/
 ENV/
 
 # Credentials
-.dhenara/credentials/
+.dhenara/.secrets/
 
 # Agent Runs
 runs/
@@ -180,7 +181,7 @@ runs/
 
             # Add all directories individually
             for dir_path in dirs:
-                if dir_path in [".dhenara/credentials"]:
+                if dir_path in [".dhenara/.secrets"]:
                     continue
                 subprocess.run(["git", "add", dir_path], cwd=project_dir, check=True, stdout=subprocess.PIPE)
 

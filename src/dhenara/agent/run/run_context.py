@@ -481,19 +481,27 @@ class RunContext:
             resource_config = resource_config_registry.get(resource_profile)
             if not resource_config:
                 # Fall back to creating a new one
-                resource_config = self.load_default_resource_config()
+                credentials_file = self.project_root / ".dhenara" / ".secrets" / ".credentials.yaml"
+                if not credentials_file.exists():
+                    credentials_file = "~/.env_keys/.dhenara_credentials.yaml"
+
+                resource_config = self.load_default_resource_config(credentials_file)
                 resource_config_registry.register(resource_profile, resource_config)
 
             return resource_config
         except Exception as e:
             raise ValueError(f"Error in resource setup: {e}")
 
-    def load_default_resource_config(self):
+    def load_default_resource_config(
+        self,
+        credentials_file,
+    ):
         resource_config = ResourceConfig()
         resource_config.load_from_file(
-            credentials_file="~/.env_keys/.dhenara_credentials.yaml",
+            credentials_file=credentials_file,
             init_endpoints=True,
         )
+        logger.debug(f"Loaded credentials from {credentials_file}")
         return resource_config
 
     def set_execution_context_caching(self, enabled: bool = True):
