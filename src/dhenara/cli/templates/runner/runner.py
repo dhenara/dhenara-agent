@@ -9,7 +9,7 @@ from dhenara.agent.utils.helpers.terminal import (
 # Select the agent to run, and import its definitions
 from src.agents.my_agent.agent import agent
 from src.agents.my_agent.handler import node_input_event_handler
-from src.runners.defs import observability_settings, project_root
+from src.runners.defs import project_root
 
 # Select an agent to run, assignt it a root_id
 root_component_id = "my_agent_root"
@@ -18,9 +18,11 @@ agent.root_id = root_component_id
 # Create run context
 run_context = RunContext(
     root_component_id=root_component_id,
-    observability_settings=observability_settings,
     project_root=project_root,
+    observability_settings=None,  # pass observability_settings to enable tracing
+    run_root_subpath=None,  # "agent_my_agent" Useful to pass when you have multipel agents in the same projects.
 )
+
 
 # Register the event handlers
 run_context.register_event_handlers(

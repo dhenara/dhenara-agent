@@ -29,6 +29,7 @@ class RunContext:
         root_component_id: str,
         project_root: Path,
         run_root: Path | None = None,
+        run_root_subpath: str | None = None,
         run_id: str | None = None,
         observability_settings: ObservabilitySettings | None = None,
         #  for re-run functionality
@@ -55,6 +56,7 @@ class RunContext:
         self.input_source = input_source
 
         self.run_root = run_root or project_root / "runs"
+        self.run_root_subpath = run_root_subpath
 
         # Store re-run parameters
         self.run_id = run_id
@@ -67,6 +69,16 @@ class RunContext:
         self.event_bus = EventBus()
         self.setup_completed = False
         self.created_at = datetime.now()
+
+    @property
+    def effective_run_root(self) -> Path:
+        """
+        The actual root under which this run (and its outcomes) live:
+        base run_root + optional subpath.
+        """
+        if self.run_root_subpath:
+            return self.run_root / self.run_root_subpath
+        return self.run_root
 
     def set_previous_run(
         self,
@@ -84,14 +96,14 @@ class RunContext:
         run_or_rerun = "rerun" if self.is_rerun else "run"
         _prefix = f"{run_id_prefix}_" if run_id_prefix else ""
         self.run_id = f"{_prefix}{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
-        self.run_dir = self.run_root / self.run_id
+        self.run_dir = self.effective_run_root / self.run_id
 
         self.static_inputs_dir = self.run_dir / "static_inputs"
         self.static_inputs_dir.mkdir(parents=True, exist_ok=True)
 
         # Outcome is not inside the run id, there is a global outcome with
         # self.outcome_root = self.run_root
-        self.outcome_dir = self.run_root / "outcome"
+        self.outcome_dir = self.effective_run_root / "outcome"
 
         # Outcome is the final outcome git repo, not just node outputs
         _outcome_repo_name = self.project_identifier
@@ -121,7 +133,7 @@ class RunContext:
         # Initialize previous run context
         self.previous_run_dir = None
         if self.previous_run_id:
-            self.previous_run_dir = self.run_root / self.previous_run_id
+            self.previous_run_dir = self.effective_run_root / self.previous_run_id
             if not self.previous_run_dir.exists():
                 logger.error(f"Previous run directory does not exist: {self.previous_run_dir}")
                 self.previous_run_id = None
@@ -142,6 +154,8 @@ class RunContext:
             run_id=self.run_id,
             run_dir=str(self.run_dir),
             run_root=str(self.run_root),
+            run_root_subpath=str(self.run_root_subpath) if self.run_root_subpath else None,
+            effective_run_root=str(self.effective_run_root),
             trace_dir=str(self.trace_dir),
             outcome_repo_dir=str(self.outcome_repo_dir) if self.outcome_repo_dir else None,
         )
@@ -498,8 +512,9 @@ class RunContext:
             # --- Externally exposed vars
             #    1.environment variables
             "run_id": self.run_env_params.run_id,
-            "run_dir": str(self.run_env_params.run_dir),
-            "run_root": str(self.run_env_params.run_root),
+            "run_dir": self.run_env_params.run_dir,
+            "run_root": self.run_env_params.run_root,
+            "effective_run_root": self.run_env_params.effective_run_root,
             # --- Internal vars
             #    1. state variables
             # "_dad_trace_dir": str(self.run_env_params.trace_dir),
