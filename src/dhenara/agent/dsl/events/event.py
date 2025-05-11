@@ -15,8 +15,8 @@ class EventNature(BaseEnum):
 
 class EventType(BaseEnum):
     node_input_required = "node_input_required"
-    node_execution_start = "node_execution_start"
-    node_execution_complete = "node_execution_complete"
+    node_execution_started = "node_execution_started"
+    node_execution_completed = "node_execution_completed"
     flow_execution_start = "flow_execution_start"
     flow_execution_complete = "flow_execution_complete"
     custom = "custom"
@@ -50,6 +50,24 @@ class NodeInputRequiredEvent(BaseEvent):
             if self.node_def_settings and hasattr(self.node_def_settings, "model_dump")
             else None,
             "node_input": self.node_input,
+        }
+
+
+class NodeExecutionCompletedEvent(BaseEvent):
+    type = EventType.node_execution_completed
+    nature = EventNature.notify
+
+    def __init__(self, node_id, node_type, node_outcome=None):
+        super().__init__()
+        self.node_id = node_id
+        self.node_type = node_type
+        self.node_outcome = None
+
+    def as_dict(self):
+        return {
+            "node_id": self.node_id,
+            "node_type": self.node_type,
+            "node_outcome": self.node_outcome,
         }
 
 

@@ -15,15 +15,15 @@ main_flow = FlowDefinition()
 main_flow.node(
     "ai_model_call_1",
     AIModelNode(
-        resources=ResourceConfigItem.with_models(
-            [
-                "claude-3-5-haiku",
-                "gpt-4.1-nano",
-                "gemini-2.0-flash-lite",
-            ]
-        ),
         pre_events=[EventType.node_input_required],
         settings=AIModelNodeSettings(
+            resources=ResourceConfigItem.with_models(
+                [
+                    "claude-3-5-haiku",
+                    "gpt-4.1-nano",
+                    "gemini-2.0-flash-lite",
+                ]
+            ),
             system_instructions=[
                 "You are an AI assistant in a general purpose chatbot",
                 "Always respond in markdown format.",
@@ -39,8 +39,8 @@ main_flow.node(
 main_flow.node(
     "title_generator",
     AIModelNode(
-        resources=ResourceConfigItem.with_model("gpt-4o-mini"),
         settings=AIModelNodeSettings(
+            resources=ResourceConfigItem.with_model("gpt-4o-mini"),
             system_instructions=[
                 "You are a summarizer which generate a title.",
             ],

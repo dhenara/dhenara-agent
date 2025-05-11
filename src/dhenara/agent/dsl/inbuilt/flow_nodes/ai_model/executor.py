@@ -93,7 +93,11 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # 1. Fix node resource
         # -------------------
         user_selected_resource = None
-        resources_override = node_input.resources_override if node_input and node_input.resources_override else []
+        resources_override = (
+            node_input.settings_override.resources
+            if node_input and node_input.settings_override and node_input.settings_override.resources
+            else []
+        )
 
         if len(resources_override) == 1:
             user_selected_resource = resources_override[0]
@@ -120,7 +124,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             # Select the default resource
             logger.debug(f"Selecting default resource for node {execution_context.current_node_identifier}.")
             node_resource = next(
-                (resource for resource in node_definition.resources if resource.is_default),
+                (resource for resource in node_definition.settings.resources if resource.is_default),
                 None,
             )
 

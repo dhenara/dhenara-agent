@@ -1,5 +1,5 @@
+import asyncio
 import logging
-import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from datetime import datetime
@@ -16,7 +16,7 @@ from dhenara.agent.dsl.base import (
     NodeInput,
     NodeSettings,
 )
-from dhenara.agent.dsl.events import NodeInputRequiredEvent
+from dhenara.agent.dsl.events import NodeExecutionCompletedEvent, NodeInputRequiredEvent
 from dhenara.agent.observability import log_with_context, record_metric
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,19 @@ class NodeExecutor(ABC):
 
         return node_input
 
-    # @trace_node("base_executor")
+    async def tirgger_event_node_execution_completed(
+        self,
+        node_id: NodeID,
+        node_definition: ExecutableNodeDefinition,
+        execution_context: ExecutionContext,
+    ) -> NodeInput:
+        event = NodeExecutionCompletedEvent(
+            node_id=node_id,
+            node_type=node_definition.node_type,
+            node_outcome=execution_context.execution_results.get(node_id, {}).outcome,
+        )
+        await execution_context.run_context.event_bus.publish(event)
+
     async def execute(
         self,
         node_id: NodeID,
@@ -112,7 +124,7 @@ class NodeExecutor(ABC):
         )
 
         node_input = None
-        if node_definition.pre_execute_input_required:
+        if node_definition.trigger_pre_execute_input_required:
             node_input = await self.get_input_for_node(
                 node_id=node_id,
                 node_definition=node_definition,
@@ -133,7 +145,7 @@ class NodeExecutor(ABC):
                 )
 
         if node_definition.settings.sleep_before:
-            time.sleep(node_definition.settings.sleep_before)
+            await asyncio.sleep(node_definition.settings.sleep_before)
 
         # Record start time for metrics
         start_time = datetime.now()
@@ -230,8 +242,15 @@ class NodeExecutor(ABC):
             {"node_id": str(node_id), "duration_ms": duration_ms, "has_result": result is not None},
         )
 
+        if node_definition.trigger_execution_completed:
+            await self.tirgger_event_node_execution_completed(
+                node_id=node_id,
+                node_definition=node_definition,
+                execution_context=execution_context,
+            )
+
         if node_definition.settings.sleep_after:
-            time.sleep(node_definition.settings.sleep_after)
+            asyncio.sleep(node_definition.settings.sleep_after)
 
         # Record results to storage
         return await self.record_results(

@@ -32,7 +32,7 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         description="Event need to be triggered before node execution.",
     )
     post_events: list[EventType | str] = Field(
-        default_factory=list,
+        default_factory=lambda: [EventType.node_execution_completed],
         description="Event need to be triggered after node execution.",
     )
 
@@ -48,8 +48,12 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
     streaming: bool = False  # TODO_FUTURE: Rename and implement SSE responses
 
     @property
-    def pre_execute_input_required(self):
+    def trigger_pre_execute_input_required(self):
         return EventType.node_input_required in self.pre_events
+
+    @property
+    def trigger_execution_completed(self):
+        return EventType.node_execution_completed in self.post_events
 
     # @abstractmethod
     async def execute(

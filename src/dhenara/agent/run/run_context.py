@@ -161,9 +161,15 @@ class RunContext:
 
         self.static_inputs[node_id] = input_data
 
-    def register_node_input_handler(self, handler: Callable):
-        """Register a handler for input collection events."""
-        self.event_bus.register(EventType.node_input_required, handler)
+    def register_event_handlers(self, handlers_map: dict[EventType, Callable]):
+        """Register event handlers"""
+        for event_type, handler in handlers_map.items():
+            if not isinstance(event_type, EventType):
+                raise ValueError(f"Illegal key {event_type}. Should be of type EventType")
+            if not isinstance(handler, Callable):
+                raise ValueError(f"Illegal handler for {event_type}. Should be of type Callable")
+
+            self.event_bus.register(event_type, handler)
 
     def _save_metadata(self):
         """Save metadata about this run."""

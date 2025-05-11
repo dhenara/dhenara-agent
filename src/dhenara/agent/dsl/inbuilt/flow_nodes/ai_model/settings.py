@@ -1,7 +1,13 @@
 from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import NodeSettings, SpecialNodeIDEnum
-from dhenara.ai.types.genai.dhenara import AIModelCallConfig, Prompt, SystemInstruction, TextTemplate
+from dhenara.ai.types.genai.dhenara import (
+    AIModelCallConfig,
+    Prompt,
+    SystemInstruction,
+    TextTemplate,
+)
+from dhenara.ai.types.resource import ResourceConfigItem
 
 
 class AIModelNodeSettings(NodeSettings):
@@ -35,7 +41,10 @@ class AIModelNodeSettings(NodeSettings):
         default=None,
         description="Structured output model for the AI model response",
     )
-
+    resources: list[ResourceConfigItem] | None = Field(
+        default=None,
+        description="List of resources to be used",
+    )
     # Additional setting to store images
     save_generated_bytes: bool = Field(
         default=True,
@@ -53,6 +62,29 @@ class AIModelNodeSettings(NodeSettings):
             "If multiple files are generated, the file names will end with an `_<index>`."
         ),
     )
+
+    @field_validator("resources")
+    @classmethod
+    def validate_node_resources(
+        cls,
+        v: list[ResourceConfigItem],
+    ) -> list[ResourceConfigItem]:
+        # Ignore empty lists
+        if not v:
+            return v
+
+        default_count = sum(1 for resource in v if resource.is_default)
+        if default_count > 1:
+            raise ValueError("Only one resource can be set as default")
+
+        # If there is only one resource, set it as default and return
+        if len(v) == 1:
+            v[0].is_default = True
+            return v
+        else:
+            if default_count < 1:
+                raise ValueError("resources: One resource should be set as default")
+            return v
 
     @field_validator("context_sources")
     @classmethod

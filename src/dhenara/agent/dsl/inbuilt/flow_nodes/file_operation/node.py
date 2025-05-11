@@ -21,6 +21,6 @@ class FileOperationNode(FlowNodeDefinition):
 
     @model_validator(mode="after")
     def validate_node_settings(self):
-        if not self.settings and not self.pre_execute_input_required:
+        if not self.settings and not self.trigger_pre_execute_input_required:
             raise ValueError("settings is required for FileOperationNode when not requiring input")
         return self
