@@ -7,7 +7,7 @@ from typing import Any
 from opentelemetry import baggage, trace
 from opentelemetry.trace import Span, Status, StatusCode
 
-from dhenara.agent.observability.tracing import get_tracer
+from dhenara.agent.observability.tracing import get_tracer, is_tracing_disabled
 from dhenara.agent.observability.tracing.data import (
     ComponentTracingProfile,
     NodeTracingProfile,
@@ -149,6 +149,10 @@ def trace_node(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
+            # If tracing is disabled, just call the original function
+            if is_tracing_disabled():
+                return await func(*args, **kwargs)
+
             # Extract key parameters from function arguments
             bound_args = inspect.signature(func).bind(*args, **kwargs)
             bound_args.apply_defaults()
@@ -318,6 +322,10 @@ def trace_component(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
+            # If tracing is disabled, just call the original function
+            if is_tracing_disabled():
+                return await func(*args, **kwargs)
+
             # Extract key parameters from function arguments
             bound_args = inspect.signature(func).bind(*args, **kwargs)
             bound_args.apply_defaults()

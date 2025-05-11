@@ -54,14 +54,16 @@ def print_run_summary(run_ctx):
     # Print run details
     print_info("Run ID", run_ctx.run_id)
     print_info("Artifacts location", f"{run_ctx.run_dir}")
-    print_info("Outcome repository", run_ctx.outcome_repo_dir)
+    # print_info("Outcome repository", run_ctx.outcome_repo_dir)
 
+    # TODO_FUTURE:Enable outcome commits and show user messages
+    #
     # Print next steps section
-    click.echo("\n")
-    print_styled_header("NEXT STEPS:", "blue")
-    print_info("To view the outcome, checkout the working branch:", "", indent=2)
-    print_command(f"cd {run_ctx.outcome_repo_dir}")
-    print_command(f"git checkout {run_ctx.git_branch_name}")
+    # click.echo("\n")
+    # print_styled_header("NEXT STEPS:", "blue")
+    # print_info("To view the outcome, checkout the working branch:", "", indent=2)
+    # print_command(f"cd {run_ctx.outcome_repo_dir}")
+    # print_command(f"git checkout {run_ctx.git_branch_name}")
 
     # Add some space at the end
     click.echo("\n")

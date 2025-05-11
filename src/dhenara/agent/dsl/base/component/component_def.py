@@ -14,6 +14,7 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
+from dhenara.agent.dsl.events import EventType
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
@@ -38,6 +39,15 @@ class ComponentDefinition(
     result_class: ClassVar[type[ComponentExeResultT]]
     logger_path: str = "dhenara.dad.component"
 
+    pre_events: list[EventType | str] | None = Field(
+        default=None,
+        description="Event need to be triggered before node execution.",
+    )
+    post_events: list[EventType | str] | None = Field(
+        default_factory=lambda: [EventType.component_execution_completed],
+        description="Event need to be triggered after node execution.",
+    )
+
     root_id: str | None = Field(
         default=None,
         description=(
@@ -61,6 +71,10 @@ class ComponentDefinition(
         default_factory=dict,
         description="Variables avaialbe in this flow, which can be used in nodes",
     )
+
+    @property
+    def trigger_execution_completed(self):
+        return self.post_events and EventType.component_execution_completed in self.post_events
 
     @field_validator("variables")
     @classmethod

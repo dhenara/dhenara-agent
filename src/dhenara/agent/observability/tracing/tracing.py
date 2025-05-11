@@ -73,6 +73,13 @@ def setup_tracing(settings: ObservabilitySettings) -> None:
     logging.info(f"Tracing initialized with {settings.tracing_exporter_type} exporter")
 
 
+def is_tracing_disabled() -> trace.Tracer:
+    """
+    Check whether tracing profile is not availabel
+    """
+    return True if _tracer_provider is None else None
+
+
 def get_tracer(name: str) -> trace.Tracer:
     """Get a tracer for the given name.
 
@@ -82,8 +89,9 @@ def get_tracer(name: str) -> trace.Tracer:
     Returns:
         An OpenTelemetry Tracer instance
     """
-    if _tracer_provider is None:
-        setup_tracing()
+    if is_tracing_disabled():
+        # setup_tracing()
+        return None
 
     return trace.get_tracer(name)
 

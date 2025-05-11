@@ -40,7 +40,13 @@ class RunContext:
         self.root_component_id = root_component_id
 
         if not observability_settings:
-            observability_settings = ObservabilitySettings()
+            # If observability_settings is not provided,
+            # traces and metrics will be disabled and logs will be enabled
+            observability_settings = ObservabilitySettings(
+                enable_tracing=False,
+                enable_metrics=False,
+                enable_logging=True,
+            )
 
         self.project_root = project_root
         self.project_identifier = get_project_identifier(project_dir=self.project_root)

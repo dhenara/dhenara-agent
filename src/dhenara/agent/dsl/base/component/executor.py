@@ -12,6 +12,7 @@ from dhenara.agent.dsl.base import (
     ExecutionStatusEnum,
     NodeID,
 )
+from dhenara.agent.dsl.events import ComponentExecutionCompletedEvent
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
 from dhenara.agent.observability.tracing.decorators.fns import trace_component
@@ -109,6 +110,14 @@ class ComponentExecutor(BaseModelABC):
                 is_rerun=is_rerun,
                 start_hierarchy_path=start_hierarchy_path,
             )
+
+            if component_definition.trigger_execution_completed:
+                event = ComponentExecutionCompletedEvent(
+                    component_id=component_id,
+                    component_type=component_definition.executable_type,
+                    component_outcome=None,  # TODO_FUTURE
+                )
+                await execution_context.run_context.event_bus.publish(event)
 
         except Exception as e:
             import traceback

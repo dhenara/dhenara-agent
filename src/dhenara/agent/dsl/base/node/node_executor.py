@@ -97,19 +97,6 @@ class NodeExecutor(ABC):
 
         return node_input
 
-    async def tirgger_event_node_execution_completed(
-        self,
-        node_id: NodeID,
-        node_definition: ExecutableNodeDefinition,
-        execution_context: ExecutionContext,
-    ) -> NodeInput:
-        event = NodeExecutionCompletedEvent(
-            node_id=node_id,
-            node_type=node_definition.node_type,
-            node_outcome=execution_context.execution_results.get(node_id, {}).outcome,
-        )
-        await execution_context.run_context.event_bus.publish(event)
-
     async def execute(
         self,
         node_id: NodeID,
@@ -243,11 +230,12 @@ class NodeExecutor(ABC):
         )
 
         if node_definition.trigger_execution_completed:
-            await self.tirgger_event_node_execution_completed(
+            event = NodeExecutionCompletedEvent(
                 node_id=node_id,
-                node_definition=node_definition,
-                execution_context=execution_context,
+                node_type=node_definition.node_type,
+                node_outcome=execution_context.execution_results.get(node_id, {}).outcome,
             )
+            await execution_context.run_context.event_bus.publish(event)
 
         if node_definition.settings.sleep_after:
             asyncio.sleep(node_definition.settings.sleep_after)

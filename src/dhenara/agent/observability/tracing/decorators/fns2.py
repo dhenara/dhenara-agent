@@ -8,7 +8,7 @@ from typing import Any, TypeVar, cast
 from opentelemetry import trace
 from opentelemetry.trace import Span, Status, StatusCode
 
-from dhenara.agent.observability.tracing import get_tracer
+from dhenara.agent.observability.tracing import get_tracer, is_tracing_disabled
 
 # Default service name
 DEFAULT_SERVICE_NAME = "dhenara-dad"
@@ -110,6 +110,10 @@ def trace_method(
 
         @functools.wraps(func)
         async def async_wrapper(self, *args, **kwargs):
+            # If tracing is disabled, just call the original function
+            if is_tracing_disabled():
+                return await func(self, *args, **kwargs)
+
             start_time = time.time()
 
             # Create span name from function name or provided name
@@ -180,6 +184,10 @@ def trace_method(
 
         @functools.wraps(func)
         def sync_wrapper(self, *args, **kwargs):
+            # If tracing is disabled, just call the original function
+            if is_tracing_disabled():
+                return func(self, *args, **kwargs)
+
             start_time = time.time()
 
             # Create span name from function name or provided name

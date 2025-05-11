@@ -1,12 +1,15 @@
 from dhenara.agent.run import RunContext
 from dhenara.agent.runner import AgentRunner
+from dhenara.agent.dsl.events import EventType
+from dhenara.agent.utils.helpers.terminal import (
+    print_node_completion,
+    print_component_completion,
+)
 
 # Select the agent to run, and import its definitions
 from src.agents.my_agent.agent import agent
 from src.agents.my_agent.handler import node_input_event_handler
 from src.runners.defs import observability_settings, project_root
-from dhenara.agent.dsl.events import EventType
-from dhenara.agent.utils.helpers.terminal import print_node_completion
 
 # Select an agent to run, assignt it a root_id
 root_component_id = "my_agent_root"
@@ -23,7 +26,9 @@ run_context = RunContext(
 run_context.register_event_handlers(
     handlers_map={
         EventType.node_input_required: node_input_event_handler,
-        EventType.node_execution_completed: print_node_completion,  # Optional
+        # Optional Notification events
+        EventType.node_execution_completed: print_node_completion,
+        EventType.component_execution_completed: print_component_completion,
     }
 )
 

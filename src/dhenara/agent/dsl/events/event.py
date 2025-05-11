@@ -17,6 +17,7 @@ class EventType(BaseEnum):
     node_input_required = "node_input_required"
     node_execution_started = "node_execution_started"
     node_execution_completed = "node_execution_completed"
+    component_execution_completed = "component_execution_completed"
     flow_execution_start = "flow_execution_start"
     flow_execution_complete = "flow_execution_complete"
     custom = "custom"
@@ -68,6 +69,24 @@ class NodeExecutionCompletedEvent(BaseEvent):
             "node_id": self.node_id,
             "node_type": self.node_type,
             "node_outcome": self.node_outcome,
+        }
+
+
+class ComponentExecutionCompletedEvent(BaseEvent):
+    type = EventType.component_execution_completed
+    nature = EventNature.notify
+
+    def __init__(self, component_id, component_type, component_outcome=None):
+        super().__init__()
+        self.component_id = component_id
+        self.component_type = component_type
+        self.component_outcome = None
+
+    def as_dict(self):
+        return {
+            "component_id": self.component_id,
+            "component_type": self.component_type,
+            "component_outcome": self.component_outcome,
         }
 
 

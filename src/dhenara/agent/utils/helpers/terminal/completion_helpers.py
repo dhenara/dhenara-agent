@@ -1,5 +1,9 @@
-from dhenara.agent.dsl.events import NodeExecutionCompletedEvent
+from dhenara.agent.dsl.events import ComponentExecutionCompletedEvent, NodeExecutionCompletedEvent
 
 
 def print_node_completion(event: NodeExecutionCompletedEvent):
     print(f"\033[92m✓ Node {event.node_id} execution completed \033[0m")
+
+
+def print_component_completion(event: ComponentExecutionCompletedEvent):
+    print(f"\033[94m✓ {event.component_id} execution completed \033[0m")
