@@ -69,7 +69,7 @@ A powerful template engine supports variable substitution, expressions, and hier
 |  +----------------------------------+  |
 |                    |                   |
 |  +----------------------------------+  |
-|  |           Core Dhenara-AI        |  |
+|  |           Dhenara-AI Core        |  |
 |  +----------------------------------+  |
 |                                        |
 +----------------------------------------+

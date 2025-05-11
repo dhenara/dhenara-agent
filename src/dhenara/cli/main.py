@@ -9,7 +9,7 @@ import click
 # This will be the main entry point for all CLI commands
 @click.group()
 def cli():
-    """Dhenara AI development toolkit."""
+    """Dhenara Agent DSL (DAD) development toolkit."""
     pass
 
 

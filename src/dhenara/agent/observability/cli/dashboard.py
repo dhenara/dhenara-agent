@@ -4,7 +4,8 @@ from dhenara.agent.observability.dashboards import run_dashboard, run_jaeger_das
 
 
 def register(cli):
-    cli.add_command(dashboard)
+    pass
+    # cli.add_command(dashboard) # TODO_FUTURE
 
 
 @click.group("dashboard")

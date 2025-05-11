@@ -21,7 +21,7 @@ def register(cli):
 @click.option("--description", default="", help="Project description")
 @click.option("--git/--no-git", default=True, help="Initialize git repositories")
 def startproject(name, description, git):
-    """Create a new agent project with a professional structure.
+    """Create a new agent project with folder structure.
 
     NAME is the name of the new project.
     """
