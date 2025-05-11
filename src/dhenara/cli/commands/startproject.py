@@ -8,6 +8,7 @@ import click
 import yaml
 
 from dhenara.agent.utils.shared import generate_identifier, validate_name
+from dhenara.ai.types.resource import ResourceConfig
 
 from .create import _create_agent
 
@@ -17,16 +18,18 @@ def register(cli):
 
 
 @click.command("startproject")
-@click.argument("name")
+@click.argument("project_name")
+@click.argument("agent_name", required=False)
 @click.option("--description", default="", help="Project description")
 @click.option("--git/--no-git", default=True, help="Initialize git repositories")
-def startproject(name, description, git):
+def startproject(project_name, agent_name, description, git):
     """Create a new agent project with folder structure.
 
-    NAME is the name of the new project.
+    PROJECT_NAME is the name of the new project.
+    AGENT_NAME (optional) is the name of the initial agent to create.
     """
     # Validate the project name
-    if not validate_name(name):
+    if not validate_name(project_name):
         click.echo(
             click.style(
                 "Error: Invalid project name. Please use alphanumeric characters, spaces, or hyphens.",
@@ -37,7 +40,7 @@ def startproject(name, description, git):
         return
 
     # Generate project identifier (with hyphens for directory name)
-    project_identifier = generate_identifier(name, use_hyphens=True)
+    project_identifier = generate_identifier(project_name, use_hyphens=True)
 
     # Create project directory
     project_dir = Path(os.getcwd()) / project_identifier
@@ -49,15 +52,10 @@ def startproject(name, description, git):
     project_dir.mkdir()
     dirs = [
         ".dhenara",
-        ".dhenara/credentials",
         "src/agents",
-        "src/common/prompts",
         "src/runners",
-        # "common/tools",
-        # "data",
-        # "experiments",
-        # "scripts",
-        # "tests",
+        # "src/common/prompts",
+        # "src/tests",
     ]
 
     for dir_path in dirs:
@@ -66,7 +64,7 @@ def startproject(name, description, git):
     # Create base configuration files
     config = {
         "project": {
-            "name": name,
+            "name": project_name,
             "identifier": project_identifier,
             "description": description,
             "version": "0.0.1",
@@ -84,9 +82,13 @@ def startproject(name, description, git):
     with open(project_dir / ".dhenara" / "config.yaml", "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
+    # Create credentials.yaml
+    _credentials_path = project_dir / ".dhenara" / "credentials.yaml"
+    ResourceConfig.create_credentials_template(str(_credentials_path))
+
     # Create README
     with open(project_dir / "README.md", "w") as f:
-        f.write(f"# {name}\n\n{description}\n\n## Getting Started\n\n...")
+        f.write(f"# {project_name}\n\n{description}\n\n## Getting Started\n\n...")
 
     # Create pyproject.toml
     with open(project_dir / "pyproject.toml", "w") as f:
@@ -138,11 +140,30 @@ runs/
     runnner_template_dirs = Path(__file__).parent.parent / "templates" / "runner"
     shutil.copy(runnner_template_dirs / "__init__.py", project_dir / "src" / "runners")
     shutil.copy(runnner_template_dirs / "defs.py", project_dir / "src" / "runners")
+
     # Change to the project directory to create an initial agent
     os.chdir(project_dir)
 
-    # Create an initial agent with the same name as the project
-    _create_agent(name, description)
+    # Create an initial agent - either the specified agent_name or project_name if not specified
+    validated_agent_name = None
+    if agent_name:
+        if not validate_name(agent_name):
+            click.echo(
+                click.style(
+                    "Error: Invalid agent name. Please use alphanumeric characters, spaces, or hyphens.",
+                    fg="red",
+                    bold=True,
+                )
+            )
+            # Continue with project creation but without agent
+        else:
+            validated_agent_name = agent_name
+    else:
+        # validated_agent_name = project_name
+        pass
+
+    if validated_agent_name:
+        _create_agent(validated_agent_name, description)
 
     # Initialize project git repository
     if git:
@@ -175,12 +196,20 @@ runs/
             click.echo("You can manually initialize Git later if needed.")
 
     # Print success message with more details
-    click.echo(click.style(f"✅ Project '{name}' created successfully!", fg="green", bold=True))
+    click.echo(click.style(f"✅ Project '{project_name}' created successfully!", fg="green", bold=True))
     click.echo(f"  - Project identifier: {project_identifier}")
     click.echo(f"  - Location: {project_dir}")
-    click.echo(f"  - Initial agent created: {name}")
+
+    # Show agent creation success message
+    if validated_agent_name:
+        click.echo(f"  - Initial agent created: {validated_agent_name}")
+
     click.echo("\nNext steps:")
-    click.echo("  1. cd " + project_identifier)
+    click.echo(f"  1. cd {project_identifier}")
     # click.echo("  2. Initialize your environment (poetry install, etc.)")
-    click.echo("  2. dhenara run agent " + name)
-    click.echo("  3. dhenara create agent <agent_name> (To create additional agents)")
+
+    if validated_agent_name:
+        click.echo(f"  2. dhenara run agent {validated_agent_name}")
+        click.echo("  3. dhenara create agent <agent_name> (To create additional agents)")
+    else:
+        click.echo("  2. dhenara create agent <agent_name> ")

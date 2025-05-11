@@ -5,7 +5,7 @@ from dhenara.agent.utils.shared import find_project_root
 
 # Set up observability with console exporter
 observability_settings = ObservabilitySettings(
-    service_name="gabriel-service",
+    service_name="main-agent-service",
     tracing_exporter_type="zipkin",  # "console", "file", "otlp", "jaeger", "zipkin"
     metrics_exporter_type="file",  # "console", "file", "otlp"
     logging_exporter_type="file",  # "console", "file", "otlp"

@@ -3,20 +3,15 @@ import asyncio
 from dhenara.agent.dsl import AIModelNodeInput, FlowNodeTypeEnum, NodeInputRequiredEvent
 
 
-async def async_input(prompt: str) -> str:
+async def _async_input_helper(prompt: str) -> str:
     """Asynchronous version of input function"""
-    # Use event loop to run input in a thread pool
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: input(prompt))
 
 
-async def ai_model_node_input_handler(event: NodeInputRequiredEvent):
+async def event_handler(event: NodeInputRequiredEvent):
     if event.node_type == FlowNodeTypeEnum.ai_model_call:
         if event.node_id == "ai_model_call_1":
-            user_query = await async_input("Enter your query: ")
+            user_query = await _async_input_helper("Enter your query: ")
             event.input = AIModelNodeInput(prompt_variables={"user_query": user_query})
-            event.handled = True
-        elif event.node_id == "generate_code":
-            language = await async_input("Enter programming language: ")
-            event.input = AIModelNodeInput(prompt_variables={"language": language})
             event.handled = True

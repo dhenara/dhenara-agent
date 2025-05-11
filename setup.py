@@ -76,7 +76,7 @@ setup(
     },
     # Include template files in the package
     package_data={
-        "dhenara.cli": ["templates/**/*"],
+        "dhenara.cli": ["templates/**/*.py"],
     },
     include_package_data=True,
 )

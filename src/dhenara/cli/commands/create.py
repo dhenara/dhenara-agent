@@ -17,7 +17,7 @@ def create():
 
 
 @create.command("agent")
-@click.option("--name", prompt="Agent name", help="Name of the new agent")
+@click.argument("name")
 @click.option("--description", default="", help="Description of the agent")
 def create_agent(name, description):
     """Create a new agent within the current project."""
@@ -85,8 +85,8 @@ def _create_agent(name, description):
         with open(runner_src) as src, open(runner_dest, "w") as dst:
             content = src.read()
             # Replace placeholders
-            content = content.replace("from src.agents.chatbot.", f"from src.agents.{agent_identifier}.")
-            content = content.replace("chatbot", agent_identifier)
+            content = content.replace("from src.agents.my_agent.", f"from src.agents.{agent_identifier}.")
+            content = content.replace("my_agent", agent_identifier)
             dst.write(content)
 
         # Agent dir
@@ -133,4 +133,6 @@ def _create_agent(name, description):
     click.echo(click.style(f"✅ Agent '{name}' created successfully!", fg="green", bold=True))
     click.echo(f"  - Identifier: {agent_identifier}")
     click.echo(f"  - Location: {agent_dir}")
+    click.echo(f"  - Command to run:  dhenara run agent {agent_identifier}")
+
     return True
