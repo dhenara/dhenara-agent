@@ -1,9 +1,9 @@
+from dhenara.agent.dsl.events import EventType
 from dhenara.agent.run import RunContext
 from dhenara.agent.runner import AgentRunner
-from dhenara.agent.dsl.events import EventType
 from dhenara.agent.utils.helpers.terminal import (
-    print_node_completion,
     print_component_completion,
+    print_node_completion,
 )
 
 # Select the agent to run, and import its definitions

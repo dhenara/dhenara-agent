@@ -1,4 +1,4 @@
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from dhenara.agent.dsl.base import NodeSettings, SpecialNodeIDEnum
 from dhenara.ai.types.genai.dhenara import (
@@ -40,6 +40,10 @@ class AIModelNodeSettings(NodeSettings):
     model_call_config: AIModelCallConfig | None = Field(
         default=None,
         description="Structured output model for the AI model response",
+    )
+    models: list[str] | None = Field(
+        default=None,
+        description="List of model names. This is a shortcut to add models to `resources` ",
     )
     resources: list[ResourceConfigItem] | None = Field(
         default=None,
@@ -85,6 +89,21 @@ class AIModelNodeSettings(NodeSettings):
             if default_count < 1:
                 raise ValueError("resources: One resource should be set as default")
             return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_models(cls, data):
+        if isinstance(data, dict):
+            models = data.get("models")
+            resources = data.get("resources")
+
+            if models:
+                if not resources:
+                    data["resources"] = []
+
+                data["resources"].extend(ResourceConfigItem.with_models(models))
+
+        return data
 
     @field_validator("context_sources")
     @classmethod

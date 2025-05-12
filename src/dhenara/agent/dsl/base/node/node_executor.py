@@ -131,7 +131,8 @@ class NodeExecutor(ABC):
                     f"Input validation failed. Expects type of {self.input_model} but got a type of {type(node_input)}"
                 )
 
-        if node_definition.settings.sleep_before:
+        # TODO: Also consider settings_overrride
+        if node_definition.settings and node_definition.settings.sleep_before:
             await asyncio.sleep(node_definition.settings.sleep_before)
 
         # Record start time for metrics
@@ -237,7 +238,8 @@ class NodeExecutor(ABC):
             )
             await execution_context.run_context.event_bus.publish(event)
 
-        if node_definition.settings.sleep_after:
+        # TODO: Also consider settings_overrride
+        if node_definition.settings and node_definition.settings.sleep_after:
             asyncio.sleep(node_definition.settings.sleep_after)
 
         # Record results to storage
