@@ -37,7 +37,7 @@ main_flow.node(
                 "You are a summarizer which generate a title.",
             ],
             prompt=Prompt.with_dad_text(
-                "Summarize in plane text under 60 characters. $expr{ $hier{ai_model_call_1}.outcome.text }",
+                "Summarize in plain text under 60 characters. $expr{ $hier{user_query_processor}.outcome.text }",
             ),
         ),
     ),

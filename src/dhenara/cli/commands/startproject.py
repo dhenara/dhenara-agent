@@ -40,7 +40,7 @@ def startproject(project_name, agent_name, description, git):
         return
 
     # Generate project identifier (with hyphens for directory name)
-    project_identifier = generate_identifier(project_name, use_hyphens=True)
+    project_identifier = generate_identifier(project_name, use_hyphens=False)
 
     # Create project directory
     project_dir = Path(os.getcwd()) / project_identifier

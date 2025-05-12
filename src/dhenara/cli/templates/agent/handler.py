@@ -8,7 +8,7 @@ from dhenara.agent.utils.helpers.terminal import async_input, get_ai_model_node_
 async def node_input_event_handler(event: NodeInputRequiredEvent):
     node_input = None
     if event.node_type == FlowNodeTypeEnum.ai_model_call:
-        if event.node_id == "ai_model_call_1":
+        if event.node_id == "user_query_processor":
             node_input = await get_ai_model_node_input(
                 node_def_settings=event.node_def_settings,
             )

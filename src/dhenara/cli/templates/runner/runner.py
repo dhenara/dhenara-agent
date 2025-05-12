@@ -11,7 +11,7 @@ from src.agents.my_agent.agent import agent
 from src.agents.my_agent.handler import node_input_event_handler
 from src.runners.defs import project_root
 
-# Select an agent to run, assignt it a root_id
+# Select an agent to run, assign it a root_id
 root_component_id = "my_agent_root"
 agent.root_id = root_component_id
 
@@ -20,7 +20,7 @@ run_context = RunContext(
     root_component_id=root_component_id,
     project_root=project_root,
     observability_settings=None,  # pass observability_settings to enable tracing
-    run_root_subpath=None,  # "agent_my_agent" Useful to pass when you have multipel agents in the same projects.
+    run_root_subpath=None,  # "agent_my_agent" Useful to pass when you have multiple agents in the same projects.
 )
 
 

@@ -19,7 +19,7 @@ setup(
     package_dir={"": "src"},
     packages=find_namespace_packages(where="src", include=["dhenara.*"]),
     install_requires=[
-        "dhenara-ai>=1.0.0",
+        "dhenara-ai>=1.0.1",
         "click>=8.0.0",  # CLI
         "pyyaml>=6.0",  # CLI
         "httpx>=0.24.0",
