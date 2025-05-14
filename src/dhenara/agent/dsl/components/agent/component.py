@@ -132,9 +132,9 @@ class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionR
         self.elements.append(Agent(id=id, definition=_foreach))
         return self
 
-    # Implementaion of abstractmethod
-    def get_component_executor(self):
-        return AgentExecutor()  # TODO: Implement registry similar to node_executor_registry
+    # Implementation of abstractmethod
+    def get_executor_class(self):
+        return AgentExecutor
 
 
 class AgentConditional(Conditional, AgentDefinition):

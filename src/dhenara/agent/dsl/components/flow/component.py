@@ -121,9 +121,9 @@ class FlowDefinition(ComponentDefinition[FlowExecutionContext, FlowExecutionResu
         self.elements.append(Flow(id=id, definition=_foreach))
         return self
 
-    # Implementaion of abstractmethod
-    def get_component_executor(self):
-        return FlowExecutor()  # TODO: Implement registry similar to node_executor_registry
+    # Implementation of abstractmethod
+    def get_executor_class(self):
+        return FlowExecutor
 
 
 class FlowConditional(Conditional, FlowDefinition):

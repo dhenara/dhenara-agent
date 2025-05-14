@@ -21,6 +21,9 @@ from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 logger = logging.getLogger(__name__)
 
+# Component registry initialization
+component_executor_registry = None
+
 
 class ComponentDefinition(
     BaseModelABC,
@@ -266,9 +269,30 @@ class ComponentDefinition(
             return variable_value
 
     # -------------------------------------------------------------------------
-    @abstractmethod
     def get_component_executor(self):
         """Get the component_executor for this component definition. This internally handles executor registry"""
+        global component_executor_registry
+
+        if component_executor_registry is None:
+            from ._component_registry import ComponentExecutorRegistry
+
+            component_executor_registry = ComponentExecutorRegistry()
+
+        executor = component_executor_registry.get_executor(
+            component_type=self.executable_type,
+        )
+
+        if executor is None:
+            executor = component_executor_registry.register(
+                component_type=self.executable_type,
+                executor_class=self.get_executor_class(),
+            )
+
+        return executor
+
+    @abstractmethod
+    def get_executor_class(self):
+        """Get the component_executor class for this component definition."""
         pass
 
 
