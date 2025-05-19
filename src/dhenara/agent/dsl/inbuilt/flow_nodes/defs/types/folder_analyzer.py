@@ -68,6 +68,7 @@ class FileSystemAnalysisOperation(BaseModel):
         "analyze_file",
         "find_files",
         "get_structure",
+        "get_tree_diagram",
     ] = Field(
         ...,
         description=(
@@ -76,6 +77,7 @@ class FileSystemAnalysisOperation(BaseModel):
             "- 'analyze_file': Analyze a single file, retrieving its content or structure\n"
             "- 'find_files': Search for files in a directory that match certain patterns\n"
             "- 'get_structure': Get only the directory structure without file contents for a quick overview"
+            "- 'get_tree_diagram': Get Tree Diagram of the directory structure\n"
         ),
     )
     # Path specification
@@ -121,7 +123,7 @@ class FileSystemAnalysisOperation(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def validate_content_read_mode(cls, values):
-        if values.get("operation_type") in ["get_structure", "find_files"]:
+        if values.get("operation_type") in ["find_files", "get_structure", "get_tree_diagram"]:
             values["content_read_mode"] = "none"
         return values
 

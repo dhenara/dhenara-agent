@@ -239,7 +239,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         base_directory=base_directory,
                         operation=operation,
                     )
-                elif operation.operation_type == "get_structure":
+                elif operation.operation_type in ["get_structure", "get_tree_diagram"]:
                     result = await self._process_get_structure_operation(
                         base_directory=base_directory,
                         operation=operation,
@@ -563,11 +563,20 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
 
         # Generate tree diagram
         tree_diagram = None
-        if non_content_operation.generate_tree_diagram:
+        if non_content_operation.generate_tree_diagram or non_content_operation.operation_type == "get_tree_diagram":
             tree_diagram = self._generate_tree_diagram(
                 path=path,
                 operation=non_content_operation,
                 exclude_patterns=exclude_patterns,
+            )
+
+        if non_content_operation.operation_type == "get_tree_diagram":
+            return FolderAnalysisOperationResult(
+                operation_type="get_structure",
+                path=path_str,
+                success=True,
+                analysis=None,
+                tree_diagram=tree_diagram,
             )
 
         # If it's a directory, get the structure
