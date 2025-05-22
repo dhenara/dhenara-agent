@@ -9,22 +9,12 @@ from dhenara.agent.run import IsolatedExecution
 from dhenara.agent.runner import AgentRunner
 from dhenara.agent.utils.shared import find_project_root
 
-from ._print_utils import print_error_summary, print_run_summary
+from ..utils.print_utils import print_error_summary, print_run_summary
 
 logger = logging.getLogger(__name__)
 
 
-def register(cli):
-    cli.add_command(run)
-
-
-@click.group(name="run")
-def run():
-    """Run a DAD components."""
-    pass
-
-
-@run.command("agent")
+@click.command(name="run")
 @click.argument("identifier")
 @click.option("--project-root", default=None, help="Root directory of the project repo")
 @click.option("--previous-run-id", default=None, help="ID of a previous execution to inherit context from")
@@ -42,6 +32,7 @@ def run_agent(
     previous_run_id,
     entry_point,
 ):
+    """Run a DAD agent."""
     asyncio.run(
         _run_agent(
             identifier=identifier,
@@ -59,6 +50,7 @@ async def _run_agent(
     start_hierarchy_path,
 ):
     """Async implementation of run_agent."""
+
     # Find project root
     if not project_root:
         project_root = find_project_root()

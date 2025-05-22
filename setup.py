@@ -72,6 +72,7 @@ setup(
     entry_points={
         "console_scripts": [
             "dhenara=dhenara.cli:main",
+            "dad=dhenara.cli:main",
         ],
     },
     # Include template files in the package

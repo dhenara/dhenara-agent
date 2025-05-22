@@ -10,7 +10,7 @@ import yaml
 from dhenara.agent.utils.shared import generate_identifier, validate_name
 from dhenara.ai.types.resource import ResourceConfig
 
-from .create import _create_agent
+from .agent.create import _create_agent
 
 
 def register(cli):
@@ -23,7 +23,7 @@ def register(cli):
 @click.option("--description", default="", help="Project description")
 @click.option("--git/--no-git", default=True, help="Initialize git repositories")
 def startproject(project_name, agent_name, description, git):
-    """Create a new agent project with folder structure.
+    """Create a DAD project with folder structure.
 
     PROJECT_NAME is the name of the new project.
     AGENT_NAME (optional) is the name of the initial agent to create.

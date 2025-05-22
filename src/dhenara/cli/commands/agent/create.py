@@ -6,17 +6,7 @@ import click
 from dhenara.agent.utils.shared import generate_identifier, is_project_dir, validate_name
 
 
-def register(cli):
-    cli.add_command(create)
-
-
-@click.group(name="create")
-def create():
-    """Create new Dhenara components."""
-    pass
-
-
-@create.command("agent")
+@click.command(name="create")
 @click.argument("name")
 @click.option("--description", default="", help="Description of the agent")
 def create_agent(name, description):
@@ -71,8 +61,8 @@ def _create_agent(name, description):
         # f.write(f'"""Dhenara agent: {name}"""\n\nfrom .agent import Agent\n')
 
     # Get template directory path
-    template_dir = Path(__file__).parent.parent / "templates" / "agent"
-    runner_template_dir = Path(__file__).parent.parent / "templates" / "runner"
+    template_dir = Path(__file__).parent.parent.parent / "templates" / "agent"
+    runner_template_dir = Path(__file__).parent.parent.parent / "templates" / "runner"
 
     if not template_dir:
         click.echo(click.style("Error: Could not find template directory.", fg="red", bold=True))

@@ -1,6 +1,7 @@
 import importlib
 import pkgutil
 import sys
+import warnings
 from pathlib import Path
 
 import click
@@ -8,6 +9,7 @@ import click
 
 # This will be the main entry point for all CLI commands
 @click.group()
+@click.version_option(package_name="dhenara.agent")
 def cli():
     """Dhenara Agent DSL (DAD) development toolkit."""
     pass
@@ -37,6 +39,14 @@ load_commands()
 
 def main():
     """Run the CLI with command line arguments."""
+
+    if "dhenara" in sys.argv[0]:
+        warnings.warn(
+            "\n\n'dhenara' command is deprecated and will be removed in version 0.3.X. Please use 'dad' instead.\n",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     return cli(sys.argv[1:])
 
 
