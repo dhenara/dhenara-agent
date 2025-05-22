@@ -13,8 +13,8 @@ def create_agent(name, description):
     """Create a new agent within the current project."""
     # Check if we're in a project directory
     if not is_project_dir(os.getcwd()):
-        click.echo(click.style("Error: Must be run within a Dhenara project directory.", fg="red", bold=True))
-        click.echo(click.style("Tip: Run 'dhenara startproject' to create a new project first.", fg="blue"))
+        click.echo(click.style("Error: Must be run within a DAD project directory.", fg="red", bold=True))
+        click.echo(click.style("Tip: Run 'dad startproject' to create a new project first.", fg="blue"))
         return False
 
     # Validate the agent name
@@ -123,6 +123,6 @@ def _create_agent(name, description):
     click.echo(click.style(f"✅ Agent '{name}' created successfully!", fg="green", bold=True))
     click.echo(f"  - Identifier: {agent_identifier}")
     click.echo(f"  - Location: {agent_dir}")
-    click.echo(f"  - Command to run:  dhenara run agent {agent_identifier}")
+    click.echo(f"  - Command to run:  dad agent run {agent_identifier}")
 
     return True

@@ -210,7 +210,7 @@ runs/
     # click.echo("  2. Initialize your environment (poetry install, etc.)")
 
     if validated_agent_name:
-        click.echo(f"  2. dhenara run agent {validated_agent_name}")
-        click.echo("  3. dhenara create agent <agent_name> (To create additional agents)")
+        click.echo(f"  2. dad agent run {validated_agent_name}")
+        click.echo("  3. dad agent create <agent_name> (To create additional agents)")
     else:
-        click.echo("  2. dhenara create agent <agent_name> ")
+        click.echo("  2. dad agent create <agent_name> ")

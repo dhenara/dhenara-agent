@@ -38,4 +38,4 @@ run_context.register_event_handlers(
 runner = AgentRunner(agent, run_context)
 
 # Use dhenara cli to run this as in an isolated context
-#  --  dhenara run agent <agent_name>
+#  --  dad agent run <agent_name>
