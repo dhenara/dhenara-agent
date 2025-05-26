@@ -32,6 +32,15 @@ def load_commands():
             if hasattr(module, "register"):
                 module.register(cli)
 
+    # Try to load Pro commands
+    try:
+        from dhenara.agent.pro.cli import register_pro_commands  # type: ignore
+
+        register_pro_commands(cli)
+    except ImportError:
+        # Pro package not installed
+        pass
+
 
 # Load all commands
 load_commands()
