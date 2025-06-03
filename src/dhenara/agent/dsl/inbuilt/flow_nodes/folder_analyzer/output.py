@@ -9,13 +9,15 @@ class FolderAnalysisOperationResult(BaseModel):
     """Result of a single folder analysis operation."""
 
     operation_type: str = Field(..., description="Type of operation performed")
-    path: str = Field(..., description="Path of the folder/file analyzed")
+    path: str | list[str] = Field(..., description="Path(s) of the folder/file analyzed")
     success: bool = Field(..., description="Whether the operation succeeded")
     errors: list[str] | None = Field(default=None)
 
     # Different result fields based on operation type
-    analysis: DirectoryInfo | None = Field(default=None, description="Analysis results for folder analysis")
-    file_info: FileInfo | None = Field(default=None, description="File info for file analysis")
+    analysis: DirectoryInfo | list[DirectoryInfo] | None = Field(
+        default=None, description="Analysis results for folder analysis"
+    )
+    file_info: FileInfo | list[FileInfo] | None = Field(default=None, description="File info for file analysis")
     files_found: list[str] | None = Field(default=None, description="List of files found by find_files operation")
     tree_diagram: str | None = Field(default=None, description="Tree diagram of folder structure")
 

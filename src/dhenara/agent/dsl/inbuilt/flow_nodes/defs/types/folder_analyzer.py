@@ -80,14 +80,16 @@ class FileSystemAnalysisOperation(BaseModel):
             "- 'get_tree_diagram': Get Tree Diagram of the directory structure\n"
         ),
     )
-    # Path specification
-    path: str = Field(
+    # Path specification - now supports both single path and multiple paths
+    path: str | list[str] = Field(
         ...,
         description=(
-            "Path to the folder or file to analyze. Can be relative to the base directory or absolute. "
-            "Examples: 'src', 'src/main.py', './docs', '/absolute/path/to/file.txt'. "
-            "Use this to specify exactly which part of the repository you want to examine."
-            "Usually this will be  relative path for sending content to LLM."
+            "Path(s) to the folder(s) or file(s) to analyze. Can be a single path string or a list of paths. "
+            "Each path can be relative to the base directory or absolute. "
+            "Examples: 'src', ['src', 'tests'], 'src/main.py', ['src/main.py', 'README.md'], './docs', ['/absolute/path/to/file.txt']. "  # noqa: E501
+            "Use this to specify exactly which part(s) of the repository you want to examine. "
+            "When multiple paths are provided, they will all be processed with the same operation settings. "
+            "Usually this will be relative path(s) for sending content to LLM."
         ),
     )
     # Content reading options

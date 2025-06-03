@@ -220,38 +220,47 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         break
                     continue
 
-                # Process operation based on type
-                if operation.operation_type == "analyze_folder":
-                    result = await self._process_analyze_folder_operation(
+                # Check if operation has multiple paths and process accordingly
+                if isinstance(operation.path, list):
+                    result = await self._process_multi_path_operation(
                         base_directory=base_directory,
                         operation=operation,
                         settings=settings,
                         total_words_read=total_words_read,
-                    )
-                elif operation.operation_type == "analyze_file":
-                    result = await self._process_analyze_file_operation(
-                        base_directory=base_directory,
-                        operation=operation,
-                        total_words_read=total_words_read,
-                    )
-                elif operation.operation_type == "find_files":
-                    result = await self._process_find_files_operation(
-                        base_directory=base_directory,
-                        operation=operation,
-                    )
-                elif operation.operation_type in ["get_structure", "get_tree_diagram"]:
-                    result = await self._process_get_structure_operation(
-                        base_directory=base_directory,
-                        operation=operation,
-                        settings=settings,
                     )
                 else:
-                    result = FolderAnalysisOperationResult(
-                        operation_type=operation.operation_type,
-                        path=operation.path,
-                        success=False,
-                        errors=[f"Unsupported operation type: {operation.operation_type}"],
-                    )
+                    # Process single path operation based on type
+                    if operation.operation_type == "analyze_folder":
+                        result = await self._process_analyze_folder_operation(
+                            base_directory=base_directory,
+                            operation=operation,
+                            settings=settings,
+                            total_words_read=total_words_read,
+                        )
+                    elif operation.operation_type == "analyze_file":
+                        result = await self._process_analyze_file_operation(
+                            base_directory=base_directory,
+                            operation=operation,
+                            total_words_read=total_words_read,
+                        )
+                    elif operation.operation_type == "find_files":
+                        result = await self._process_find_files_operation(
+                            base_directory=base_directory,
+                            operation=operation,
+                        )
+                    elif operation.operation_type in ["get_structure", "get_tree_diagram"]:
+                        result = await self._process_get_structure_operation(
+                            base_directory=base_directory,
+                            operation=operation,
+                            settings=settings,
+                        )
+                    else:
+                        result = FolderAnalysisOperationResult(
+                            operation_type=operation.operation_type,
+                            path=operation.path,
+                            success=False,
+                            errors=[f"Unsupported operation type: {operation.operation_type}"],
+                        )
 
                 # Add result to list
                 results.append(result)
@@ -260,7 +269,26 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 if result.success:
                     successful_operations += 1
 
-                    if result.analysis:
+                    # Handle multiple results for multi-path operations
+                    if isinstance(result.analysis, list):
+                        for analysis in result.analysis:
+                            if analysis.word_count is not None:
+                                total_word_count += analysis.word_count
+
+                            if operation.include_primary_meta:
+                                if analysis.total_files:
+                                    total_files += analysis.total_files
+                                if analysis.total_directories:
+                                    total_directories += analysis.total_directories
+                                if analysis.total_size:
+                                    total_size += analysis.total_size
+                                if analysis.file_types:
+                                    for ext, count in analysis.file_types.items():
+                                        if ext in file_types:
+                                            file_types[ext] += count
+                                        else:
+                                            file_types[ext] = count
+                    elif result.analysis:
                         if result.analysis.word_count is not None:
                             total_word_count += result.analysis.word_count
 
@@ -278,7 +306,12 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                                     else:
                                         file_types[ext] = count
 
-                    if result.file_info:
+                    # Handle multiple file_info results
+                    if isinstance(result.file_info, list):
+                        for file_info in result.file_info:
+                            if file_info.word_count:
+                                total_word_count += file_info.word_count
+                    elif result.file_info:
                         if result.file_info.word_count:
                             total_word_count += result.file_info.word_count
 
@@ -338,6 +371,102 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         }
 
         return results, success_info, meta_info
+
+    async def _process_multi_path_operation(
+        self,
+        base_directory: Path,
+        operation: FolderAnalysisOperation,
+        settings: FolderAnalyzerSettings,
+        total_words_read: int,
+    ) -> FolderAnalysisOperationResult:
+        """Process an operation with multiple paths"""
+        path_list = operation.path if isinstance(operation.path, list) else [operation.path]
+
+        all_analysis = []
+        all_file_info = []
+        all_files_found = []
+        all_tree_diagrams = []
+        all_errors = []
+        total_words_read_multi = 0
+        success = True
+
+        for single_path in path_list:
+            # Create a single-path operation
+            single_path_operation = FolderAnalysisOperation(**{**operation.model_dump(), "path": single_path})
+
+            try:
+                if operation.operation_type == "analyze_folder":
+                    single_result = await self._process_analyze_folder_operation(
+                        base_directory=base_directory,
+                        operation=single_path_operation,
+                        settings=settings,
+                        total_words_read=total_words_read + total_words_read_multi,
+                    )
+                elif operation.operation_type == "analyze_file":
+                    single_result = await self._process_analyze_file_operation(
+                        base_directory=base_directory,
+                        operation=single_path_operation,
+                        total_words_read=total_words_read + total_words_read_multi,
+                    )
+                elif operation.operation_type == "find_files":
+                    single_result = await self._process_find_files_operation(
+                        base_directory=base_directory,
+                        operation=single_path_operation,
+                    )
+                elif operation.operation_type in ["get_structure", "get_tree_diagram"]:
+                    single_result = await self._process_get_structure_operation(
+                        base_directory=base_directory,
+                        operation=single_path_operation,
+                        settings=settings,
+                    )
+                else:
+                    single_result = FolderAnalysisOperationResult(
+                        operation_type=operation.operation_type,
+                        path=single_path,
+                        success=False,
+                        errors=[f"Unsupported operation type: {operation.operation_type}"],
+                    )
+
+                if single_result.success:
+                    if single_result.analysis:
+                        all_analysis.append(single_result.analysis)
+                    if single_result.file_info:
+                        all_file_info.append(single_result.file_info)
+                    if single_result.files_found:
+                        all_files_found.extend(single_result.files_found)
+                    if single_result.tree_diagram:
+                        all_tree_diagrams.append(f"# {single_path}\n{single_result.tree_diagram}")
+                    if single_result.words_read:
+                        total_words_read_multi += single_result.words_read
+                else:
+                    success = False
+                    if single_result.errors:
+                        all_errors.extend(single_result.errors)
+
+            except Exception as e:
+                success = False
+                all_errors.append(f"Error processing path {single_path}: {e}")
+
+        # Combine results
+        combined_result = FolderAnalysisOperationResult(
+            operation_type=operation.operation_type,
+            path=operation.path,  # Keep original list
+            success=success,
+            errors=all_errors if all_errors else None,
+            words_read=total_words_read_multi if total_words_read_multi > 0 else None,
+        )
+
+        # Set appropriate result fields based on operation type
+        if all_analysis:
+            combined_result.analysis = all_analysis if len(all_analysis) > 1 else all_analysis[0]
+        if all_file_info:
+            combined_result.file_info = all_file_info if len(all_file_info) > 1 else all_file_info[0]
+        if all_files_found:
+            combined_result.files_found = all_files_found
+        if all_tree_diagrams:
+            combined_result.tree_diagram = "\n\n".join(all_tree_diagrams)
+
+        return combined_result
 
     async def _process_analyze_folder_operation(
         self,
@@ -630,12 +759,17 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
         settings: FolderAnalyzerSettings = None,
     ) -> dict:
         """Get path information for an operation with proper error handling"""
-        # Convert path to Path object
+        # Convert path to Path object - handle both str and list[str]
         try:
-            if Path(operation.path).is_absolute():
-                path = Path(operation.path).resolve()
+            operation_path = operation.path
+            if isinstance(operation_path, list):
+                # For multi-path operations, use the first path for validation
+                operation_path = operation_path[0]
+
+            if Path(operation_path).is_absolute():
+                path = Path(operation_path).resolve()
             else:
-                path = (base_directory / operation.path).resolve()
+                path = (base_directory / operation_path).resolve()
 
             use_relative_paths = True
             if settings and hasattr(settings, "use_relative_paths"):
@@ -693,7 +827,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             return {
                 "success": False,
                 "path": None,
-                "path_str": operation.path,
+                "path_str": str(operation.path),
                 "error": f"Error processing path: {e}",
                 "exclude_patterns": [],
             }
@@ -1305,7 +1439,9 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             # For text files, summarize first few lines
             lines = content.splitlines()
             first_line = lines[0] if lines else ""
-            return f"Text document: {first_line[:50]}{'...' if len(first_line) > 50 else ''}\nTotal lines: {len(lines)}"
+            return (
+                f"Text document: {first_line[:50]}{'' if len(first_line) <= 50 else '...'}\nTotal lines: {len(lines)}"
+            )
 
         elif ext in [".json", ".yaml", ".yml"]:
             # For data files, count keys at the top level
