@@ -6,6 +6,7 @@ from .folder_analyzer import (
 )
 
 from .file_operation import (
+    SimpleFileOperation,
     FileOperationType,
     FileOperation,
     EditOperation,
@@ -23,4 +24,5 @@ __all__ = [
     "FileSystemAnalysisOperation",
     "FolderAnalysisOperation",
     "SearchConfig",
+    "SimpleFileOperation",
 ]

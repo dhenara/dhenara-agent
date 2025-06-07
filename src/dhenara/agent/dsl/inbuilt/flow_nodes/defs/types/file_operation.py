@@ -25,6 +25,39 @@ class FileOperationType(Enum):
     list_allowed_directories = "list_allowed_directories"
 
 
+class SimpleFileOperation(BaseModel):
+    """
+    Represents a single file operation for the filesystem.
+    Supports only creation and deletion types.
+    Useful for precise LLM operations, (without edits)
+    """
+
+    # Using Literal instead of Enum for better compatibility with structured output
+    type: Literal[
+        "create_file",
+        "delete_file",
+        "create_directory",
+        "delete_directory",
+    ] = Field(
+        ...,
+        description="Type of file operation to perform",
+    )
+    path: str | None = Field(
+        default=None,
+        description="Path to the target file or directory",
+    )
+    content: str | None = Field(
+        default=None,
+        description="Content for file creation operations",
+    )
+
+    def validate_content_type(self) -> bool:
+        """Validates that the content field matches the expected type based on operation type"""
+        if self.type == "create_file" and not isinstance(self.content, str):
+            return False
+        return True
+
+
 class EditOperation(BaseModel):
     """Advanced edit operation with better pattern matching"""
 
@@ -63,8 +96,11 @@ class FileMetadata(BaseModel):
     permissions: str = Field(..., description="File permissions in octal format")
 
 
-class FileOperation(BaseModel):
-    """Represents a single file operation for the filesystem"""
+class FileOperation(SimpleFileOperation):
+    """
+    Represents a single file operation for the filesystem.
+    Extention of SimpleFileOperation with more types supported
+    """
 
     # Using Literal instead of Enum for better compatibility with structured output
     type: Literal[
@@ -82,17 +118,9 @@ class FileOperation(BaseModel):
         ...,
         description="Type of file operation to perform",
     )
-    path: str | None = Field(
-        default=None,
-        description="Path to the target file or directory",
-    )
     paths: list[str] | None = Field(
         default=None,
         description="Multiple file paths for operations that work on multiple files",
-    )
-    content: str | None = Field(
-        default=None,
-        description="Content for file creation operations",
     )
     edits: list[EditOperation] | None = Field(
         default=None,
