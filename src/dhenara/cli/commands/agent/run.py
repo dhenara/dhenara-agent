@@ -7,6 +7,7 @@ import click
 
 from dhenara.agent.run import IsolatedExecution
 from dhenara.agent.runner import AgentRunner
+from dhenara.agent.types import AgentRunConfig
 from dhenara.agent.utils.shared import find_project_root
 
 from ..utils.print_utils import print_error_summary, print_run_summary
@@ -64,11 +65,12 @@ async def _run_agent(
     if not (runner and isinstance(runner, AgentRunner)):
         raise ValueError(f"Failed to get runner module inside project. runner={runner}")
 
-    # Update run context with rerun parameters if provided
-    runner.setup_run(
+    run_config = AgentRunConfig(
         previous_run_id=previous_run_id,
         start_hierarchy_path=start_hierarchy_path,
     )
+    # Update run context with rerun parameters if provided
+    runner.setup_run(run_config)
 
     try:
         # Run agent in a subprocess for isolation
@@ -78,10 +80,10 @@ async def _run_agent(
             )
 
         # Display rerun information if applicable
-        run_type = "rerun" if previous_run_id else "standard run"
+        run_type = "rerun" if run_config.previous_run_id else "standard run"
         start_info = ""
-        if start_hierarchy_path:
-            start_info += f"from {start_hierarchy_path}"
+        if run_config.start_hierarchy_path:
+            start_info += f"from {run_config.start_hierarchy_path}"
 
         print(f"Agent {run_type} completed successfully{start_info}. Run ID: {runner.run_context.run_id}")
 

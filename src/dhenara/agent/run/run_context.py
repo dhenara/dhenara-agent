@@ -12,7 +12,7 @@ from dhenara.agent.dsl.base.context_registry import ExecutionContextRegistry
 from dhenara.agent.dsl.events import EventBus, EventType
 from dhenara.agent.observability.types import ObservabilitySettings
 from dhenara.agent.run.registry import resource_config_registry
-from dhenara.agent.types.data import RunEnvParams
+from dhenara.agent.types.data import AgentRunConfig, RunEnvParams
 from dhenara.agent.utils.git import RunOutcomeRepository
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.agent.utils.shared import get_project_identifier
@@ -88,13 +88,13 @@ class RunContext:
         self.previous_run_id = previous_run_id
         self.start_hierarchy_path = start_hierarchy_path
 
-    def setup_run(self, run_id_prefix: str | None = None):
+    def setup_run(self, run_config: AgentRunConfig):
         # Indicates if this is a rerun of a previous execution
         self.is_rerun = self.previous_run_id is not None
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_or_rerun = "rerun" if self.is_rerun else "run"
-        _prefix = f"{run_id_prefix}_" if run_id_prefix else ""
+        _prefix = f"{run_config.run_id_prefix}_" if run_config.run_id_prefix else ""
         self.run_id = f"{_prefix}{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_dir = self.effective_run_root / self.run_id
 

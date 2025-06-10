@@ -10,6 +10,7 @@ from dhenara.agent.dsl.components.flow import Flow, FlowDefinition
 from dhenara.agent.observability import log_with_context
 from dhenara.agent.observability.tracing import trace_method
 from dhenara.agent.run import RunContext
+from dhenara.agent.types import AgentRunConfig
 from dhenara.ai.types.shared.platform import DhenaraAPIError
 
 # INFO: Import any registreis here to loading global registers
@@ -36,27 +37,22 @@ class ComponentRunner(ABC):
         self.logger = logging.getLogger(f"dhenara.dad.{self.executable_type}.{self.root_id}")
         logger.info(f"Initialized {self.__class__.__name__} with ID: {self.root_id}")
 
-    def setup_run(
-        self,
-        previous_run_id: str | None = None,
-        start_hierarchy_path: str | None = None,
-        run_id_prefix: str | None = None,
-    ):
+    def setup_run(self, run_config: AgentRunConfig):
         # Update run context with rerun parameters if provided
-        if previous_run_id or start_hierarchy_path:
+        if run_config.previous_run_id or run_config.start_hierarchy_path:
             self.run_context.set_previous_run(
-                previous_run_id=previous_run_id,
-                start_hierarchy_path=start_hierarchy_path,
+                previous_run_id=run_config.previous_run_id,
+                start_hierarchy_path=run_config.start_hierarchy_path,
             )
             log_msg = f"Rerunning root {self.root_id} from previous run {self.run_context.previous_run_id}"
-            if start_hierarchy_path:
-                log_msg += f" starting from {start_hierarchy_path}"
+            if run_config.start_hierarchy_path:
+                log_msg += f" starting from {run_config.start_hierarchy_path}"
         else:
             log_msg = f"Running root {self.root_id} from beginning with run_id {self.run_context.run_id}"
 
         # Setup run context
         self.run_context.setup_run(
-            run_id_prefix=run_id_prefix,
+            run_config=run_config,
         )
 
         # Normal run, copy input files
