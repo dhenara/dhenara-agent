@@ -157,10 +157,9 @@ class ExecutableNodeDefinition(BaseModelABC, Generic[ContextT]):  # Abstract Cla
         Returns:
             bool: True if the resource exists in the node's resources, False otherwise
         """
-        if not self.resources:
-            return False
+        _resources = self.settings.resources or []
 
-        return any(existing_resource.is_same_as(resource) for existing_resource in self.resources)
+        return any(existing_resource.is_same_as(resource) for existing_resource in _resources)
 
 
 NodeDefT = TypeVar("NodeDefT", bound=ExecutableNodeDefinition)

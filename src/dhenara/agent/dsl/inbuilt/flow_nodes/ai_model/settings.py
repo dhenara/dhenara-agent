@@ -79,7 +79,7 @@ class AIModelNodeSettings(NodeSettings):
 
         default_count = sum(1 for resource in v if resource.is_default)
         if default_count > 1:
-            raise ValueError("Only one resource can be set as default")
+            raise ValueError(f"Only one resource can be set as default. resource={v}")
 
         # If there is only one resource, set it as default and return
         if len(v) == 1:
@@ -95,13 +95,9 @@ class AIModelNodeSettings(NodeSettings):
     def validate_models(cls, data):
         if isinstance(data, dict):
             models = data.get("models")
-            resources = data.get("resources")
 
             if models:
-                if not resources:
-                    data["resources"] = []
-
-                data["resources"].extend(ResourceConfigItem.with_models(models))
+                data["resources"] = ResourceConfigItem.with_models(models)
 
         return data
 

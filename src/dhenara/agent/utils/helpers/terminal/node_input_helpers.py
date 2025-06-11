@@ -282,36 +282,50 @@ async def get_ai_model_node_input(
     node_input = AIModelNodeInput()
 
     # Update options if available and enabled
-    update_options = enable_option_update and selected_model in models_with_options
+    if models_with_options and selected_model not in models_with_options.keys():
+        raise ValueError(f"Selected model {selected_model} is not in models_with_options")
+
+    update_options = enable_option_update and selected_model in models_with_options.keys()
     # Update structured output if provided
     update_structured = structured_output is not None
     update_model_call_config = update_options or update_structured
-    update_settings = node_def_settings and update_model_call_config
+    update_settings = node_def_settings is not None
 
     if update_settings:
-        _settings = node_def_settings.model_copy()
-        _settings.resources = ResourceConfigItem.with_model(selected_model)
+        try:
+            # Do not user model_copy, as the models->resources are taken care only while the obj is constructed
+            _settings_dict = node_def_settings.model_dump()
+            _settings_dict.update(
+                {
+                    "models": [selected_model],
+                    "resources": None,
+                }
+            )
+            _settings = AIModelNodeSettings(**_settings_dict)
 
-        # Only modify model_call_config if needed
-        if update_model_call_config:
-            # Get base parameters from existing config
-            _params = _settings.model_call_config.model_dump()
+            # Only modify model_call_config if needed
+            if update_model_call_config:
+                # Get base parameters from existing config
+                _params = _settings.model_call_config.model_dump()
 
-            if update_options:
-                _params["options"] = models_with_options[selected_model]
-                print(f"Updated model options for {selected_model}")
+                if update_options:
+                    _params["options"] = models_with_options[selected_model]
+                    print(f"Updated model options for {selected_model}")
 
-            if update_structured:
-                _params["structured_output"] = structured_output
-                print(f"Updated structured output to {structured_output}")
+                if update_structured:
+                    _params["structured_output"] = structured_output
+                    print(f"Updated structured output to {structured_output}")
 
-            try:
-                # Create new config with updated parameters
-                _settings.model_call_config = AIModelCallConfig(**_params)
-            except Exception as e:
-                raise ValueError(f"AI Model Event handler: Error: {e}")
+                try:
+                    # Create new config with updated parameters
+                    _settings.model_call_config = AIModelCallConfig(**_params)
+                except Exception as e:
+                    raise ValueError(f"AI Model Event handler: Error: {e}")
 
-        node_input.settings_override = _settings
+            node_input.settings_override = _settings
+        except Exception as e:
+            print(f"ERROR while getting node input: {e}")
+            raise e
 
     return node_input
 
