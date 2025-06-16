@@ -110,7 +110,7 @@ async def _run_agent(
 
         error_msg = f"Error running agent {identifier}: {e}"
         logger.exception(error_msg)
-        runner.run_context.complete_run(status="failed", error_msg=error_msg)
+        await runner.run_context.complete_run(status="failed", error_msg=error_msg)
         print_error_summary(str(e))
 
 

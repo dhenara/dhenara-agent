@@ -80,7 +80,7 @@ class ComponentRunner(ABC):
             await self.run_component()
 
             # Process and save results
-            self.run_context.complete_run()
+            await self.run_context.complete_run()
 
             log_with_context(
                 self.logger,
@@ -97,7 +97,7 @@ class ComponentRunner(ABC):
                 f"Agent {self.root_id} failed: {e!s}",
                 {"root_id": str(self.root_id), "error": str(e)},
             )
-            self.run_context.complete_run(status="failed")
+            await self.run_context.complete_run(status="failed")
             raise
 
     @abstractmethod

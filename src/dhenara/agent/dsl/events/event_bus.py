@@ -33,11 +33,11 @@ class EventBus:
         try:
             for handler in handlers:
                 if event.nature == EventNature.notify:
-                    handler(event)
+                    await handler(event)  # TODO: Review  and make sure the handler is not blocking execution
                 elif event.nature == EventNature.with_wait:
                     await handler(event)
                 elif event.nature == EventNature.with_future:
-                    handler(event)
+                    await handler(event)  # TODO: Review  and make sure the handler is not blocking execution
                 else:
                     raise ValueError(f"Unknown event nature {event.nature}")
         except Exception as e:

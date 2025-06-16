@@ -1,7 +1,11 @@
-from abc import ABC
+import warnings
 from datetime import datetime
+from typing import Any, TypeVar
 
-from dhenara.agent.types.base import BaseEnum
+from pydantic import Field
+
+from dhenara.agent.types.base import BaseEnum, BaseModelABC
+from dhenara.ai.types.shared.base import ISODateTime
 
 
 class EventNature(BaseEnum):
@@ -23,71 +27,86 @@ class EventType(BaseEnum):
     custom = "custom"
 
 
-class BaseEvent(ABC):
+class BaseEvent(BaseModelABC):
     type: EventType
     nature: EventNature
+    handled: bool = Field(default=False, description="Flag to indicate if any handler processed it")
+    timestamp: ISODateTime = Field(default_factory=datetime.now)
 
-    def __init__(self):
-        self.handled = False  # Flag to indicate if any handler processed it
-        self.timestamp = datetime.now()
+
+BaseEventT = TypeVar("BaseEventT", bound=BaseEvent)
 
 
 class NodeInputRequiredEvent(BaseEvent):
-    type = EventType.node_input_required
-    nature = EventNature.with_wait
+    type: EventType = Field(default=EventType.node_input_required, frozen=True)
+    nature: EventNature = Field(default=EventNature.with_wait, frozen=True)
+    node_id: str
+    node_type: str
+    node_def_settings: Any | None = None
+    node_input: Any | None = Field(default=None, description="Field to be filled by handlers")
 
-    def __init__(self, node_id, node_type, node_def_settings):
-        super().__init__()
-        self.node_id = node_id
-        self.node_type = node_type
-        self.node_def_settings = node_def_settings
-        self.node_input = None  # Field to be filled by handlers
+    @property
+    def input(self) -> Any | None:
+        """
+        Deprecated: Use 'node_input' instead of 'input'.
+        This property is maintained for backward compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "The 'input' field is deprecated. Use 'node_input' instead. "
+            "This field will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.node_input
 
-    def as_dict(self):
-        return {
-            "node_id": self.node_id,
-            "node_type": self.node_type,
-            "node_def_settings": self.node_def_settings.model_dump()
-            if self.node_def_settings and hasattr(self.node_def_settings, "model_dump")
-            else None,
-            "node_input": self.node_input,
-        }
+    @input.setter
+    def input(self, value: Any | None) -> None:
+        """
+        Deprecated: Use 'node_input' instead of 'input'.
+        This setter is maintained for backward compatibility and will be removed in a future version.
+        """
+        warnings.warn(
+            "The 'input' field is deprecated. Use 'node_input' instead. "
+            "This field will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.node_input = value
 
 
 class NodeExecutionCompletedEvent(BaseEvent):
-    type = EventType.node_execution_completed
-    nature = EventNature.notify
-
-    def __init__(self, node_id, node_type, node_outcome=None):
-        super().__init__()
-        self.node_id = node_id
-        self.node_type = node_type
-        self.node_outcome = None
-
-    def as_dict(self):
-        return {
-            "node_id": self.node_id,
-            "node_type": self.node_type,
-            "node_outcome": self.node_outcome,
-        }
+    type: EventType = Field(default=EventType.node_execution_completed, frozen=True)
+    nature: EventNature = Field(default=EventNature.notify, frozen=True)
+    node_id: str
+    node_type: str
+    node_outcome: Any | None = None
 
 
 class ComponentExecutionCompletedEvent(BaseEvent):
-    type = EventType.component_execution_completed
-    nature = EventNature.notify
+    type: EventType = Field(default=EventType.component_execution_completed, frozen=True)
+    nature: EventNature = Field(default=EventNature.notify, frozen=True)
+    component_id: str
+    component_type: str
+    component_outcome: Any | None = None
 
-    def __init__(self, component_id, component_type, component_outcome=None):
-        super().__init__()
-        self.component_id = component_id
-        self.component_type = component_type
-        self.component_outcome = None
 
-    def as_dict(self):
-        return {
-            "component_id": self.component_id,
-            "component_type": self.component_type,
-            "component_outcome": self.component_outcome,
-        }
+EVENT_TYPE_REGISTRY = {
+    EventType.node_input_required: NodeInputRequiredEvent,
+    EventType.node_execution_completed: NodeExecutionCompletedEvent,
+    EventType.component_execution_completed: ComponentExecutionCompletedEvent,
+}
+
+
+def get_event_class_for_type(event_type: EventType) -> type[BaseEvent] | None:
+    """Get the appropriate event class for a given event type.
+
+    Args:
+        event_type: The EventType message type
+
+    Returns:
+        The corresponding event class, or None if not found
+    """
+    return EVENT_TYPE_REGISTRY.get(event_type)
 
 
 # TODO_FUTURE: Implement below

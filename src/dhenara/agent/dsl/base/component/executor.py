@@ -143,7 +143,7 @@ class ComponentExecutor(BaseModelABC):
             self._record_failed_execution(
                 component_id=component_id,
                 is_rerun=is_rerun,
-                error=str(e),
+                e=e,
                 start_hierarchy_path=start_hierarchy_path,
             )
 
@@ -308,7 +308,7 @@ class ComponentExecutor(BaseModelABC):
             },
         )
 
-    def _record_failed_execution(self, component_id, is_rerun, error, start_hierarchy_path):
+    def _record_failed_execution(self, component_id, is_rerun, e, start_hierarchy_path):
         """Record metrics for failed execution."""
         record_metric(
             meter_name=f"dhenara.dad.{self.executable_type}",
@@ -317,18 +317,19 @@ class ComponentExecutor(BaseModelABC):
             attributes={
                 f"{self.executable_type}_id": str(component_id),
                 "is_rerun": str(is_rerun),
-                "error": error,
+                "error": str(e),
             },
         )
 
         log_with_context(
             self.logger,
             logging.ERROR,
-            f"{self.executable_type.title()} execution failed: {error}",
+            f"{self.executable_type.title()} execution failed: {e}",
             {
                 f"{self.executable_type}_id": str(component_id),
-                "error": error,
+                "error": str(e),
                 "is_rerun": str(is_rerun),
                 "start_hierarchy_path": start_hierarchy_path or "none",
             },
+            exception=e,
         )

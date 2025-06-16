@@ -248,7 +248,7 @@ class RunContext:
         else:
             logger.info(f"Staic inputs are not initalized as no file exists in {_input_file}")
 
-    def complete_run(
+    async def complete_run(
         self,
         status="completed",
         error_msg: str | None = None,

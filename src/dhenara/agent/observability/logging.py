@@ -95,12 +95,14 @@ def log_with_context(
     level: int,
     message: str,
     extra_attributes: dict[str, Any] | None = None,
+    exception: Exception | None = None,
 ) -> None:
     """Log a message with current span context information.
     Args:
         logger: Logger to use
         level: Logging level
         message: Message to log
+        exception: Optional exception to include in log
         extra_attributes: Optional extra attributes to include in log
     """
     # Get the current span
@@ -119,8 +121,41 @@ def log_with_context(
             }
         )
 
+    # Handle exception details based on severity
+    exc_info = None
+    if exception is not None:
+        # Add basic exception info to extra attributes
+        extra.update(
+            {
+                "exception_type": type(exception).__name__,
+                "exception_message": str(exception),
+            }
+        )
+
+        # Include full stack trace for high severity levels
+        if level >= logging.ERROR:
+            exc_info = exception
+            # Add additional context for critical errors
+            if level >= logging.CRITICAL:
+                extra.update(
+                    {
+                        "exception_module": getattr(exception, "__module__", "unknown"),
+                        "exception_args": getattr(exception, "args", ()),
+                    }
+                )
+
+        # For WARNING level, include exception class and message only
+        elif level == logging.WARNING:
+            # Exception info already added to extra, no stack trace needed
+            pass
+
+        # For INFO and DEBUG, minimal exception context
+        else:
+            # Just the basic info already added to extra
+            pass
+
     # Log the message with the extra context
-    logger.log(level, message, extra=extra)
+    logger.log(level, message, extra=extra, exc_info=exc_info)
 
 
 def force_flush_logging():

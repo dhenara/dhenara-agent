@@ -60,7 +60,7 @@ class NodeExecutor(ABC):
             log_with_context(self.logger, logging.DEBUG, f"Using static input for node {node_id}")
             return execution_context.run_context.static_inputs[node_id]
 
-        if NodeInputRequiredEvent.type in node_definition.pre_events:
+        if node_definition.trigger_pre_execute_input_required:
             node_input = await self.tirgger_event_node_input_required(
                 node_id=node_id,
                 node_definition=node_definition,
@@ -86,14 +86,23 @@ class NodeExecutor(ABC):
         )
         await execution_context.run_context.event_bus.publish(event)
 
+        node_input = None
+
         # Check if any handler provided input
-        if event.handled and event.input:
-            node_input = event.input
+        if event.handled and event.node_input:
+            if isinstance(event.node_input, dict):
+                try:
+                    node_input = self.input_model(**event.node_input)
+                except Exception as e:
+                    logger.error(f"{node_id}: Error while validation node input dict vai event. {e}")
+
+            elif isinstance(event.node_input, self.input_model):
+                node_input = event.node_input
+
             logger.debug(f"{node_id}: Node input via event {event.type} is {node_input}")
         else:
             # No input provided by any handler
             logger.error(f"{node_id}: No input provided for node via event {event.type}")
-            node_input = None
 
         return node_input
 
