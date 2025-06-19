@@ -42,8 +42,9 @@ class NodeInputRequiredEvent(BaseEvent):
     nature: EventNature = Field(default=EventNature.with_wait, frozen=True)
     node_id: str
     node_type: str
-    node_def_settings: Any | None = None
+    node_def_settings: Any | None = None  # TODO_FUTURE: Should be of type NodeSettings
     node_input: Any | None = Field(default=None, description="Field to be filled by handlers")
+    fe_data: dict | None = None
 
     @property
     def input(self) -> Any | None:
