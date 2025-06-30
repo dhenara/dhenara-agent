@@ -22,6 +22,7 @@ class EventType(BaseEnum):
     node_execution_started = "node_execution_started"
     node_execution_completed = "node_execution_completed"
     component_execution_completed = "component_execution_completed"
+    trace_update = "trace_update"
     flow_execution_start = "flow_execution_start"
     flow_execution_complete = "flow_execution_complete"
     custom = "custom"
@@ -91,10 +92,18 @@ class ComponentExecutionCompletedEvent(BaseEvent):
     component_outcome: Any | None = None
 
 
+class TraceUpdateEvent(BaseEvent):
+    type: EventType = Field(default=EventType.trace_update, frozen=True)
+    nature: EventNature = Field(default=EventNature.notify, frozen=True)
+    trace_id: str
+    execution_id: str
+
+
 EVENT_TYPE_REGISTRY = {
     EventType.node_input_required: NodeInputRequiredEvent,
     EventType.node_execution_completed: NodeExecutionCompletedEvent,
     EventType.component_execution_completed: ComponentExecutionCompletedEvent,
+    EventType.trace_update: TraceUpdateEvent,
 }
 
 

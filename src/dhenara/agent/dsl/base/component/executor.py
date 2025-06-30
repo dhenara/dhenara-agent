@@ -12,8 +12,9 @@ from dhenara.agent.dsl.base import (
     ExecutionStatusEnum,
     NodeID,
 )
-from dhenara.agent.dsl.events import ComponentExecutionCompletedEvent
+from dhenara.agent.dsl.events import ComponentExecutionCompletedEvent, TraceUpdateEvent
 from dhenara.agent.observability import log_with_context, record_metric
+from dhenara.agent.observability.tracing import get_current_trace_id
 from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
 from dhenara.agent.observability.tracing.decorators.fns import trace_component
 from dhenara.agent.run.run_context import RunContext
@@ -45,6 +46,16 @@ class ComponentExecutor(BaseModelABC):
         run_context: RunContext | None = None,
     ) -> ComponentExecutionResult:
         """Execute a flow with the given initial data, optionally starting from a specific node."""
+
+        # run_context !=None -> Its the root level execution
+        if run_context:
+            trace_id = get_current_trace_id()
+            execution_id = run_context.execution_id
+
+            if trace_id and execution_id:
+                event = TraceUpdateEvent(trace_id=trace_id, execution_id=execution_id)
+                await run_context.event_bus.publish(event)
+
         start_time = datetime.now()
 
         _logattribute = {

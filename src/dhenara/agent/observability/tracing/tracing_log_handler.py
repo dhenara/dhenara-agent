@@ -85,7 +85,8 @@ def inject_logs_into_span(span: Span):
     from dhenara.agent.observability.config import get_current_settings
 
     # Get the threshold from settings
-    level_threshold = get_current_settings().trace_log_level
+    level_threshold_str = get_current_settings().trace_log_level
+    level_threshold = getattr(logging, level_threshold_str.upper())
 
     span_id = format(span.get_span_context().span_id, "016x")
     logs = TraceLogCapture.stop_capture(span_id)

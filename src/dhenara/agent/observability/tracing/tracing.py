@@ -7,6 +7,7 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.trace import format_trace_id
 
 from dhenara.agent.observability.types import ObservabilitySettings
 
@@ -110,3 +111,18 @@ def force_flush_tracing():
         _tracer_provider._active_span_processor.force_flush()
         # for span_processor in _tracer_provider._span_processors:
         #    span_processor.force_flush()
+
+
+def get_current_trace_id():
+    # Get the current active span
+    current_span = trace.get_current_span()
+
+    if current_span != trace.INVALID_SPAN:
+        # Get the span context
+        span_context = current_span.get_span_context()
+
+        # Get trace ID as hex string
+        trace_id_hex = format_trace_id(span_context.trace_id)
+        return trace_id_hex
+
+    return None
