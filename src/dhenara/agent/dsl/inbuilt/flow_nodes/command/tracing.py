@@ -1,69 +1,128 @@
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
-    TracingDataCategory,
-    TracingDataField,
+    TracingAttribute,
+    common_context_attributes,
 )
 
-# Define Command Node tracing profile
+# Input attributes
+env_vars_attr = TracingAttribute(
+    name="env_vars",
+    category="secondary",
+    display_name="Environment Variables",
+    description="Environment variables for command execution",
+    node_field_type="input",
+    source_path="env_vars",
+    data_type="object",
+    collapsible=True,
+    icon="environment",
+)
+input_command_attr = TracingAttribute(
+    name="commands",
+    category="primary",
+    display_name="Commands",
+    description="Commands to execute",
+    node_field_type="input",
+    source_path="commands",
+    data_type="array",
+    icon="terminal",
+)
+# Output attributes
+data_all_succeeded_attr = TracingAttribute(
+    name="all_succeeded",
+    category="primary",
+    display_name="All Commands Succeeded",
+    description="Whether all commands succeeded",
+    node_field_type="output",
+    source_path="data.all_succeeded",
+    data_type="boolean",
+    icon="check",
+)
+results_count_attr = TracingAttribute(
+    name="results_count",
+    category="secondary",
+    display_name="Results Count",
+    description="Number of command results",
+    node_field_type="output",
+    source_path="data.results",
+    data_type="number",
+    transform=lambda x: len(x) if x else 0,
+    icon="count",
+)
+# Result attributes
+all_succeeded_attr = TracingAttribute(
+    name="all_succeeded",
+    category="primary",
+    display_name="All Commands Succeeded",
+    description="Whether all commands succeeded",
+    node_field_type="result",
+    source_path="outcome.all_succeeded",
+    data_type="boolean",
+    icon="check",
+)
+commands_executed_attr = TracingAttribute(
+    name="commands_executed",
+    category="primary",
+    display_name="Commands Executed",
+    description="Number of commands executed",
+    node_field_type="result",
+    source_path="outcome.commands_executed",
+    data_type="number",
+    icon="play",
+)
+successful_commands_attr = TracingAttribute(
+    name="successful_commands",
+    category="primary",
+    display_name="Successful Commands",
+    description="Number of successful commands",
+    node_field_type="result",
+    source_path="outcome.successful_commands",
+    data_type="number",
+    icon="check-circle",
+)
+failed_commands_attr = TracingAttribute(
+    name="failed_commands",
+    category="primary",
+    display_name="Failed Commands",
+    description="Number of failed commands",
+    node_field_type="result",
+    source_path="outcome.failed_commands",
+    data_type="number",
+    icon="x-circle",
+)
+
+# Internal attributes
+commands_data_attr = TracingAttribute(
+    name="commands_data",
+    category="primary",
+    display_name="Commands Data",
+    description="Commands Data",
+    node_field_type="node_internal",
+    data_type="object",
+    icon="data",
+)
+commands_summary_attr = TracingAttribute(
+    name="commands_summary",
+    category="primary",
+    display_name="Commands summary",
+    description="Commands summar",
+    node_field_type="node_internal",
+    data_type="object",
+    icon="data",
+)
+
 command_node_tracing_profile = NodeTracingProfile(
     node_type=FlowNodeTypeEnum.command.value,
-    # Primary input data - what's being sent to command execution
-    input_fields=[
-        TracingDataField(
-            name="env_vars",
-            source_path="env_vars",
-            category=TracingDataCategory.secondary,
-            description="Environment variables for command execution",
-        ),
-        TracingDataField(
-            name="commands",
-            source_path="commands",
-            category=TracingDataCategory.primary,
-            description="Commands to execute",
-        ),
-    ],
-    # Primary output data - what's coming back from command execution
-    output_fields=[
-        TracingDataField(
-            name="all_succeeded",
-            source_path="data.all_succeeded",
-            category=TracingDataCategory.primary,
-            description="Whether all commands succeeded",
-        ),
-        TracingDataField(
-            name="results_count",
-            source_path="data.results",
-            category=TracingDataCategory.secondary,
-            transform=lambda x: len(x) if x else 0,
-            description="Number of command results",
-        ),
-    ],
-    # Result data - processed outcomes and metadata
-    result_fields=[
-        TracingDataField(
-            name="all_succeeded",
-            source_path="outcome.all_succeeded",
-            category=TracingDataCategory.primary,
-            description="Whether all commands succeeded",
-        ),
-        TracingDataField(
-            name="commands_executed",
-            source_path="outcome.commands_executed",
-            category=TracingDataCategory.primary,
-            description="Number of commands executed",
-        ),
-        TracingDataField(
-            name="successful_commands",
-            source_path="outcome.successful_commands",
-            category=TracingDataCategory.primary,
-            description="Number of successful commands",
-        ),
-        TracingDataField(
-            name="failed_commands",
-            source_path="outcome.failed_commands",
-            category=TracingDataCategory.primary,
-            description="Number of failed commands",
-        ),
+    tracing_attributes=[
+        env_vars_attr,
+        input_command_attr,
+        data_all_succeeded_attr,
+        results_count_attr,
+        all_succeeded_attr,
+        commands_executed_attr,
+        successful_commands_attr,
+        failed_commands_attr,
+        # Add common context attributes
+        *common_context_attributes,
     ],
 )

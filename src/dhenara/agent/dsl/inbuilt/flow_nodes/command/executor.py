@@ -16,12 +16,12 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.components.flow import FlowNodeExecutionResult, FlowNodeExecutor
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import trace_node
-from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
+from dhenara.agent.observability.tracing.data import add_trace_attribute
 
 from .input import CommandNodeInput
 from .output import CommandNodeOutcome, CommandNodeOutput, CommandNodeOutputData, CommandResult
 from .settings import CommandNodeSettings
-from .tracing import command_node_tracing_profile
+from .tracing import command_node_tracing_profile, commands_data_attr, commands_summary_attr
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +72,9 @@ class CommandNodeExecutor(FlowNodeExecutor):
             all_succeeded = True
             successful_commands = 0
             failed_commands = 0
+            command_results_trace_data = []
 
             for formatted_cmd in formatted_commands:
-                add_trace_attribute(
-                    f"command_{formatted_commands.index(formatted_cmd)}",
-                    formatted_cmd,
-                    TracingDataCategory.primary,
-                )
-
                 # Execute the command
                 process = await asyncio.create_subprocess_shell(
                     formatted_cmd,
@@ -111,15 +106,15 @@ class CommandNodeExecutor(FlowNodeExecutor):
                     )
                     results.append(result)
 
-                    add_trace_attribute(
-                        f"command_result_{formatted_commands.index(formatted_cmd)}",
+                    command_results_trace_data.append(
                         {
-                            "returncode": process.returncode,
+                            "index": formatted_commands.index(formatted_cmd),
+                            "command": formatted_cmd,
                             "success": success,
+                            "returncode": process.returncode,
                             "stdout_length": len(stdout) if stdout else 0,
                             "stderr_length": len(stderr) if stderr else 0,
                         },
-                        TracingDataCategory.primary,
                     )
                     # Handle fail_fast
                     if settings.fail_fast and not success:
@@ -144,15 +139,15 @@ class CommandNodeExecutor(FlowNodeExecutor):
                     if settings.fail_fast:
                         break
 
+            add_trace_attribute(commands_data_attr, command_results_trace_data)
             add_trace_attribute(
-                "commands_summary",
+                commands_summary_attr,
                 {
                     "total": len(formatted_commands),
                     "successful": successful_commands,
                     "failed": failed_commands,
                     "all_succeeded": all_succeeded,
                 },
-                TracingDataCategory.primary,
             )
 
             # Create output data

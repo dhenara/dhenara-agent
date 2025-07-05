@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from opentelemetry.trace import Span
 
-from .data import TracingDataCategory, add_trace_attribute
+from .data import TracingAttribute, add_trace_attribute
 
 # INFO: These fns are used to add `log` data to traces naturally.
 # The idea is to get max debug info from the traces in case of errors/warnings
@@ -79,7 +79,32 @@ class TraceLogHandler(logging.Handler):
         TraceLogCapture.add_log(record)
 
 
-# In tracing_log_handler.py
+_trace_errors = TracingAttribute(
+    name="trace_errors",
+    category="primary",
+    display_name="Trace Errors ",
+    description="Errors in Tracing",
+)
+_trace_warnings = TracingAttribute(
+    name="trace_warnings",
+    category="primary",
+    display_name="Trace Warnings ",
+    description="Warnings in Tracing",
+)
+_trace_infos = TracingAttribute(
+    name="trace_infos",
+    category="secondary",
+    display_name="Trace Infos ",
+    description="Info Messages in Tracing",
+)
+_trace_debugs = TracingAttribute(
+    name="trace_debugs",
+    category="tertiary",
+    display_name="Trace debugs ",
+    description="Debug Messages in Tracing",
+)
+
+
 def inject_logs_into_span(span: Span):
     """Inject captured logs into a span as attributes."""
     from dhenara.agent.observability.config import get_current_settings
@@ -118,13 +143,13 @@ def inject_logs_into_span(span: Span):
 
     # Add to span attributes
     if errors:
-        add_trace_attribute("errors", errors, TracingDataCategory.primary)
+        add_trace_attribute(_trace_errors, errors)
 
     if warnings:
-        add_trace_attribute("warnings", warnings, TracingDataCategory.secondary)
+        add_trace_attribute(_trace_warnings, warnings)
 
     if infos:
-        add_trace_attribute("info_logs", infos, TracingDataCategory.tertiary)
+        add_trace_attribute(_trace_infos, infos)
 
     if debugs:
-        add_trace_attribute("debug_logs", debugs, TracingDataCategory.tertiary)
+        add_trace_attribute(_trace_debugs, debugs)

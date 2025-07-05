@@ -6,7 +6,7 @@ from typing import Any, Optional
 from opentelemetry import trace
 from opentelemetry.trace import Span
 
-from .profile import TracingDataCategory
+from .profile import TracingAttribute
 
 # Context variable to hold the current trace collector
 _current_collector = contextvars.ContextVar("trace_collector", default=None)
@@ -21,9 +21,9 @@ class TraceCollector:
     def __init__(self, span: Span | None = None):
         self.span = span
         self.attributes = {
-            TracingDataCategory.primary.value: {},
-            TracingDataCategory.secondary.value: {},
-            TracingDataCategory.tertiary.value: {},
+            "primary": {},
+            "secondary": {},
+            "tertiary": {},
         }
         self._token = None
 
@@ -41,9 +41,8 @@ class TraceCollector:
 
     def add_attribute(
         self,
-        key: str,
+        attribute: TracingAttribute,
         value: Any,
-        category: TracingDataCategory | str = TracingDataCategory.primary,
     ) -> None:
         """
         Add an attribute to be recorded in the trace.
@@ -51,19 +50,26 @@ class TraceCollector:
         Args:
             key: Attribute key
             value: Attribute value
-            category: Importance category ('primary', 'secondary', 'tertiary')
         """
-        # Convert to string representation
-        if isinstance(category, TracingDataCategory):
-            category_str = category.value
-        else:
-            category_str = str(category)
+        # Handle TracingAttribute instance
+        if not isinstance(attribute, TracingAttribute):
+            raise ValueError(
+                f"attributeshould be an instance of TracingAttribute, not {type(attribute)}. attribute={attribute}"
+            )
 
-        # Validate against allowed values
-        if category_str not in ["primary", "secondary", "tertiary"]:
-            category_str = "tertiary"  # Default to tertiary if invalid category
+        # Apply transformation if specified
+        if attribute.transform and callable(attribute.transform):
+            try:
+                value = attribute.transform(value)
+            except Exception:
+                # If transformation fails, use original value
+                pass
 
-        self.attributes[category_str][key] = value
+        # Apply max_length if specified
+        if attribute.max_length and isinstance(value, str) and len(value) > attribute.max_length:
+            value = value[: attribute.max_length] + "... [truncated]"
+
+        self.attributes[attribute.category][attribute.name] = value
 
     def apply_to_span(self, span: Span) -> None:
         """Apply all collected attributes to a span."""
@@ -136,24 +142,22 @@ class TraceCollector:
 
 # Helper functions for easy attribute adding
 def add_trace_attribute(
-    key: str,
+    attribute: TracingAttribute,
     value: Any,
-    category: TracingDataCategory = TracingDataCategory.primary,
 ) -> bool:
     """
     Add an attribute to the current trace collector.
 
     Args:
-        key: Attribute key
+        attribute: Attribute key
         value: Attribute value
-        category: Importance category ('primary', 'secondary', 'tertiary')
 
     Returns:
         True if attribute was added, False if no collector is active
     """
     collector = TraceCollector.get_current()
     if collector:
-        collector.add_attribute(key, value, category)
+        collector.add_attribute(attribute, value)
         return True
     return False
 

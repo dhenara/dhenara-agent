@@ -24,7 +24,7 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import (
     FolderAnalysisOperation,
 )
 from dhenara.agent.observability.tracing import trace_node
-from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
+from dhenara.agent.observability.tracing.data import add_trace_attribute
 
 from .input import FolderAnalyzerNodeInput
 from .output import (
@@ -34,7 +34,13 @@ from .output import (
     FolderAnalyzerNodeOutputData,
 )
 from .settings import FolderAnalyzerSettings
-from .tracing import folder_analyzer_node_tracing_profile
+from .tracing import (
+    base_directory_attr,
+    folder_analyzer_node_tracing_profile,
+    operations_count_attr,
+    operations_results_attr,
+    operations_summary_attr,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +80,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 settings=settings,
                 execution_context=execution_context,
             )
-            add_trace_attribute("base_directory", str(base_directory), TracingDataCategory.primary)
+            add_trace_attribute(base_directory_attr, str(base_directory))
 
             # Get allowed directories
             allowed_directories = self._get_allowed_directories(node_input, settings)
@@ -121,14 +127,13 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             )
 
             add_trace_attribute(
-                "operations_summary",
+                operations_summary_attr,
                 {
                     "total": len(operations),
                     "successful": success_info["successful_operations"],
                     "failed": success_info["failed_operations"],
                     "all_succeeded": all_succeeded,
                 },
-                TracingDataCategory.primary,
             )
 
             # Create node output
@@ -171,6 +176,7 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             - dict with meta info (total_files, total_directories, total_size, file_types, total_words_read)
         """
         results = []
+        operation_result_trace_data = []
         successful_operations = 0
         failed_operations = 0
         errors = []
@@ -190,17 +196,15 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             total_directories = 0
             total_size = 0
 
-        add_trace_attribute("operations_count", len(operations), TracingDataCategory.primary)
+        add_trace_attribute(operations_count_attr, len(operations))
 
         for i, operation in enumerate(operations):
-            add_trace_attribute(
-                f"operation_{i}",
-                {
-                    "type": operation.operation_type,
-                    "path": operation.path,
-                },
-                TracingDataCategory.primary,
-            )
+            _trace_data = {
+                "name": f"operation_{i}",
+                "index": i,
+                "type": operation.operation_type,
+                "path": operation.path,
+            }
 
             try:
                 # Validate the operation
@@ -344,16 +348,20 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             # Add operation result to trace
             if i < len(results):
                 result = results[i]
-                add_trace_attribute(
-                    f"operation_result_{i}",
+                _trace_data.update(
                     {
-                        "type": result.operation_type,
-                        "path": result.path,
                         "success": result.success,
                         "errors": errors,
+                        "out_type": result.operation_type,
+                        "out_path": result.path,
                     },
-                    TracingDataCategory.primary,
                 )
+
+            # Append trace data
+            operation_result_trace_data.append(_trace_data)
+
+        # Add trace data
+        add_trace_attribute(operations_results_attr, operation_result_trace_data)
 
         success_info = {
             "successful_operations": successful_operations,

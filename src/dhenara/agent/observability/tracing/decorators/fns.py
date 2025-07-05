@@ -12,8 +12,7 @@ from dhenara.agent.observability.tracing.data import (
     ComponentTracingProfile,
     NodeTracingProfile,
     TraceCollector,
-    TracingDataCategory,
-    TracingDataField,
+    TracingAttribute,
 )
 from dhenara.agent.observability.tracing.tracing_log_handler import TraceLogCapture, inject_logs_into_span
 
@@ -98,34 +97,31 @@ def sanitize_value(value: Any, max_length: int | None = None) -> Any:
         return "<unprintable>"
 
 
-def add_profile_values_to_span(span: Span, data_object: Any, fields: list[TracingDataField], prefix: str = "") -> None:
-    """Add values from a data object to a span based on tracing field definitions."""
-    for field in fields:
+def add_profile_values_to_span(
+    span: Span, data_object: Any, attributes: list[TracingAttribute], prefix: str = ""
+) -> None:
+    """Add values from a data object to a span based on tracing attribute definitions."""
+    for attribute in attributes:
         # Extract the value using the source path
-        value = extract_value(data_object, field.source_path)
+        value = extract_value(data_object, attribute.source_path)
 
         # Skip if no value was found
         if value is None:
             continue
 
         # Apply transformation if specified
-        if field.transform and callable(field.transform):
+        if attribute.transform and callable(attribute.transform):
             try:
-                value = field.transform(value)
+                value = attribute.transform(value)
             except Exception:
                 # If transformation fails, use original value
                 pass
 
         # Sanitize the value (truncate if needed)
-        sanitized_value = sanitize_value(value, field.max_length)
-
-        if isinstance(field.category, TracingDataCategory):
-            category_str = field.category.value
-        else:
-            category_str = str(field.category)
+        sanitized_value = sanitize_value(value, attribute.max_length)
 
         # Determine attribute name with category prefix
-        attribute_name = f"{category_str}.{prefix}.{field.name}"
+        attribute_name = f"{attribute.category}.{prefix}.{attribute.name}"
 
         # Add to span
         span.set_attribute(attribute_name, sanitized_value)

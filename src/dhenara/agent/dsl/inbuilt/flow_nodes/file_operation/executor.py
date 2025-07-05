@@ -21,13 +21,19 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.mixin.operations_mixin import FileSytemOperationsMixin
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs.types import EditOperation, FileMetadata, FileOperation
 from dhenara.agent.observability.tracing import trace_node
-from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute
+from dhenara.agent.observability.tracing.data import add_trace_attribute
 from dhenara.agent.utils.git import GitBase
 
 from .input import FileOperationNodeInput
 from .output import FileOperationNodeOutcome, FileOperationNodeOutput, FileOperationNodeOutputData, OperationResult
 from .settings import FileOperationNodeSettings
-from .tracing import file_operation_node_tracing_profile
+from .tracing import (
+    base_directory_attr,
+    file_operation_node_tracing_profile,
+    operations_count_attr,
+    operations_results_attr,
+    operations_summary_attr,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +71,7 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                 settings=settings,
                 execution_context=execution_context,
             )
-            add_trace_attribute("base_directory", str(base_directory), TracingDataCategory.primary)
+            add_trace_attribute(base_directory_attr, str(base_directory))
 
             # Get allowed directories
             allowed_directories = self._get_allowed_directories(node_input, settings)
@@ -118,14 +124,13 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             )
 
             add_trace_attribute(
-                "operations_summary",
+                operations_summary_attr,
                 {
                     "total": len(operations),
                     "successful": successful_ops,
                     "failed": failed_ops,
                     "all_succeeded": all_succeeded,
                 },
-                TracingDataCategory.primary,
             )
 
             # Create node output
@@ -209,21 +214,20 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             - list of error messages
         """
         results: list[OperationResult] = []
+        operation_result_trace_data = []
         successful_operations = 0
         failed_operations = 0
         errors: list[str] = []
 
-        add_trace_attribute("operations_count", len(operations), TracingDataCategory.primary)
+        add_trace_attribute(operations_count_attr, len(operations))
 
         for i, operation in enumerate(operations):
-            add_trace_attribute(
-                f"operation_{i}",
-                {
-                    "type": operation.type,
-                    "path": operation.path,
-                },
-                TracingDataCategory.primary,
-            )
+            _trace_data = {
+                "name": f"operation_{i}",
+                "index": i,
+                "type": operation.type,
+                "path": operation.path,
+            }
 
             try:
                 # Validate the operation
@@ -302,16 +306,20 @@ class FileOperationNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
             op_idx = operations.index(operation)
             if op_idx < len(results):
                 result = results[op_idx]
-                add_trace_attribute(
-                    f"operation_result_{op_idx}",
+                _trace_data.update(
                     {
-                        "type": result.type,
-                        "path": result.path,
                         "success": result.success,
                         "error": result.error,
+                        "out_type": result.type,
+                        "out_path": result.path,
                     },
-                    TracingDataCategory.primary,
                 )
+
+            # Append trace data
+            operation_result_trace_data.append(_trace_data)
+
+        # Add trace data
+        add_trace_attribute(operations_results_attr, operation_result_trace_data)
 
         return results, successful_operations, failed_operations, errors
 

@@ -23,11 +23,10 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.ai_model import (
     AIModelNodeOutput,
     AIModelNodeOutputData,
     AIModelNodeSettings,
-    ai_model_node_tracing_profile,
 )
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import trace_node
-from dhenara.agent.observability.tracing.data import TracingDataCategory, add_trace_attribute, trace_collect
+from dhenara.agent.observability.tracing.data import add_trace_attribute, trace_collect
 from dhenara.ai import AIModelClient
 from dhenara.ai.types import (
     AIModelCallConfig,
@@ -44,6 +43,27 @@ from dhenara.ai.types.shared.api import (
 )
 from dhenara.ai.types.shared.file import StoredFile
 from dhenara.ai.types.shared.platform import DhenaraAPIError
+
+from .tracing import (
+    ai_model_api_provider_attr,
+    ai_model_name_attr,
+    ai_model_node_tracing_profile,
+    ai_model_provider_attr,
+    api_call_started_attr,
+    charge_attr,
+    context_count_attr,
+    cost_attr,
+    final_prompt_attr,
+    model_call_config_attr,
+    model_options_attr,
+    node_resource_query_attr,
+    node_resource_type_attr,
+    prompt_context_0_attr,
+    prompt_context_1_attr,
+    prompt_context_2_attr,
+    system_instructions_attr,
+    test_mode_attr,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -132,13 +152,12 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             raise ValueError("No default resource found in flow node configuration")
 
         add_trace_attribute(
-            "node_resource",
+            node_resource_type_attr,
             getattr(node_resource, "item_type", "unknown"),
-            TracingDataCategory.secondary,
         )
         # Add query information if available
         if hasattr(node_resource, "query"):
-            add_trace_attribute("node_resource", node_resource.query, TracingDataCategory.secondary)
+            add_trace_attribute(node_resource_query_attr, node_resource.query)
 
         # 2. Fix Setting
         # -------------------
@@ -149,9 +168,9 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         # 3. Fix AI Model endpoint
         # -------------------
         ai_model_ep = execution_context.resource_config.get_resource(node_resource)
-        add_trace_attribute("ai_model_name", ai_model_ep.ai_model.model_name, TracingDataCategory.primary)
-        add_trace_attribute("ai_model_provider", ai_model_ep.ai_model.provider, TracingDataCategory.primary)
-        add_trace_attribute("ai_model_api_provider", ai_model_ep.api.provider, TracingDataCategory.primary)
+        add_trace_attribute(ai_model_name_attr, ai_model_ep.ai_model.model_name)
+        add_trace_attribute(ai_model_provider_attr, ai_model_ep.ai_model.provider)
+        add_trace_attribute(ai_model_api_provider_attr, ai_model_ep.api.provider)
 
         # 4. Fix Prompt and system instruction
         # -------------------
@@ -173,9 +192,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # Add the final prompt to tracing
         add_trace_attribute(
-            "final_prompt",
+            final_prompt_attr,
             prompt.text if hasattr(prompt, "text") else str(prompt),
-            TracingDataCategory.primary,
         )
 
         # TODO_FUTURE: template support for instructions and context?
@@ -191,7 +209,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                     )
 
         # Add system instructions to tracing
-        add_trace_attribute("system_instructions", instructions, TracingDataCategory.primary)
+        add_trace_attribute(system_instructions_attr, instructions)
 
         # 5. Fix context
         # -------------------
@@ -207,13 +225,13 @@ class AIModelNodeExecutor(FlowNodeExecutor):
 
         # Add context to tracing
         if context:
-            add_trace_attribute("context_count", len(context), TracingDataCategory.secondary)
+            add_trace_attribute(context_count_attr, len(context))
             # Add preview of first few context items
             for i, ctx in enumerate(context[:3]):
+                attr = prompt_context_0_attr if i == 0 else prompt_context_1_attr if i == 1 else prompt_context_2_attr
                 add_trace_attribute(
-                    f"context[{i}]",
+                    attr,
                     ctx.text if hasattr(ctx, "text") else str(ctx),
-                    TracingDataCategory.secondary,
                 )
 
         # 6. Fix options
@@ -239,8 +257,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         logger.debug(f"call_ai_model: options={options}")
 
         # Add options to tracing
-        add_trace_attribute("model_options", options, TracingDataCategory.secondary)
-        add_trace_attribute("test_mode", test_mode, TracingDataCategory.tertiary)
+        add_trace_attribute(model_options_attr, options)
+        add_trace_attribute(test_mode_attr, test_mode)
 
         # 7. AIModelCallConfig
         model_call_config = None
@@ -278,7 +296,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
                     )
                     config_data["structured_output_schema"] = schema_name
 
-            add_trace_attribute("model_call_config", config_data, TracingDataCategory.secondary)
+            add_trace_attribute(model_call_config_attr, config_data)
 
         # 8. Call model
         # -------------------
@@ -289,7 +307,7 @@ class AIModelNodeExecutor(FlowNodeExecutor):
         )
 
         # Add a trace attribute just before the API call
-        add_trace_attribute("api_call_started", datetime.now().isoformat(), TracingDataCategory.tertiary)
+        add_trace_attribute(api_call_started_attr, datetime.now().isoformat())
 
         state_data = {
             "ai_model": ai_model_ep.ai_model.model_name,
@@ -338,8 +356,8 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             else:
                 formatted_charge = "$?"
 
-            add_trace_attribute("cost", formatted_cost, TracingDataCategory.primary)
-            add_trace_attribute("charge", formatted_charge, TracingDataCategory.primary)
+            add_trace_attribute(cost_attr, formatted_cost)
+            add_trace_attribute(charge_attr, formatted_charge)
 
         if streaming:
             if not isinstance(response.stream_generator, AsyncGenerator):

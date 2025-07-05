@@ -2,8 +2,8 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing import truncate_string
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
-    TracingDataCategory,
-    TracingDataField,
+    TracingAttribute,
+    common_context_attributes,
 )
 
 
@@ -51,103 +51,344 @@ def format_usage_charge(usage_charge):
     return result
 
 
+# Tracing attributes
+# Input attributes
+prompt_vars_attr = TracingAttribute(
+    name="prompt_vars",
+    category="primary",
+    display_name="Prompt Variables",
+    description="User prompt variables",
+    node_field_type="input",
+    source_path="prompt_variables",
+    data_type="object",
+    collapsible=True,
+)
+
+system_instructions_vars_attr = TracingAttribute(
+    name="system_instructions_vars",
+    category="primary",
+    display_name="System Instructions Variables",
+    description="System instruction variables",
+    node_field_type="input",
+    source_path="instruction_variables",
+    data_type="object",
+    collapsible=True,
+)
+
+# Output attributes
+response_text_output_attr = TracingAttribute(
+    name="response_text",
+    category="primary",
+    display_name="Response Text",
+    description="Model response text",
+    node_field_type="output",
+    source_path="data.response.chat_response.text()",
+    data_type="string",
+    max_length=1000,
+)
+
+structured_output_attr = TracingAttribute(
+    name="structured_output",
+    category="primary",
+    display_name="Structured Output",
+    description="Structured output",
+    node_field_type="output",
+    source_path="data.response.chat_response.structured()",
+    data_type="object",
+    collapsible=True,
+)
+
+# Result attributes
+response_text_result_attr = TracingAttribute(
+    name="response_text",
+    category="primary",
+    display_name="Response Text",
+    description="Response text",
+    node_field_type="result",
+    source_path="outcome.text",
+    data_type="string",
+    max_length=1000,
+)
+
+has_structured_data_attr = TracingAttribute(
+    name="has_structured_data",
+    category="primary",
+    display_name="Has Structured Data",
+    description="Has structured data",
+    node_field_type="result",
+    source_path="outcome.structured",
+    data_type="boolean",
+    transform=lambda x: bool(x),
+)
+
+token_usage_attr = TracingAttribute(
+    name="token_usage",
+    category="primary",
+    display_name="Token Usage",
+    description="Token usage",
+    node_field_type="result",
+    source_path="output.data.response.full_response.usage",
+    data_type="object",
+    transform=format_usage,
+    format_hint="usage_stats",
+    icon="tokens",
+)
+
+token_cost_attr = TracingAttribute(
+    name="token_cost",
+    category="primary",
+    display_name="Cost and Charges",
+    description="Cost and Charges",
+    node_field_type="result",
+    source_path="output.data.response.full_response.usage_charge",
+    data_type="object",
+    transform=format_usage_charge,
+    format_hint="currency",
+    icon="dollar",
+)
+
+model_attr = TracingAttribute(
+    name="model",
+    category="primary",
+    display_name="Model Used",
+    description="Model used",
+    node_field_type="result",
+    source_path="output.data.response.full_response.model",
+    data_type="string",
+    icon="model",
+)
+
+status_attr = TracingAttribute(
+    name="status",
+    category="secondary",
+    display_name="Response Status",
+    description="Response status",
+    node_field_type="result",
+    source_path="output.data.response.status",
+    data_type="string",
+)
+
+finish_reason_attr = TracingAttribute(
+    name="finish_reason",
+    category="secondary",
+    display_name="Finish Reason",
+    description="Finish reason",
+    node_field_type="result",
+    source_path="output.data.response.full_response.choices[0].finish_reason",
+    data_type="string",
+)
+
+full_data_attr = TracingAttribute(
+    name="full_data",
+    category="tertiary",
+    display_name="Full Output Data",
+    description="Complete output data",
+    node_field_type="result",
+    source_path="output.data",
+    data_type="object",
+    transform=lambda x: str(x)[:1000] if x else None,
+    collapsible=True,
+)
+
+# Node internal attributes (from add_trace_attribute calls)
+node_resource_type_attr = TracingAttribute(
+    name="node_resource_type",
+    category="secondary",
+    display_name="Node Resource Type",
+    description="Type of resource used by the node",
+    node_field_type="node_internal",
+    data_type="string",
+)
+
+node_resource_query_attr = TracingAttribute(
+    name="node_resource_query",
+    category="secondary",
+    display_name="Node Resource Query",
+    description="Query associated with the node resource",
+    node_field_type="node_internal",
+    data_type="string",
+)
+
+ai_model_name_attr = TracingAttribute(
+    name="ai_model_name",
+    category="primary",
+    display_name="AI Model Name",
+    description="Name of the AI model used",
+    node_field_type="node_internal",
+    data_type="string",
+)
+
+ai_model_provider_attr = TracingAttribute(
+    name="ai_model_provider",
+    category="primary",
+    display_name="AI Model Provider",
+    description="Provider of the AI model",
+    node_field_type="node_internal",
+    data_type="string",
+)
+
+ai_model_api_provider_attr = TracingAttribute(
+    name="ai_model_api_provider",
+    category="primary",
+    display_name="AI Model API Provider",
+    description="API provider for the AI model",
+    node_field_type="node_internal",
+    data_type="string",
+)
+
+final_prompt_attr = TracingAttribute(
+    name="final_prompt",
+    category="primary",
+    display_name="Final Prompt",
+    description="Final rendered prompt sent to the model",
+    node_field_type="node_internal",
+    data_type="string",
+    max_length=1000,
+)
+
+system_instructions_attr = TracingAttribute(
+    name="system_instructions",
+    category="primary",
+    display_name="System Instructions",
+    description="System instructions used in the call",
+    node_field_type="node_internal",
+    data_type="array",
+)
+
+context_count_attr = TracingAttribute(
+    name="context_count",
+    category="primary",
+    display_name="Context Count",
+    description="Number of context items provided",
+    node_field_type="node_internal",
+    data_type="number",
+)
+
+prompt_context_0_attr = TracingAttribute(
+    name="prompt_context_0",
+    category="secondary",
+    display_name="Prompt Context Item 0",
+    description="First Prompt context item preview",
+    node_field_type="node_internal",
+    data_type="string",
+    max_length=500,
+)
+
+prompt_context_1_attr = TracingAttribute(
+    name="prompt_context_1",
+    category="secondary",
+    display_name="Prompt Context Item 1",
+    description="Second Prompt context item preview",
+    node_field_type="node_internal",
+    data_type="string",
+    max_length=500,
+)
+
+prompt_context_2_attr = TracingAttribute(
+    name="prompt_context_2",
+    category="secondary",
+    display_name="Prompt Context Item 2",
+    description="Third Prompt context item preview",
+    node_field_type="node_internal",
+    data_type="string",
+    max_length=500,
+)
+
+model_options_attr = TracingAttribute(
+    name="model_options",
+    category="primary",
+    display_name="Model Options",
+    description="Options passed to the model",
+    node_field_type="node_internal",
+    data_type="object",
+)
+
+test_mode_attr = TracingAttribute(
+    name="test_mode",
+    category="primary",
+    display_name="Test Mode",
+    description="Whether test mode is enabled",
+    node_field_type="node_internal",
+    data_type="boolean",
+)
+
+model_call_config_attr = TracingAttribute(
+    name="model_call_config",
+    category="secondary",
+    display_name="Model Call Config",
+    description="Configuration for the model call",
+    node_field_type="node_internal",
+    data_type="object",
+)
+
+api_call_started_attr = TracingAttribute(
+    name="api_call_started",
+    category="primary",
+    display_name="API Call Started",
+    description="Timestamp when API call was initiated",
+    node_field_type="node_internal",
+    data_type="string",
+    format_hint="datetime",
+)
+
+cost_attr = TracingAttribute(
+    name="cost",
+    category="primary",
+    display_name="Cost",
+    description="Cost of the API call",
+    node_field_type="node_internal",
+    data_type="string",
+    format_hint="currency",
+)
+
+charge_attr = TracingAttribute(
+    name="charge",
+    category="primary",
+    display_name="Charge",
+    description="Charge for the API call",
+    node_field_type="node_internal",
+    data_type="string",
+    format_hint="currency",
+)
+
 # Define AI Model Node tracing profile
 ai_model_node_tracing_profile = NodeTracingProfile(
     node_type=FlowNodeTypeEnum.ai_model_call.value,
-    # Primary input data - what's being sent to the model
-    input_fields=[
-        TracingDataField(
-            name="prompt_vars",
-            source_path="prompt_variables",
-            category=TracingDataCategory.primary,
-            description="User prompt variables",
-        ),
-        TracingDataField(
-            name="system_instructions_vars",
-            source_path="instruction_variables",
-            category=TracingDataCategory.primary,
-            description="System instruction variables",
-        ),
+    tracing_attributes=[
+        # Input attributes
+        prompt_vars_attr,
+        system_instructions_vars_attr,
+        # Output attributes
+        response_text_output_attr,
+        structured_output_attr,
+        # Result attributes
+        response_text_result_attr,
+        has_structured_data_attr,
+        token_usage_attr,
+        token_cost_attr,
+        model_attr,
+        status_attr,
+        finish_reason_attr,
+        full_data_attr,
+        # Node internal attributes
+        node_resource_type_attr,
+        node_resource_query_attr,
+        ai_model_name_attr,
+        ai_model_provider_attr,
+        ai_model_api_provider_attr,
+        final_prompt_attr,
+        system_instructions_attr,
+        context_count_attr,
+        prompt_context_0_attr,
+        prompt_context_1_attr,
+        prompt_context_2_attr,
+        model_options_attr,
+        test_mode_attr,
+        model_call_config_attr,
+        api_call_started_attr,
+        cost_attr,
+        charge_attr,
+        # Add common context attributes
+        *common_context_attributes,
     ],
-    # Primary output data - what's coming back from the model
-    output_fields=[
-        TracingDataField(
-            name="response_text",
-            source_path="data.response.chat_response.text()",
-            category=TracingDataCategory.primary,
-            max_length=1000,
-            description="Model response text",
-        ),
-        TracingDataField(
-            name="structured_output",
-            source_path="data.response.chat_response.structured()",
-            category=TracingDataCategory.primary,
-            description="Structured output",
-        ),
-    ],
-    # Result data - processed outcomes and metadata
-    result_fields=[
-        # Primary result data
-        TracingDataField(
-            name="response_text",
-            source_path="outcome.text",
-            category=TracingDataCategory.primary,
-            max_length=1000,
-            description="Response text",
-        ),
-        TracingDataField(
-            name="has_structured_data",
-            source_path="outcome.structured",
-            category=TracingDataCategory.primary,
-            transform=lambda x: bool(x),
-            description="Has structured data",
-        ),
-        TracingDataField(
-            name="token_usage",
-            source_path="output.data.response.full_response.usage",
-            category=TracingDataCategory.primary,
-            transform=format_usage,
-            description="Token usage",
-        ),
-        TracingDataField(
-            name="token_usage",
-            source_path="output.data.response.full_response.usage_charge",
-            category=TracingDataCategory.primary,
-            transform=format_usage_charge,
-            description="Cost and Charges",
-        ),
-        TracingDataField(
-            name="model",
-            source_path="output.data.response.full_response.model",
-            category=TracingDataCategory.primary,
-            description="Model used",
-        ),
-        # Secondary result data
-        TracingDataField(
-            name="status",
-            source_path="output.data.response.status",
-            category=TracingDataCategory.secondary,
-            description="Response status",
-        ),
-        TracingDataField(
-            name="finish_reason",
-            source_path="output.data.response.full_response.choices[0].finish_reason",
-            category=TracingDataCategory.secondary,
-            description="Finish reason",
-        ),
-        # Tertiary data (full details for debugging)
-        TracingDataField(
-            name="full_data",
-            source_path="output.data",
-            category=TracingDataCategory.tertiary,
-            transform=lambda x: str(x)[:1000] if x else None,
-            description="Complete output data",
-        ),
-    ],
-    ## Context data - execution environment
-    # context_fields=[
-    #    TracingDataField(
-    #        name="flow_id", source_path="component_id", category=TracingDataCategory.secondary, description="Flow ID"
-    #    ),
-    # ],
 )
