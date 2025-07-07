@@ -125,11 +125,11 @@ class SpanAttributeManager:
         except Exception:
             return "<unprintable>"
 
-    def _build_attribute_name(self, attribute_name: str, prefix: str | None = None) -> str:
+    def _build_attribute_name(self, attribute: TracingAttribute, prefix: str | None = None) -> str:
         """Build the full attribute name with prefix."""
         if prefix:
-            return f"dad.{prefix}.{attribute_name}"
-        return f"dad.{attribute_name}"
+            return f"dad.{attribute.group_name}.{prefix}.{attribute.name}"
+        return f"dad.{attribute.group_name}.{attribute.name}"
 
     def add_attribute(
         self,
@@ -165,7 +165,7 @@ class SpanAttributeManager:
         serialized_value = self.serialize_value(processed_value, attribute.max_length)
 
         # Build attribute name and add to span
-        attribute_name = self._build_attribute_name(attribute.name, prefix)
+        attribute_name = self._build_attribute_name(attribute, prefix)
         span.set_attribute(attribute_name, serialized_value)
 
     def add_profile_attributes(

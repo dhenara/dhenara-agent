@@ -1,4 +1,4 @@
-from .profile import TracingAttribute
+from ..profile import TracingAttribute
 
 # Common context attributes that can be reused across nodes
 common_context_attributes = [

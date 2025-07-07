@@ -1,7 +1,7 @@
 from .profile import TracingAttribute, ComponentTracingProfile, NodeTracingProfile
 from .attribute_manager import SpanAttributeManager, span_attribute_manager
 from .collector import TraceCollector, trace_collect, add_trace_attribute
-from .common_context_attributes import common_context_attributes
+from .attribute_defs.common_context_attributes import common_context_attributes
 
 __all__ = [
     "ComponentTracingProfile",

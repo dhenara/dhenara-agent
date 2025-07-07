@@ -8,17 +8,21 @@ class TracingAttribute:
     """Definition of a tracing attribute with display metadata."""
 
     name: str  # The attribute name
-    category: Literal["primary", "secondary", "tertiary"]  # Importance category
     group_name: Literal[
+        # Nodes & Components
         "input",
         "output",
         "result",
         "execution_context",
         "node_internal",
+        # Others
+        "fn_trace",
         "trace_debug",
         "generic",
+        "custom",
     ]
     data_type: Literal["string", "number", "boolean", "object", "array"]
+    category: Literal["primary", "secondary", "tertiary"] = "primary"  # Importance category
     # Display metadata for frontend
     display_name: str = ""  # Human-readable name for UI
     description: str = ""  # Description

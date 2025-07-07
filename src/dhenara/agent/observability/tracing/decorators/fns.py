@@ -12,6 +12,22 @@ from dhenara.agent.observability.tracing.data import (
     TraceCollector,
     span_attribute_manager,
 )
+from dhenara.agent.observability.tracing.data.attribute_defs.generic_attributes import (
+    component_hierarchy_attr,
+    component_id_attr,
+    component_type_attr,
+    error_message_attr,
+    error_type_attr,
+    execution_duration_attr,
+    execution_end_time_attr,
+    execution_start_time_attr,
+    execution_status_attr,
+    node_hierarchy_attr,
+    node_id_attr,
+    node_type_attr,
+    parent_span_id_attr,
+    parent_trace_id_attr,
+)
 from dhenara.agent.observability.tracing.tracing_log_handler import TraceLogCapture, inject_logs_into_span
 
 
@@ -95,20 +111,22 @@ def trace_node(
             if hierarchy_path:
                 span_name += f" - {hierarchy_path}"
 
-            # Create the span with basic attributes
-            with tracer.start_as_current_span(
-                span_name,
-                attributes={
-                    "node.id": str(node_id),
-                    "node.type": detected_node_type,
-                    "node.hierarchy": hierarchy_path or "",
-                    "execution.start_time": start_time,
-                },
-            ) as span:
+            # Create the span
+            with tracer.start_as_current_span(span_name) as span:
+                # Add basic node attributes using span_attribute_manager
+                span_attribute_manager.add_attribute(span, node_id_attr, str(node_id))
+                span_attribute_manager.add_attribute(span, node_type_attr, detected_node_type)
+                span_attribute_manager.add_attribute(span, node_hierarchy_attr, hierarchy_path or "")
+                span_attribute_manager.add_attribute(span, execution_start_time_attr, start_time)
+
                 # Link to parent span if available
                 if parent_context and parent_context.is_valid:
-                    span.set_attribute("parent.trace_id", format(parent_context.trace_id, "032x"))
-                    span.set_attribute("parent.span_id", format(parent_context.span_id, "016x"))
+                    span_attribute_manager.add_attribute(
+                        span, parent_trace_id_attr, format(parent_context.trace_id, "032x")
+                    )
+                    span_attribute_manager.add_attribute(
+                        span, parent_span_id_attr, format(parent_context.span_id, "016x")
+                    )
 
                 # Start capturing logs for this span
                 span_id = format(span.get_span_context().span_id, "016x")
@@ -134,8 +152,8 @@ def trace_node(
                         # Calculate and record execution time
                         end_time = time.time()
                         duration_ms = (end_time - start_time) * 1000
-                        span.set_attribute("execution.duration_ms", duration_ms)
-                        span.set_attribute("execution.end_time", end_time)
+                        span_attribute_manager.add_attribute(span, execution_duration_attr, duration_ms)
+                        span_attribute_manager.add_attribute(span, execution_end_time_attr, end_time)
 
                         # Add result data based on profile
                         if result and tracing_profile.result_fields:
@@ -162,7 +180,7 @@ def trace_node(
                                 error_description = None
 
                         span.set_status(status_code, error_description)
-                        span.set_attribute("execution.status", success_status)
+                        span_attribute_manager.add_attribute(span, execution_status_attr, success_status)
 
                         # Inject captured logs into the span
                         inject_logs_into_span(span)
@@ -172,15 +190,15 @@ def trace_node(
                         # Record error details
                         end_time = time.time()
                         duration_ms = (end_time - start_time) * 1000
-                        span.set_attribute("execution.duration_ms", duration_ms)
-                        span.set_attribute("execution.end_time", end_time)
+                        span_attribute_manager.add_attribute(span, execution_duration_attr, duration_ms)
+                        span_attribute_manager.add_attribute(span, execution_end_time_attr, end_time)
 
                         # Record the error
                         span.record_exception(e)
                         span.set_status(Status(StatusCode.ERROR, str(e)))
-                        span.set_attribute("execution.status", "error")
-                        span.set_attribute("error.type", e.__class__.__name__)
-                        span.set_attribute("error.message", str(e))
+                        span_attribute_manager.add_attribute(span, execution_status_attr)
+                        span_attribute_manager.add_attribute(span, error_type_attr, e.__class__.__name__)
+                        span_attribute_manager.add_attribute(span, error_message_attr, str(e))
 
                         # Inject captured logs into the span
                         inject_logs_into_span(span)
@@ -270,20 +288,22 @@ def trace_component(
             if hierarchy_path:
                 span_name += f" - {hierarchy_path}"
 
-            # Create the span with basic attributes
-            with tracer.start_as_current_span(
-                span_name,
-                attributes={
-                    "component.id": str(component_id),
-                    "component.type": detected_component_type,
-                    "component.hierarchy": hierarchy_path or "",
-                    "execution.start_time": start_time,
-                },
-            ) as span:
+            # Create the span
+            with tracer.start_as_current_span(span_name) as span:
+                # Add basic component attributes using span_attribute_manager
+                span_attribute_manager.add_attribute(span, component_id_attr, str(component_id))
+                span_attribute_manager.add_attribute(span, component_type_attr, detected_component_type)
+                span_attribute_manager.add_attribute(span, component_hierarchy_attr, hierarchy_path or "")
+                span_attribute_manager.add_attribute(span, execution_start_time_attr, start_time)
+
                 # Link to parent span if available
                 if parent_context and parent_context.is_valid:
-                    span.set_attribute("parent.trace_id", format(parent_context.trace_id, "032x"))
-                    span.set_attribute("parent.span_id", format(parent_context.span_id, "016x"))
+                    span_attribute_manager.add_attribute(
+                        span, parent_trace_id_attr, format(parent_context.trace_id, "032x")
+                    )
+                    span_attribute_manager.add_attribute(
+                        span, parent_span_id_attr, format(parent_context.span_id, "016x")
+                    )
 
                 # Start capturing logs for this span
                 span_id = format(span.get_span_context().span_id, "016x")
@@ -311,8 +331,8 @@ def trace_component(
                         # Calculate and record execution time
                         end_time = time.time()
                         duration_ms = (end_time - start_time) * 1000
-                        span.set_attribute("execution.duration_ms", duration_ms)
-                        span.set_attribute("execution.end_time", end_time)
+                        span_attribute_manager.add_attribute(span, execution_duration_attr, duration_ms)
+                        span_attribute_manager.add_attribute(span, execution_end_time_attr, end_time)
 
                         # Add result data based on profile
                         if result and tracing_profile.result_fields:
@@ -339,7 +359,7 @@ def trace_component(
                                 error_description = None
 
                         span.set_status(status_code, error_description)
-                        span.set_attribute("execution.status", success_status)
+                        span_attribute_manager.add_attribute(span, execution_status_attr, success_status)
 
                         # Inject captured logs into the span
                         inject_logs_into_span(span)
@@ -349,15 +369,15 @@ def trace_component(
                         # Record error details
                         end_time = time.time()
                         duration_ms = (end_time - start_time) * 1000
-                        span.set_attribute("execution.duration_ms", duration_ms)
-                        span.set_attribute("execution.end_time", end_time)
+                        span_attribute_manager.add_attribute(span, execution_duration_attr, duration_ms)
+                        span_attribute_manager.add_attribute(span, execution_end_time_attr, end_time)
 
                         # Record the error
                         span.record_exception(e)
                         span.set_status(Status(StatusCode.ERROR, str(e)))
-                        span.set_attribute("execution.status", "error")
-                        span.set_attribute("error.type", e.__class__.__name__)
-                        span.set_attribute("error.message", str(e))
+                        span_attribute_manager.add_attribute(span, execution_status_attr)
+                        span_attribute_manager.add_attribute(span, error_type_attr, e.__class__.__name__)
+                        span_attribute_manager.add_attribute(span, error_message_attr, str(e))
 
                         # Inject captured logs into the span
                         inject_logs_into_span(span)

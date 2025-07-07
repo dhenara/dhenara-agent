@@ -456,48 +456,8 @@ class RunContext:
         # Use the centralized setup
         configure_observability(self.observability_settings)
 
-        # TODO_FUTURE
-        # self.initialize_observability_even_listing()
-
         # Log tracing info
         logger.info(f"Tracing enabled. Traces will be written to: {self.trace_file}")
-
-    # TODO_FUTURE: Check if below is required
-    def initialize_observability_even_listing(self) -> None:
-        # Instrument the event bus to capture event-related spans
-        original_publish = self.event_bus.publish
-
-        async def instrumented_publish(event):
-            # Get tracer
-            from dhenara.agent.observability.tracing import get_tracer
-
-            tracer = get_tracer("dhenara.dad.events")
-
-            # Create span
-            with tracer.start_as_current_span(
-                f"event.{event.type}",
-                attributes={
-                    "event.type": event.type,
-                    "event.nature": event.nature,
-                },
-            ) as span:
-                try:
-                    # Execute original publish
-                    result = await original_publish(event)
-
-                    # Add result info to span
-                    if hasattr(event, "handled"):
-                        span.set_attribute("event.handled", event.handled)
-
-                    return result
-                except Exception as e:
-                    # Record error in span
-                    span.record_exception(e)
-                    span.set_attribute("error", str(e))
-                    raise
-
-        # Replace the event bus publish method
-        self.event_bus.publish = instrumented_publish
 
     def get_resource_config(
         self,
