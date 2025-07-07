@@ -82,24 +82,32 @@ class TraceLogHandler(logging.Handler):
 _trace_errors = TracingAttribute(
     name="trace_errors",
     category="primary",
+    group_name="trace_debug",
+    data_type="string",
     display_name="Trace Errors ",
     description="Errors in Tracing",
 )
 _trace_warnings = TracingAttribute(
     name="trace_warnings",
     category="primary",
+    group_name="trace_debug",
+    data_type="string",
     display_name="Trace Warnings ",
     description="Warnings in Tracing",
 )
 _trace_infos = TracingAttribute(
     name="trace_infos",
     category="secondary",
+    group_name="trace_debug",
+    data_type="string",
     display_name="Trace Infos ",
     description="Info Messages in Tracing",
 )
 _trace_debugs = TracingAttribute(
     name="trace_debugs",
     category="tertiary",
+    group_name="trace_debug",
+    data_type="string",
     display_name="Trace debugs ",
     description="Debug Messages in Tracing",
 )

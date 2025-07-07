@@ -11,7 +11,7 @@ base_directory_input_attr = TracingAttribute(
     category="primary",
     display_name="Base Directory",
     description="Base directory for operations",
-    node_field_type="input",
+    group_name="input",
     source_path="base_directory",
     data_type="string",
 )
@@ -21,7 +21,7 @@ operations_count_input_attr = TracingAttribute(
     category="primary",
     display_name="Operations Count",
     description="Number of operations to perform",
-    node_field_type="input",
+    group_name="input",
     source_path="operations",
     data_type="number",
     transform=lambda x: len(x) if x else 0,
@@ -32,7 +32,7 @@ exclude_patterns_input_attr = TracingAttribute(
     category="secondary",
     display_name="Exclude Patterns",
     description="Patterns to exclude",
-    node_field_type="input",
+    group_name="input",
     source_path="exclude_patterns",
     data_type="array",
 )
@@ -43,7 +43,7 @@ success_output_attr = TracingAttribute(
     category="primary",
     display_name="Success",
     description="Whether analysis was successful",
-    node_field_type="output",
+    group_name="output",
     source_path="data.success",
     data_type="boolean",
 )
@@ -53,7 +53,7 @@ base_directory_output_attr = TracingAttribute(
     category="primary",
     display_name="Base Directory",
     description="Base directory for operations",
-    node_field_type="output",
+    group_name="output",
     source_path="data.base_directory",
     data_type="string",
 )
@@ -63,7 +63,7 @@ operations_count_output_attr = TracingAttribute(
     category="primary",
     display_name="Operations Count",
     description="Number of operations performed",
-    node_field_type="output",
+    group_name="output",
     source_path="data.operations_count",
     data_type="number",
 )
@@ -73,7 +73,7 @@ successful_operations_output_attr = TracingAttribute(
     category="primary",
     display_name="Successful Operations",
     description="Number of successful operations",
-    node_field_type="output",
+    group_name="output",
     source_path="data.successful_operations",
     data_type="number",
 )
@@ -83,7 +83,7 @@ failed_operations_output_attr = TracingAttribute(
     category="primary",
     display_name="Failed Operations",
     description="Number of failed operations",
-    node_field_type="output",
+    group_name="output",
     source_path="data.failed_operations",
     data_type="number",
 )
@@ -93,7 +93,7 @@ errors_output_attr = TracingAttribute(
     category="primary",
     display_name="Errors",
     description="List of errors encountered",
-    node_field_type="output",
+    group_name="output",
     source_path="data.errors",
     data_type="array",
 )
@@ -104,7 +104,7 @@ success_result_attr = TracingAttribute(
     category="primary",
     display_name="Success",
     description="Whether all operations were successful",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.success",
     data_type="boolean",
 )
@@ -114,7 +114,7 @@ operations_count_result_attr = TracingAttribute(
     category="primary",
     display_name="Total Operations",
     description="Total number of operations performed",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.operations_count",
     data_type="number",
 )
@@ -124,7 +124,7 @@ total_files_result_attr = TracingAttribute(
     category="primary",
     display_name="Total Files",
     description="Total number of files found",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.total_files",
     data_type="number",
 )
@@ -134,7 +134,7 @@ total_directories_result_attr = TracingAttribute(
     category="primary",
     display_name="Total Directories",
     description="Total number of directories found",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.total_directories",
     data_type="number",
 )
@@ -144,7 +144,7 @@ total_size_result_attr = TracingAttribute(
     category="primary",
     display_name="Total Size",
     description="Total size in bytes",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.total_size",
     data_type="number",
     format_hint="bytes",
@@ -155,7 +155,7 @@ file_types_result_attr = TracingAttribute(
     category="secondary",
     display_name="File Types",
     description="Count of files by extension",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.file_types",
     data_type="object",
 )
@@ -165,7 +165,7 @@ errors_result_attr = TracingAttribute(
     category="primary",
     display_name="Errors",
     description="List of errors encountered",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.errors",
     data_type="array",
 )
@@ -176,7 +176,7 @@ base_directory_attr = TracingAttribute(
     category="tertiary",
     display_name="Base Directory Internal",
     description="Base directory resolved during execution",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -185,7 +185,7 @@ operations_summary_attr = TracingAttribute(
     category="tertiary",
     display_name="Operations Summary",
     description="Summary of operations execution status",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="object",
 )
 
@@ -194,7 +194,7 @@ operations_count_attr = TracingAttribute(
     category="tertiary",
     display_name="Operations Count Internal",
     description="Number of operations being executed",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="number",
 )
 
@@ -204,7 +204,7 @@ operations_results_attr = TracingAttribute(
     category="primary",
     display_name="Operations Results",
     description="Detailed results of each operation execution",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="array",
 )
 

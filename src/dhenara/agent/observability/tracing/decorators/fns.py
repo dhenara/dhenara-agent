@@ -1,130 +1,18 @@
-# dhenara/agent/observability/tracing/decorators/fns.py
 import functools
 import inspect
 import time
-from typing import Any
 
 from opentelemetry import baggage, trace
-from opentelemetry.trace import Span, Status, StatusCode
+from opentelemetry.trace import Status, StatusCode
 
 from dhenara.agent.observability.tracing import get_tracer, is_tracing_disabled
 from dhenara.agent.observability.tracing.data import (
     ComponentTracingProfile,
     NodeTracingProfile,
     TraceCollector,
-    TracingAttribute,
+    span_attribute_manager,
 )
 from dhenara.agent.observability.tracing.tracing_log_handler import TraceLogCapture, inject_logs_into_span
-
-# Maximum string length for trace attributes
-MAX_STRING_LENGTH = 4096
-DEFAULT_PREVIEW_LENGTH = 500
-
-
-def extract_value(obj: Any, path: str) -> Any:
-    """Extract a value from an object using dot notation path."""
-    if not path or not obj:
-        return None
-
-    parts = path.split(".")
-    current = obj
-
-    for part in parts:
-        # Handle array/list indexing
-        if "[" in part and part.endswith("]"):
-            attr_name, idx_str = part.split("[", 1)
-            idx = int(idx_str[:-1])  # Remove the closing bracket
-
-            if attr_name:
-                # Get the list/array first
-                if hasattr(current, attr_name):
-                    current = getattr(current, attr_name)
-                elif isinstance(current, dict) and attr_name in current:
-                    current = current[attr_name]
-                else:
-                    return None
-
-            # Then access by index
-            if isinstance(current, (list, tuple)) and 0 <= idx < len(current):
-                current = current[idx]
-            else:
-                return None
-        else:
-            # Regular attribute or dict key
-            if hasattr(current, part):
-                current = getattr(current, part)
-            elif isinstance(current, dict) and part in current:
-                current = current[part]
-            else:
-                return None
-
-    return current
-
-
-def truncate_string(value: str, max_length: int) -> str:
-    """Truncate a string to max_length if needed."""
-    if not isinstance(value, str):
-        return value
-
-    if len(value) <= max_length:
-        return value
-
-    return value[:max_length] + f"... [truncated, {len(value)} total]"
-
-
-def sanitize_value(value: Any, max_length: int | None = None) -> Any:
-    """Sanitize a value for use as a span attribute."""
-    if value is None:
-        return None
-
-    if isinstance(value, (int, float, bool)):
-        return value
-
-    try:
-        # Convert to string for other types
-        str_value = str(value)
-
-        # Apply truncation if requested
-        if max_length and len(str_value) > max_length:
-            return truncate_string(str_value, max_length)
-
-        # Ensure we don't exceed OpenTelemetry's limits
-        if len(str_value) > MAX_STRING_LENGTH:
-            return truncate_string(str_value, MAX_STRING_LENGTH)
-
-        return str_value
-    except Exception:
-        return "<unprintable>"
-
-
-def add_profile_values_to_span(
-    span: Span, data_object: Any, attributes: list[TracingAttribute], prefix: str = ""
-) -> None:
-    """Add values from a data object to a span based on tracing attribute definitions."""
-    for attribute in attributes:
-        # Extract the value using the source path
-        value = extract_value(data_object, attribute.source_path)
-
-        # Skip if no value was found
-        if value is None:
-            continue
-
-        # Apply transformation if specified
-        if attribute.transform and callable(attribute.transform):
-            try:
-                value = attribute.transform(value)
-            except Exception:
-                # If transformation fails, use original value
-                pass
-
-        # Sanitize the value (truncate if needed)
-        sanitized_value = sanitize_value(value, attribute.max_length)
-
-        # Determine attribute name with category prefix
-        attribute_name = f"{attribute.category}.{prefix}.{attribute.name}"
-
-        # Add to span
-        span.set_attribute(attribute_name, sanitized_value)
 
 
 def trace_node(
@@ -231,11 +119,13 @@ def trace_node(
                     # Add execution context data
                     if execution_context:
                         # Add any fields from tracing profile
-                        add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
+                        span_attribute_manager.add_profile_attributes(
+                            span, execution_context, tracing_profile.context_fields
+                        )
 
                     # Add input data based on profile
                     if node_input and tracing_profile.input_fields:
-                        add_profile_values_to_span(span, node_input, tracing_profile.input_fields, "input")
+                        span_attribute_manager.add_profile_attributes(span, node_input, tracing_profile.input_fields)
 
                     try:
                         # Execute the function
@@ -249,11 +139,13 @@ def trace_node(
 
                         # Add result data based on profile
                         if result and tracing_profile.result_fields:
-                            add_profile_values_to_span(span, result, tracing_profile.result_fields, "result")
+                            span_attribute_manager.add_profile_attributes(span, result, tracing_profile.result_fields)
 
                         # Add output data based on profile
                         if result and hasattr(result, "output") and tracing_profile.output_fields:
-                            add_profile_values_to_span(span, result.output, tracing_profile.output_fields, "output")
+                            span_attribute_manager.add_profile_attributes(
+                                span, result.output, tracing_profile.output_fields
+                            )
 
                         status_code = Status(StatusCode.ERROR)
                         success_status = "error"
@@ -402,11 +294,15 @@ def trace_component(
                     # Add execution context data
                     if execution_context:
                         # Add any fields from tracing profile
-                        add_profile_values_to_span(span, execution_context, tracing_profile.context_fields, "context")
+                        span_attribute_manager.add_profile_attributes(
+                            span, execution_context, tracing_profile.context_fields
+                        )
 
                     # Add input data based on profile
                     if component_input and tracing_profile.input_fields:
-                        add_profile_values_to_span(span, component_input, tracing_profile.input_fields, "input")
+                        span_attribute_manager.add_profile_attributes(
+                            span, component_input, tracing_profile.input_fields
+                        )
 
                     try:
                         # Execute the function
@@ -420,11 +316,13 @@ def trace_component(
 
                         # Add result data based on profile
                         if result and tracing_profile.result_fields:
-                            add_profile_values_to_span(span, result, tracing_profile.result_fields, "result")
+                            span_attribute_manager.add_profile_attributes(span, result, tracing_profile.result_fields)
 
                         # Add output data based on profile
                         if result and hasattr(result, "output") and tracing_profile.output_fields:
-                            add_profile_values_to_span(span, result.output, tracing_profile.output_fields, "output")
+                            span_attribute_manager.add_profile_attributes(
+                                span, result.output, tracing_profile.output_fields
+                            )
 
                         status_code = Status(StatusCode.ERROR)
                         success_status = "error"

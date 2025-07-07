@@ -9,41 +9,14 @@ from opentelemetry import trace
 from opentelemetry.trace import Span, Status, StatusCode
 
 from dhenara.agent.observability.tracing import get_tracer, is_tracing_disabled
+from dhenara.agent.observability.tracing.decorators.fns import span_attribute_manager
 
 # Default service name
 DEFAULT_SERVICE_NAME = "dhenara-dad"
 
-# Configure tracer provider
-_tracer_provider = None
 
 # Type variable for functions
 F = TypeVar("F", bound=Callable[..., Any])
-
-# Maximum attribute string length
-MAX_ATTRIBUTE_LENGTH = 4096  # OpenTelemetry has a limit on attribute size
-
-
-def sanitize_value(value: Any, max_length: int = MAX_ATTRIBUTE_LENGTH) -> str:
-    """Sanitize a value for use as a span attribute.
-
-    Args:
-        value: The value to sanitize
-        max_length: Maximum string length
-
-    Returns:
-        Sanitized string representation of the value
-    """
-    if value is None:
-        return "None"
-
-    try:
-        # Basic sanitization - convert to string and truncate
-        str_value = str(value)
-        if len(str_value) > max_length:
-            return str_value[: max_length - 3] + "..."
-        return str_value
-    except Exception:
-        return "<unprintable>"
 
 
 def add_result_attributes(span: Span, result: Any) -> None:
@@ -72,13 +45,16 @@ def add_result_attributes(span: Span, result: Any) -> None:
         try:
             keys = list(result.keys())
             if keys:
-                span.set_attribute("result.keys", sanitize_value(keys[:5]))
+                # Use span_attribute_manager for consistent serialization
+                serialized_keys = span_attribute_manager.serialize_value(keys[:5])
+                span.set_attribute("result.keys", serialized_keys)
         except Exception:
             pass
 
     # For common result types with status
     if hasattr(result, "status"):
-        span.set_attribute("result.status", sanitize_value(result.status))
+        serialized_status = span_attribute_manager.serialize_value(result.status)
+        span.set_attribute("result.status", serialized_status)
 
     # For HTTP responses
     if hasattr(result, "status_code"):
@@ -151,7 +127,9 @@ def trace_method(
                 if capture_args:
                     for arg_name in capture_args:
                         if arg_name in all_args and arg_name != "self":
-                            span.set_attribute(f"arg.{arg_name}", sanitize_value(all_args[arg_name]))
+                            # Use span_attribute_manager for consistent serialization
+                            serialized_value = span_attribute_manager.serialize_value(all_args[arg_name])
+                            span.set_attribute(f"arg.{arg_name}", serialized_value)
 
                 try:
                     # Execute the function
@@ -179,7 +157,10 @@ def trace_method(
                     span.record_exception(e)
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.set_attribute("error.type", e.__class__.__name__)
-                    span.set_attribute("error.message", sanitize_value(str(e)))
+
+                    # Use span_attribute_manager for consistent error message serialization
+                    serialized_error = span_attribute_manager.serialize_value(str(e))
+                    span.set_attribute("error.message", serialized_error)
                     raise
 
         @functools.wraps(func)
@@ -225,7 +206,9 @@ def trace_method(
                 if capture_args:
                     for arg_name in capture_args:
                         if arg_name in all_args and arg_name != "self":
-                            span.set_attribute(f"arg.{arg_name}", sanitize_value(all_args[arg_name]))
+                            # Use span_attribute_manager for consistent serialization
+                            serialized_value = span_attribute_manager.serialize_value(all_args[arg_name])
+                            span.set_attribute(f"arg.{arg_name}", serialized_value)
 
                 try:
                     # Execute the function
@@ -253,7 +236,10 @@ def trace_method(
                     span.record_exception(e)
                     span.set_status(Status(StatusCode.ERROR, str(e)))
                     span.set_attribute("error.type", e.__class__.__name__)
-                    span.set_attribute("error.message", sanitize_value(str(e)))
+
+                    # Use span_attribute_manager for consistent error message serialization
+                    serialized_error = span_attribute_manager.serialize_value(str(e))
+                    span.set_attribute("error.message", serialized_error)
                     raise
 
         # Choose the appropriate wrapper based on whether the function is async or not

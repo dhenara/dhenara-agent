@@ -6,6 +6,7 @@ from typing import Any, Optional
 from opentelemetry import trace
 from opentelemetry.trace import Span
 
+from .attribute_manager import span_attribute_manager
 from .profile import TracingAttribute
 
 # Context variable to hold the current trace collector
@@ -20,11 +21,7 @@ class TraceCollector:
 
     def __init__(self, span: Span | None = None):
         self.span = span
-        self.attributes = {
-            "primary": {},
-            "secondary": {},
-            "tertiary": {},
-        }
+        self.attributes: list[tuple[TracingAttribute, Any]] = []  # Simple list of (attribute, value) tuples
         self._token = None
 
     def __enter__(self):
@@ -48,91 +45,27 @@ class TraceCollector:
         Add an attribute to be recorded in the trace.
 
         Args:
-            key: Attribute key
+            attribute: TracingAttribute instance
             value: Attribute value
         """
-        # Handle TracingAttribute instance
+        # Validate attribute type
         if not isinstance(attribute, TracingAttribute):
             raise ValueError(
-                f"attributeshould be an instance of TracingAttribute, not {type(attribute)}. attribute={attribute}"
+                f"attribute should be an instance of TracingAttribute, not {type(attribute)}. attribute={attribute}"
             )
 
-        # Apply transformation if specified
-        if attribute.transform and callable(attribute.transform):
-            try:
-                value = attribute.transform(value)
-            except Exception:
-                # If transformation fails, use original value
-                pass
-
-        # Apply max_length if specified
-        if attribute.max_length and isinstance(value, str) and len(value) > attribute.max_length:
-            value = value[: attribute.max_length] + "... [truncated]"
-
-        self.attributes[attribute.category][attribute.name] = value
+        self.attributes.append((attribute, value))
 
     def apply_to_span(self, span: Span) -> None:
         """Apply all collected attributes to a span."""
-        for category, attrs in self.attributes.items():
-            if isinstance(attrs, dict):
-                for key, value in attrs.items():
-                    # Handle different types of values
-                    serialized_value = self._serialize_value(value)
-                    span.set_attribute(f"{category}.{key}", serialized_value)
-
-    def _serialize_value(self, value: Any) -> Any:
-        """
-        Serialize a value to make it compatible with OpenTelemetry spans.
-
-        OpenTelemetry supports: str, bool, int, float, and sequences of these types.
-        """
-        # Handle None
-        if value is None:
-            return "None"
-
-        # Handle basic types that OTel supports directly
-        if isinstance(value, (str, bool, int, float)):
-            return value
-
-        # Handle lists and tuples - recursively serialize each item
-        if isinstance(value, (list, tuple)):
-            # Only serialize up to 10 items to avoid huge spans
-            serialized = [self._serialize_value(item) for item in value[:10]]
-            if len(value) > 10:
-                serialized.append("... (truncated)")
-            return serialized
-
-        # Handle dictionaries - recursively serialize each value
-        if isinstance(value, dict):
-            # Return a simplified representation for nested dicts
-            simplified = {}
-            # Only include first 10 keys to avoid huge spans
-            for i, (k, v) in enumerate(value.items()):
-                if i >= 10:
-                    simplified["..."] = "(truncated)"
-                    break
-                simplified[str(k)] = self._serialize_value(v)
-            return str(simplified)  # Convert to string to ensure OTel compatibility
-
-        # Handle Pydantic models (or any object with a dict method)
-        if hasattr(value, "dict") and callable(value.dict):
-            try:
-                # Convert Pydantic model to dict and then serialize
-                return self._serialize_value(value.dict())
-            except Exception:
-                # Fallback to string representation
-                return str(value)
-
-        if hasattr(value, "model_dump") and callable(value.model_dump):
-            try:
-                # Convert Pydantic model to dict and then serialize
-                return self._serialize_value(value.model_dump())
-            except Exception:
-                # Fallback to string representation
-                return str(value)
-
-        # For any other types, use string representation
-        return str(value)
+        for attribute, value in self.attributes:
+            # Use the SpanAttributeManager for consistent processing
+            span_attribute_manager.add_attribute(
+                span=span,
+                attribute=attribute,
+                value=value,
+                prefix=None,
+            )
 
     @classmethod
     def get_current(cls) -> Optional["TraceCollector"]:
@@ -149,7 +82,7 @@ def add_trace_attribute(
     Add an attribute to the current trace collector.
 
     Args:
-        attribute: Attribute key
+        attribute: TracingAttribute instance
         value: Attribute value
 
     Returns:
@@ -169,7 +102,8 @@ def trace_collect(**kwargs):
     Example:
         @trace_collect()
         def my_function():
-            add_trace_attribute('my_key', 'my_value')
+            attr = TracingAttribute(name='my_key', category='primary')
+            add_trace_attribute(attr, 'my_value')
     """
 
     def decorator(func):

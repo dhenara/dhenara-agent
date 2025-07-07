@@ -1,22 +1,9 @@
 from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
-from dhenara.agent.observability.tracing import truncate_string
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
     TracingAttribute,
     common_context_attributes,
 )
-
-
-def truncate_prompt(prompt, max_length=500):
-    """Truncate prompt text for display."""
-    if not prompt:
-        return None
-    if hasattr(prompt, "text"):
-        if isinstance(prompt.text, str):
-            return truncate_string(prompt.text, max_length)
-        elif hasattr(prompt.text, "text"):
-            return truncate_string(prompt.text.text, max_length)
-    return str(prompt)
 
 
 def format_usage(usage):
@@ -58,7 +45,7 @@ prompt_vars_attr = TracingAttribute(
     category="primary",
     display_name="Prompt Variables",
     description="User prompt variables",
-    node_field_type="input",
+    group_name="input",
     source_path="prompt_variables",
     data_type="object",
     collapsible=True,
@@ -69,7 +56,7 @@ system_instructions_vars_attr = TracingAttribute(
     category="primary",
     display_name="System Instructions Variables",
     description="System instruction variables",
-    node_field_type="input",
+    group_name="input",
     source_path="instruction_variables",
     data_type="object",
     collapsible=True,
@@ -81,7 +68,7 @@ response_text_output_attr = TracingAttribute(
     category="primary",
     display_name="Response Text",
     description="Model response text",
-    node_field_type="output",
+    group_name="output",
     source_path="data.response.chat_response.text()",
     data_type="string",
     max_length=1000,
@@ -92,7 +79,7 @@ structured_output_attr = TracingAttribute(
     category="primary",
     display_name="Structured Output",
     description="Structured output",
-    node_field_type="output",
+    group_name="output",
     source_path="data.response.chat_response.structured()",
     data_type="object",
     collapsible=True,
@@ -104,7 +91,7 @@ response_text_result_attr = TracingAttribute(
     category="primary",
     display_name="Response Text",
     description="Response text",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.text",
     data_type="string",
     max_length=1000,
@@ -115,7 +102,7 @@ has_structured_data_attr = TracingAttribute(
     category="primary",
     display_name="Has Structured Data",
     description="Has structured data",
-    node_field_type="result",
+    group_name="result",
     source_path="outcome.structured",
     data_type="boolean",
     transform=lambda x: bool(x),
@@ -126,7 +113,7 @@ token_usage_attr = TracingAttribute(
     category="primary",
     display_name="Token Usage",
     description="Token usage",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data.response.full_response.usage",
     data_type="object",
     transform=format_usage,
@@ -139,7 +126,7 @@ token_cost_attr = TracingAttribute(
     category="primary",
     display_name="Cost and Charges",
     description="Cost and Charges",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data.response.full_response.usage_charge",
     data_type="object",
     transform=format_usage_charge,
@@ -152,7 +139,7 @@ model_attr = TracingAttribute(
     category="primary",
     display_name="Model Used",
     description="Model used",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data.response.full_response.model",
     data_type="string",
     icon="model",
@@ -163,7 +150,7 @@ status_attr = TracingAttribute(
     category="secondary",
     display_name="Response Status",
     description="Response status",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data.response.status",
     data_type="string",
 )
@@ -173,7 +160,7 @@ finish_reason_attr = TracingAttribute(
     category="secondary",
     display_name="Finish Reason",
     description="Finish reason",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data.response.full_response.choices[0].finish_reason",
     data_type="string",
 )
@@ -183,7 +170,7 @@ full_data_attr = TracingAttribute(
     category="tertiary",
     display_name="Full Output Data",
     description="Complete output data",
-    node_field_type="result",
+    group_name="result",
     source_path="output.data",
     data_type="object",
     transform=lambda x: str(x)[:1000] if x else None,
@@ -196,7 +183,7 @@ node_resource_type_attr = TracingAttribute(
     category="secondary",
     display_name="Node Resource Type",
     description="Type of resource used by the node",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -205,7 +192,7 @@ node_resource_query_attr = TracingAttribute(
     category="secondary",
     display_name="Node Resource Query",
     description="Query associated with the node resource",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -214,7 +201,7 @@ ai_model_name_attr = TracingAttribute(
     category="primary",
     display_name="AI Model Name",
     description="Name of the AI model used",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -223,7 +210,7 @@ ai_model_provider_attr = TracingAttribute(
     category="primary",
     display_name="AI Model Provider",
     description="Provider of the AI model",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -232,7 +219,7 @@ ai_model_api_provider_attr = TracingAttribute(
     category="primary",
     display_name="AI Model API Provider",
     description="API provider for the AI model",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
 )
 
@@ -241,7 +228,7 @@ final_prompt_attr = TracingAttribute(
     category="primary",
     display_name="Final Prompt",
     description="Final rendered prompt sent to the model",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     max_length=1000,
 )
@@ -251,7 +238,7 @@ system_instructions_attr = TracingAttribute(
     category="primary",
     display_name="System Instructions",
     description="System instructions used in the call",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="array",
 )
 
@@ -260,7 +247,7 @@ context_count_attr = TracingAttribute(
     category="primary",
     display_name="Context Count",
     description="Number of context items provided",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="number",
 )
 
@@ -269,7 +256,7 @@ prompt_context_0_attr = TracingAttribute(
     category="secondary",
     display_name="Prompt Context Item 0",
     description="First Prompt context item preview",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     max_length=500,
 )
@@ -279,7 +266,7 @@ prompt_context_1_attr = TracingAttribute(
     category="secondary",
     display_name="Prompt Context Item 1",
     description="Second Prompt context item preview",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     max_length=500,
 )
@@ -289,7 +276,7 @@ prompt_context_2_attr = TracingAttribute(
     category="secondary",
     display_name="Prompt Context Item 2",
     description="Third Prompt context item preview",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     max_length=500,
 )
@@ -299,7 +286,7 @@ model_options_attr = TracingAttribute(
     category="primary",
     display_name="Model Options",
     description="Options passed to the model",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="object",
 )
 
@@ -308,7 +295,7 @@ test_mode_attr = TracingAttribute(
     category="primary",
     display_name="Test Mode",
     description="Whether test mode is enabled",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="boolean",
 )
 
@@ -317,7 +304,7 @@ model_call_config_attr = TracingAttribute(
     category="secondary",
     display_name="Model Call Config",
     description="Configuration for the model call",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="object",
 )
 
@@ -326,7 +313,7 @@ api_call_started_attr = TracingAttribute(
     category="primary",
     display_name="API Call Started",
     description="Timestamp when API call was initiated",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     format_hint="datetime",
 )
@@ -336,7 +323,7 @@ cost_attr = TracingAttribute(
     category="primary",
     display_name="Cost",
     description="Cost of the API call",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     format_hint="currency",
 )
@@ -346,7 +333,7 @@ charge_attr = TracingAttribute(
     category="primary",
     display_name="Charge",
     description="Charge for the API call",
-    node_field_type="node_internal",
+    group_name="node_internal",
     data_type="string",
     format_hint="currency",
 )
