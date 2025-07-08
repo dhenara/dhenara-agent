@@ -2,7 +2,7 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
     TracingAttribute,
-    common_context_attributes,
+    common_tracing_attributes,
 )
 
 # Input attributes
@@ -238,6 +238,6 @@ folder_analyzer_node_tracing_profile = NodeTracingProfile(
         operations_count_attr,
         operations_results_attr,
         # Add common context attributes
-        *common_context_attributes,
+        *common_tracing_attributes,
     ],
 )

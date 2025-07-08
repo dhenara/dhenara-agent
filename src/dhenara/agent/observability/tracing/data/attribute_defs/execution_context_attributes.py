@@ -1,7 +1,7 @@
 from ..profile import TracingAttribute
 
 # Common context attributes that can be reused across nodes
-common_context_attributes = [
+common_execution_context_attributes: list[TracingAttribute] = [
     TracingAttribute(
         name="hierarchy_path",
         category="primary",

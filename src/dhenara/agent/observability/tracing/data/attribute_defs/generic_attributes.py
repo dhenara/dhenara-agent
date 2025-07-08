@@ -130,3 +130,20 @@ error_message_attr = TracingAttribute(
     description="Error message details",
     max_length=1000,
 )
+
+common_generic_tracing_attributes: list[TracingAttribute] = [
+    node_id_attr,
+    node_type_attr,
+    node_hierarchy_attr,
+    component_id_attr,
+    component_type_attr,
+    component_hierarchy_attr,
+    execution_start_time_attr,
+    execution_end_time_attr,
+    execution_duration_attr,
+    execution_status_attr,
+    parent_trace_id_attr,
+    parent_span_id_attr,
+    error_type_attr,
+    error_message_attr,
+]

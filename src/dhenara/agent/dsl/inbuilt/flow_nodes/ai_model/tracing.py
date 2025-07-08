@@ -2,7 +2,7 @@ from dhenara.agent.dsl.inbuilt.flow_nodes.defs import FlowNodeTypeEnum
 from dhenara.agent.observability.tracing.data import (
     NodeTracingProfile,
     TracingAttribute,
-    common_context_attributes,
+    common_tracing_attributes,
 )
 
 
@@ -376,6 +376,6 @@ ai_model_node_tracing_profile = NodeTracingProfile(
         cost_attr,
         charge_attr,
         # Add common context attributes
-        *common_context_attributes,
+        *common_tracing_attributes,
     ],
 )

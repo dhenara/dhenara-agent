@@ -112,3 +112,18 @@ fn_result_success_attr = TracingAttribute(
     display_name="Result Success",
     description="Success flag from the result object",
 )
+
+common_fn_trace_attributes: list[TracingAttribute] = [
+    fn_class_attr,
+    fn_method_attr,
+    fn_code_namespace_attr,
+    fn_execution_time_attr,
+    fn_error_type_attr,
+    fn_error_message_attr,
+    fn_result_type_attr,
+    fn_result_size_attr,
+    fn_result_keys_attr,
+    fn_result_status_attr,
+    fn_result_status_code_attr,
+    fn_result_success_attr,
+]
