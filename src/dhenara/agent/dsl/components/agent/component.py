@@ -4,6 +4,8 @@ from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
     ComponentExecutor,
+    ComponentInput,
+    ComponentInputT,
     ComponentTypeEnum,
     Conditional,
     ExecutableComponent,
@@ -13,6 +15,10 @@ from dhenara.agent.dsl.base import (
 )
 from dhenara.agent.dsl.components.flow.component import Flow, FlowDefinition
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
+
+
+class AgentInput(ComponentInput):
+    pass
 
 
 class AgentExecutionContext(ExecutionContext):
@@ -26,6 +32,7 @@ class AgentExecutionResult(ComponentExecutionResult):
 class AgentExecutor(ComponentExecutor):
     executable_type: ExecutableTypeEnum = ExecutableTypeEnum.agent
     component_type: ComponentTypeEnum = ComponentTypeEnum.agent  # Purely for tracing and logging
+    input_model: ComponentInputT = AgentInput
 
 
 class AgentDefinition(ComponentDefinition[AgentExecutionContext, AgentExecutionResult]):

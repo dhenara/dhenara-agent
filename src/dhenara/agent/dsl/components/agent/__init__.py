@@ -1,5 +1,5 @@
 # -- Agent
-from .component import Agent, AgentExecutionContext, AgentDefinition, AgentExecutor, AgentExecutionResult
+from .component import Agent, AgentExecutionContext, AgentDefinition, AgentExecutor, AgentExecutionResult, AgentInput
 
 __all__ = [
     "Agent",
@@ -7,4 +7,5 @@ __all__ = [
     "AgentExecutionContext",
     "AgentExecutionResult",
     "AgentExecutor",
+    "AgentInput",
 ]

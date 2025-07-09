@@ -13,6 +13,7 @@ from .component import (
     FlowExecutionResult,
     FlowDefinition,
     FlowExecutionContext,
+    FlowInput,
 )
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "FlowExecutionContext",
     "FlowExecutionResult",
     "FlowExecutor",
+    "FlowInput",
     "FlowNode",
     "FlowNodeDefinition",
     "FlowNodeExecutionContext",

@@ -194,7 +194,7 @@ def trace_node(
                         # Record the error
                         span.record_exception(e)
                         span.set_status(Status(StatusCode.ERROR, str(e)))
-                        span_attribute_manager.add_attribute(span, execution_status_attr)
+                        span_attribute_manager.add_attribute(span, execution_status_attr, "error")
                         span_attribute_manager.add_attribute(span, error_type_attr, e.__class__.__name__)
                         span_attribute_manager.add_attribute(span, error_message_attr, str(e))
 
@@ -371,7 +371,7 @@ def trace_component(
                         # Record the error
                         span.record_exception(e)
                         span.set_status(Status(StatusCode.ERROR, str(e)))
-                        span_attribute_manager.add_attribute(span, execution_status_attr)
+                        span_attribute_manager.add_attribute(span, execution_status_attr, "error")
                         span_attribute_manager.add_attribute(span, error_type_attr, e.__class__.__name__)
                         span_attribute_manager.add_attribute(span, error_message_attr, str(e))
 

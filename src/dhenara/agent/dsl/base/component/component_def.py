@@ -76,6 +76,10 @@ class ComponentDefinition(
     )
 
     @property
+    def trigger_pre_execute_input_required(self):
+        return self.pre_events and EventType.component_input_required in self.pre_events
+
+    @property
     def trigger_execution_completed(self):
         return self.post_events and EventType.component_execution_completed in self.post_events
 
@@ -98,13 +102,43 @@ class ComponentDefinition(
         self.variables = self.validate_variables(combined_vars)
         return self
 
-    def update_vars(self, variables: dict | None = None) -> None:
-        """Checks and update variables with new values."""
-        if variables:
-            # Check if all keys in variables are present in definition.variables and no extra/missing keys
-            if set(variables.keys()) != set(self.variables.keys()):
-                extra_keys = set(variables.keys()) - set(self.variables.keys())
-                missing_keys = set(self.variables.keys()) - set(variables.keys())
+    def update_vars(self, variables: dict | None = None, require_all: bool = False) -> None:
+        self.variables = self.update_component_variables(
+            current_variables=self.variables,
+            new_variables=variables,
+            require_all=require_all,
+        )
+
+    @classmethod
+    def update_component_variables(
+        cls,
+        current_variables: dict,
+        new_variables: dict | None = None,
+        require_all: bool = False,
+    ) -> dict:
+        """
+        Update variables with new values.
+
+        Args:
+            current_variables: The current variables dictionary
+            new_variables: New variables to update with
+            require_all: If True, require all variables to be provided (no partial updates)
+            validate_fn: Optional validation function to call on the final variables
+
+        Returns:
+            Updated variables dictionary
+
+        Raises:
+            ValueError: If validation fails or unknown/missing variables
+        """
+        if not new_variables:
+            return current_variables.copy()
+
+        if require_all:
+            # Check if all keys in new_variables are present in current_variables and no extra/missing keys
+            if set(new_variables.keys()) != set(current_variables.keys()):
+                extra_keys = set(new_variables.keys()) - set(current_variables.keys())
+                missing_keys = set(current_variables.keys()) - set(new_variables.keys())
                 error_msg = []
                 if extra_keys:
                     error_msg.append(f"Extra variables provided: {extra_keys}")
@@ -112,7 +146,17 @@ class ComponentDefinition(
                     error_msg.append(f"Missing required variables: {missing_keys}")
                 raise ValueError(", ".join(error_msg))
 
-            self.variables = self.validate_variables(variables)
+            updated_vars = new_variables.copy()
+        else:
+            # Allow partial updates - only validate that provided keys exist
+            extra_keys = set(new_variables.keys()) - set(current_variables.keys())
+            if extra_keys:
+                raise ValueError(f"Unknown variables: {extra_keys}")
+
+            # Update only the provided variables
+            updated_vars = {**current_variables, **new_variables}
+
+        return cls.validate_variables(updated_vars)
 
     # -------------------------------------------------------------------------
     # Common implementation of abstract methods used by mixins

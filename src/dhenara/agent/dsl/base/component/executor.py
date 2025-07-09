@@ -5,14 +5,21 @@ from typing import Any
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
     ComponentExecutionResult,
+    ComponentInput,
+    ComponentInputT,
     ComponentTypeEnum,
     ContextT,
     ExecutableNode,
     ExecutableTypeEnum,
+    ExecutionContext,
     ExecutionStatusEnum,
     NodeID,
 )
-from dhenara.agent.dsl.events import ComponentExecutionCompletedEvent, TraceUpdateEvent
+from dhenara.agent.dsl.events import (
+    ComponentExecutionCompletedEvent,
+    ComponentInputRequiredEvent,
+    TraceUpdateEvent,
+)
 from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import get_current_trace_id
 from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
@@ -20,12 +27,15 @@ from dhenara.agent.observability.tracing.decorators.fns import trace_component
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 
+logger = logging.getLogger(__name__)
+
 
 class ComponentExecutor(BaseModelABC):
     """Executor for Flow definitions."""
 
     executable_type: ExecutableTypeEnum
     component_type: ComponentTypeEnum  # Purely for tracing and logging
+    input_model: ComponentInputT
     logger: logging.Logger | None = None
 
     _tracing_profile: ComponentTracingProfile | None = None
@@ -37,6 +47,65 @@ class ComponentExecutor(BaseModelABC):
         self._tracing_profile = ComponentTracingProfile()
         self._tracing_profile.component_type = self.component_type.value
 
+    async def get_input_for_component(
+        self,
+        component_id: NodeID,
+        component_definition: ComponentDefinition,
+        execution_context: ExecutionContext,
+    ) -> ComponentInput:
+        """Get input for a component, trying static inputs first then event handlers."""
+        # Check static inputs first
+        if component_id in execution_context.run_context.static_inputs:
+            log_with_context(self.logger, logging.DEBUG, f"Using static input for component {component_id}")
+            return execution_context.run_context.static_inputs[component_id]
+
+        if component_definition.trigger_pre_execute_input_required:
+            component_input = await self.tirgger_event_component_input_required(
+                component_id=component_id,
+                component_definition=component_definition,
+                execution_context=execution_context,
+            )
+            return component_input
+
+        log_with_context(self.logger, logging.DEBUG, f"Failed to fetch inputs for component {component_id}")
+        return None
+
+    # Inbuild  events
+    async def tirgger_event_component_input_required(
+        self,
+        component_id: NodeID,
+        component_definition: ComponentDefinition,
+        execution_context: ExecutionContext,
+    ) -> ComponentInput:
+        # Request input via event
+        event = ComponentInputRequiredEvent(
+            component_id=component_id,
+            component_type=component_definition.executable_type,
+        )
+        await execution_context.run_context.event_bus.publish(event)
+
+        component_input = None
+
+        # Check if any handler provided input
+        if event.handled and event.component_input:
+            if isinstance(event.component_input, dict):
+                try:
+                    component_input = self.input_model(**event.component_input)
+                except Exception as e:
+                    logger.error(f"{component_id}: Error while validation component input dict vai event. {e}")
+
+            elif isinstance(event.component_input, self.input_model):
+                component_input = event.component_input
+            else:
+                logger.error(f"{component_id}: Invalid component_input type {type(component_input)}")
+
+            logger.debug(f"{component_id}: component input via event {event.type} is {component_input}")
+        else:
+            # No input provided by any handler
+            logger.error(f"{component_id}: No input provided for component via event {event.type}")
+
+        return component_input
+
     @trace_component()
     async def execute(
         self,
@@ -45,7 +114,7 @@ class ComponentExecutor(BaseModelABC):
         execution_context: ContextT | None = None,
         run_context: RunContext | None = None,
     ) -> ComponentExecutionResult:
-        """Execute a flow with the given initial data, optionally starting from a specific node."""
+        """Execute a flow with the given initial data, optionally starting from a specific component."""
 
         # run_context !=None -> Its the root level execution
         if run_context:
@@ -76,6 +145,30 @@ class ComponentExecutor(BaseModelABC):
             _logattribute,
         )
 
+        component_input = None
+        if component_definition.trigger_pre_execute_input_required:
+            component_input = await self.get_input_for_component(
+                component_id=component_id,
+                component_definition=component_definition,
+                execution_context=execution_context,
+            )
+
+            log_with_context(
+                self.logger, logging.DEBUG, "Component Input received", {"component_id": str(component_id)}
+            )
+
+            if not isinstance(component_input, self.input_model):
+                log_with_context(
+                    self.logger,
+                    logging.ERROR,
+                    f"Input validation failed. Expected {self.input_model} but got {type(component_input)}",
+                    {"component_id": str(component_id)},
+                )
+                raise ValueError(
+                    f"Input validation failed. Expects type is {self.input_model}, "
+                    f"actual typs is {type(component_input)}"
+                )
+
         try:
             # Create execution context if not priovided
             # This happens only for the top level component
@@ -86,6 +179,21 @@ class ComponentExecutor(BaseModelABC):
                     created_at=datetime.now(),
                     run_context=run_context,
                     parent=None,
+                )
+
+            # Update component_inputs
+            if component_input:
+                # NOTE: Updating variables in component_definition won't take effect, as execution context had
+                # already copied the component_definition variables
+                updated_vars = ComponentDefinition.update_component_variables(
+                    current_variables=execution_context.component_variables,
+                    new_variables=component_input.component_variables,
+                    require_all=False,
+                )
+                execution_context.component_variables = updated_vars
+                logger.debug(
+                    f"Updated component_variables with values from component_input. "
+                    f"Variable keys are {updated_vars.keys()}"
                 )
 
             # Execute all elements in the component

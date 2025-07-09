@@ -1,6 +1,6 @@
 import warnings
 from datetime import datetime
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import Field
 
@@ -21,6 +21,8 @@ class EventType(BaseEnum):
     node_input_required = "node_input_required"
     node_execution_started = "node_execution_started"
     node_execution_completed = "node_execution_completed"
+    component_input_required = "component_input_required"
+    component_execution_started = "component_execution_started"
     component_execution_completed = "component_execution_completed"
     trace_update = "trace_update"
     flow_execution_start = "flow_execution_start"
@@ -76,6 +78,15 @@ class NodeInputRequiredEvent(BaseEvent):
         self.node_input = value
 
 
+class ComponentInputRequiredEvent(BaseEvent):
+    type: EventType = Field(default=EventType.component_input_required, frozen=True)
+    nature: EventNature = Field(default=EventNature.with_wait, frozen=True)
+    component_id: str
+    component_type: Literal["flow", "agent"]
+    component_input: Any | None = Field(default=None, description="Field to be filled by handlers")
+    fe_data: dict | None = None
+
+
 class NodeExecutionCompletedEvent(BaseEvent):
     type: EventType = Field(default=EventType.node_execution_completed, frozen=True)
     nature: EventNature = Field(default=EventNature.notify, frozen=True)
@@ -101,6 +112,7 @@ class TraceUpdateEvent(BaseEvent):
 
 EVENT_TYPE_REGISTRY = {
     EventType.node_input_required: NodeInputRequiredEvent,
+    EventType.component_input_required: ComponentInputRequiredEvent,
     EventType.node_execution_completed: NodeExecutionCompletedEvent,
     EventType.component_execution_completed: ComponentExecutionCompletedEvent,
     EventType.trace_update: TraceUpdateEvent,

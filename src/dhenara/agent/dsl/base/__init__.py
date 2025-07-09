@@ -34,6 +34,7 @@ from .node.node_executor import NodeExecutor
 from .node.node import ExecutableNode, NodeT
 
 # Component
+from .component.component_io import ComponentInput, ComponentInputT
 from .component.comp_exe_result import ComponentExecutionResult, ComponentExeResultT
 from .component.component_def import ComponentDefinition, ComponentDefT
 from .component.control import Conditional, ForEach
@@ -47,6 +48,8 @@ __all__ = [
     "ComponentExeResultT",
     "ComponentExecutionResult",
     "ComponentExecutor",
+    "ComponentInput",
+    "ComponentInputT",
     "ComponentT",
     "ComponentTypeEnum",
     "Conditional",
