@@ -107,9 +107,7 @@ def trace_node(
                 if hierarchy_path:
                     baggage.set_baggage("context.hierarchy_path", str(hierarchy_path))
 
-            span_name = f"node.{detected_node_type}.execute"
-            if hierarchy_path:
-                span_name += f" - {hierarchy_path}"
+            span_name = f"{detected_node_type}.execute"
 
             # Create the span
             with tracer.start_as_current_span(span_name) as span:
@@ -285,8 +283,6 @@ def trace_component(
                     baggage.set_baggage("context.hierarchy_path", str(hierarchy_path))
 
             span_name = f"{detected_component_type}.execute"
-            if hierarchy_path:
-                span_name += f" - {hierarchy_path}"
 
             # Create the span
             with tracer.start_as_current_span(span_name) as span:

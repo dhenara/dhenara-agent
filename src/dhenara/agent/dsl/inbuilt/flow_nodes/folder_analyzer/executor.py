@@ -1192,8 +1192,19 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                         ]
                     )
 
-                    # if is_likely_text:
-                    if True:
+                    # Handle image files
+                    if mime_type and mime_type.startswith("image/"):
+                        try:
+                            with open(path, "rb") as img_file:
+                                image_bytes = img_file.read()
+                                result.content = image_bytes
+                                is_text = False
+                        except Exception as e:
+                            result.error = f"Error reading image file: {e}"
+                            is_text = False
+
+                    # Handle text and other files
+                    else:
                         try:
                             with open(path, encoding="utf-8") as f:
                                 if operation.read_content:
@@ -1238,8 +1249,9 @@ class FolderAnalyzerNodeExecutor(FlowNodeExecutor, FileSytemOperationsMixin):
                                 is_text = True
                         except UnicodeDecodeError:
                             is_text = False
-                    else:
-                        is_text = False
+                        except Exception as e:
+                            result.error = f"Error reading file: {e}"
+                            is_text = False
                 except Exception as e:
                     result.error = f"Error analyzing content: {e}"
 
