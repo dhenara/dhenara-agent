@@ -131,6 +131,41 @@ error_message_attr = TracingAttribute(
     max_length=1000,
 )
 
+# Trace debugs
+trace_errors_attr = TracingAttribute(
+    name="trace_errors",
+    category="primary",
+    group_name="trace_debug",
+    data_type="string",
+    display_name="Trace Errors ",
+    description="Errors in Tracing",
+)
+trace_warnings_attr = TracingAttribute(
+    name="trace_warnings",
+    category="primary",
+    group_name="trace_debug",
+    data_type="string",
+    display_name="Trace Warnings ",
+    description="Warnings in Tracing",
+)
+trace_infos_attr = TracingAttribute(
+    name="trace_infos",
+    category="secondary",
+    group_name="trace_debug",
+    data_type="string",
+    display_name="Trace Infos ",
+    description="Info Messages in Tracing",
+)
+trace_debugs_attr = TracingAttribute(
+    name="trace_debugs",
+    category="tertiary",
+    group_name="trace_debug",
+    data_type="string",
+    display_name="Trace debugs ",
+    description="Debug Messages in Tracing",
+)
+
+
 common_generic_tracing_attributes: list[TracingAttribute] = [
     node_id_attr,
     node_type_attr,
@@ -146,4 +181,9 @@ common_generic_tracing_attributes: list[TracingAttribute] = [
     parent_span_id_attr,
     error_type_attr,
     error_message_attr,
+    # Trace Debugs
+    trace_errors_attr,
+    trace_warnings_attr,
+    trace_infos_attr,
+    trace_debugs_attr,
 ]

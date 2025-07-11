@@ -4,7 +4,13 @@ from collections import defaultdict
 
 from opentelemetry.trace import Span
 
-from .data import TracingAttribute, add_trace_attribute
+from .data import add_trace_attribute
+from .data.attribute_defs.generic_attributes import (
+    trace_debugs_attr,
+    trace_errors_attr,
+    trace_infos_attr,
+    trace_warnings_attr,
+)
 
 # INFO: These fns are used to add `log` data to traces naturally.
 # The idea is to get max debug info from the traces in case of errors/warnings
@@ -79,40 +85,6 @@ class TraceLogHandler(logging.Handler):
         TraceLogCapture.add_log(record)
 
 
-_trace_errors = TracingAttribute(
-    name="trace_errors",
-    category="primary",
-    group_name="trace_debug",
-    data_type="string",
-    display_name="Trace Errors ",
-    description="Errors in Tracing",
-)
-_trace_warnings = TracingAttribute(
-    name="trace_warnings",
-    category="primary",
-    group_name="trace_debug",
-    data_type="string",
-    display_name="Trace Warnings ",
-    description="Warnings in Tracing",
-)
-_trace_infos = TracingAttribute(
-    name="trace_infos",
-    category="secondary",
-    group_name="trace_debug",
-    data_type="string",
-    display_name="Trace Infos ",
-    description="Info Messages in Tracing",
-)
-_trace_debugs = TracingAttribute(
-    name="trace_debugs",
-    category="tertiary",
-    group_name="trace_debug",
-    data_type="string",
-    display_name="Trace debugs ",
-    description="Debug Messages in Tracing",
-)
-
-
 def inject_logs_into_span(span: Span):
     """Inject captured logs into a span as attributes."""
     from dhenara.agent.observability.config import get_current_settings
@@ -151,13 +123,13 @@ def inject_logs_into_span(span: Span):
 
     # Add to span attributes
     if errors:
-        add_trace_attribute(_trace_errors, errors)
+        add_trace_attribute(trace_errors_attr, errors)
 
     if warnings:
-        add_trace_attribute(_trace_warnings, warnings)
+        add_trace_attribute(trace_warnings_attr, warnings)
 
     if infos:
-        add_trace_attribute(_trace_infos, infos)
+        add_trace_attribute(trace_infos_attr, infos)
 
     if debugs:
-        add_trace_attribute(_trace_debugs, debugs)
+        add_trace_attribute(trace_debugs_attr, debugs)

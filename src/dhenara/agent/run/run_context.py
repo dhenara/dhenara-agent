@@ -35,8 +35,9 @@ class RunContext:
         #  for re-run functionality
         previous_run_id: str | None = None,
         start_hierarchy_path: str | None = None,
-        # Static inputs
-        input_source: Path | None = None,
+        # Inputs
+        initial_inputs: dict | None = None,
+        input_source: Path | None = None,  # Static inputs
         # Run configs
         run_config: AgentRunConfig | None = None,
         # Execution ID
@@ -83,6 +84,9 @@ class RunContext:
 
         self.run_root = run_root or project_root / "runs"
         self.run_root_subpath = run_root_subpath
+
+        # Initial inputs
+        self.initial_inputs = initial_inputs or {}
 
         # Store re-run parameters
         self.run_id = run_id

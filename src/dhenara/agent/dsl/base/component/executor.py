@@ -181,6 +181,8 @@ class ComponentExecutor(BaseModelABC):
                     parent=None,
                 )
 
+            await self.load_initial_input_from_run_ctx(execution_context)
+
             # Update component_inputs
             if component_input:
                 # NOTE: Updating variables in component_definition won't take effect, as execution context had
@@ -268,6 +270,27 @@ class ComponentExecutor(BaseModelABC):
 
         # Return the component level result
         return execution_result
+
+    async def load_initial_input_from_run_ctx(
+        self,
+        execution_context: ExecutionContext,
+    ) -> ComponentInput:
+        """Get input for a component, trying static inputs first then event handlers."""
+        # Check static inputs first
+        initial_component_variables = execution_context.run_context.initial_inputs.get("component_variables", {})
+
+        if initial_component_variables:
+            # NOTE: Updating variables in component_definition won't take effect, as execution context had
+            # already copied the component_definition variables
+            updated_vars = ComponentDefinition.update_component_variables(
+                current_variables={},
+                new_variables=initial_component_variables,
+                require_all=False,
+            )
+            execution_context.component_variables = updated_vars
+            logger.debug(
+                f"Loaded initial component_variables from run context. Variable keys are {updated_vars.keys()}"
+            )
 
     def get_ordered_node_ids(
         self,
