@@ -81,6 +81,7 @@ class ComponentExecutor(BaseModelABC):
         event = ComponentInputRequiredEvent(
             component_id=component_id,
             component_type=component_definition.executable_type,
+            component_def_variables=component_definition.variables,
         )
         await execution_context.run_context.event_bus.publish(event)
 

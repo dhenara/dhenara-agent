@@ -5,7 +5,6 @@ from typing import Any, ClassVar, Generic, TypeVar
 from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import (
-    PLACEHOLDER,
     ComponentExeResultT,
     ContextT,
     ExecutableTypeEnum,
@@ -17,6 +16,7 @@ from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, Nav
 from dhenara.agent.dsl.events import EventType
 from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
+from dhenara.agent.types.defs import PLACEHOLDER
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
 logger = logging.getLogger(__name__)

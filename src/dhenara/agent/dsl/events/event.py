@@ -2,8 +2,9 @@ import warnings
 from datetime import datetime
 from typing import Any, Literal, TypeVar
 
-from pydantic import Field
+from pydantic import Field, field_serializer
 
+from dhenara.agent.types import PLACEHOLDER
 from dhenara.agent.types.base import BaseEnum, BaseModelABC
 from dhenara.ai.types.shared.base import ISODateTime
 
@@ -83,8 +84,20 @@ class ComponentInputRequiredEvent(BaseEvent):
     nature: EventNature = Field(default=EventNature.with_wait, frozen=True)
     component_id: str
     component_type: Literal["flow", "agent"]
+    component_def_variables: dict[str, Any] = Field("Orgianl variables defined in the component")
     component_input: Any | None = Field(default=None, description="Field to be filled by handlers")
     fe_data: dict | None = None
+
+    @field_serializer("component_def_variables")
+    def serialize_component_def_variables(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Custom serializer to handle PLACEHOLDER objects"""
+        serialized = {}
+        for key, val in value.items():
+            if val is PLACEHOLDER:
+                serialized[key] = "__placeholder__"
+            else:
+                serialized[key] = val
+        return serialized
 
 
 class NodeExecutionCompletedEvent(BaseEvent):
