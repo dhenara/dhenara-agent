@@ -115,6 +115,7 @@ class ComponentDefinition(
         current_variables: dict,
         new_variables: dict | None = None,
         require_all: bool = False,
+        disable_partial_key_checks: bool = False,
     ) -> dict:
         """
         Update variables with new values.
@@ -148,10 +149,11 @@ class ComponentDefinition(
 
             updated_vars = new_variables.copy()
         else:
-            # Allow partial updates - only validate that provided keys exist
-            extra_keys = set(new_variables.keys()) - set(current_variables.keys())
-            if extra_keys:
-                raise ValueError(f"Unknown variables: {extra_keys}")
+            if not disable_partial_key_checks:
+                # Allow partial updates - only validate that provided keys exist
+                extra_keys = set(new_variables.keys()) - set(current_variables.keys())
+                if extra_keys:
+                    raise ValueError(f"Unknown variables: {extra_keys}")
 
             # Update only the provided variables
             updated_vars = {**current_variables, **new_variables}

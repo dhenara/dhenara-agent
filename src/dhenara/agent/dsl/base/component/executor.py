@@ -182,7 +182,7 @@ class ComponentExecutor(BaseModelABC):
                     parent=None,
                 )
 
-            await self.load_initial_input_from_run_ctx(execution_context)
+            await self.load_initial_input_from_run_ctx(component_definition, execution_context)
 
             # Update component_inputs
             if component_input:
@@ -274,6 +274,7 @@ class ComponentExecutor(BaseModelABC):
 
     async def load_initial_input_from_run_ctx(
         self,
+        component_definition: ComponentDefinition,
         execution_context: ExecutionContext,
     ) -> ComponentInput:
         """Get input for a component, trying static inputs first then event handlers."""
@@ -284,9 +285,11 @@ class ComponentExecutor(BaseModelABC):
             # NOTE: Updating variables in component_definition won't take effect, as execution context had
             # already copied the component_definition variables
             updated_vars = ComponentDefinition.update_component_variables(
-                current_variables={},
+                current_variables=component_definition.variables,
                 new_variables=initial_component_variables,
                 require_all=False,
+                # TODO_FUTURE: P_LOW: enable this check by implementing heirarcy based roots in initial inputs
+                disable_partial_key_checks=True,
             )
             execution_context.component_variables = updated_vars
             logger.debug(
