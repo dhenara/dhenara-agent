@@ -11,4 +11,4 @@ from .run import *
 
 # from .client import Client : TODO_FUTURE: Fix and enable client
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
