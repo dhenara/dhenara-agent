@@ -10,6 +10,8 @@ from dhenara.agent.dsl.base import (
     ComponentTypeEnum,
     ContextT,
     ExecutableNode,
+    CallbackT,
+    ExecutableCallback,
     ExecutableTypeEnum,
     ExecutionContext,
     ExecutionStatusEnum,
@@ -361,12 +363,37 @@ class ComponentExecutor(BaseModelABC):
                     {"node_id": str(node.id), "duration_sec": element_duration},
                 )
 
+            elif isinstance(element, ExecutableCallback):
+                callback = element
+                # execution_context.set_current_callback(callback.id)
+                # Log callback execution
+                log_with_context(
+                    self.logger,
+                    logging.INFO,
+                    f"Executing callback {callback.id}",
+                    {"callback_id": str(callback.id), "component_id": str(component_id)},
+                )
+
+                result = await callback.execute(execution_context)
+                results.append(result)
+
+                # Log callback completion
+                element_duration = (datetime.now() - element_start_time).total_seconds()
+                log_with_context(
+                    self.logger,
+                    logging.INFO,
+                    (
+                        f"callback {callback.id} {'execution' if should_execute else 'loading'} "
+                        "completed in {element_duration:.2f}s"
+                    ),
+                    {"callback_id": str(callback.id), "duration_sec": element_duration},
+                )
             else:
                 # For child components
                 subcomponent = element
                 self.logger.info(f"Processing child component {subcomponent.id}")
 
-                # Set current node in the context
+                # Set current component in the context
                 execution_context.set_current_subcomponent(subcomponent.id)
 
                 # INFO: We will always execute the subcomponent. There is no load_from_previous_run()

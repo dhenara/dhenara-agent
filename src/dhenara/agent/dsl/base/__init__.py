@@ -33,6 +33,9 @@ from .node.node_def import ExecutableNodeDefinition, NodeDefT
 from .node.node_executor import NodeExecutor
 from .node.node import ExecutableNode, NodeT
 
+# Callback
+from .callback.callback import ExecutableCallback, CallbackT
+
 # Component
 from .component.component_io import ComponentInput, ComponentInputT
 from .component.comp_exe_result import ComponentExecutionResult, ComponentExeResultT
@@ -107,4 +110,6 @@ __all__ = [
     "auto_converr_str_to_template",
     "ensure_object_template",
     "is_string_hier_or_expr",
+    "ExecutableCallback",
+    "CallbackT",
 ]

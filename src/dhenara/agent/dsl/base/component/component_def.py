@@ -8,6 +8,8 @@ from dhenara.agent.dsl.base import (
     ComponentExeResultT,
     ContextT,
     ExecutableTypeEnum,
+    CallbackT,
+    ExecutableCallback,
     NodeID,
     auto_converr_str_to_template,
 )
@@ -108,6 +110,31 @@ class ComponentDefinition(
             new_variables=variables,
             require_all=require_all,
         )
+
+    # Factory methods for creating callbacks
+    def callback(
+        self,
+        id: str,  # noqa: A002
+        callable_def: callable,
+        args: dict | None = None,
+        template_args: dict | None = None,
+    ) -> "ComponentDefinition":
+        """Add a callback to the flow."""
+
+        if args is None:
+            args = {}
+
+        if template_args is None:
+            template_args = {}
+
+        _callback = ExecutableCallback(
+            id=id,
+            callable_definition=callable_def,
+            args=args,
+            template_args=template_args,
+        )
+        self.elements.append(_callback)
+        return self
 
     @classmethod
     def update_component_variables(

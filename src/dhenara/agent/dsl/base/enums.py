@@ -3,6 +3,7 @@ from dhenara.agent.types.base import BaseEnum
 
 class ExecutableTypeEnum(BaseEnum):
     flow_node = "flow_node"
+    callback = "callback"
     flow = "flow"
     agent = "agent"
 
