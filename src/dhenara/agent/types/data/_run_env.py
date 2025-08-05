@@ -34,3 +34,6 @@ class AgentRunConfig(BaseModel):
     previous_run_id: str | None = None
     start_hierarchy_path: str | None = None
     run_id_prefix: str | None = None
+
+    # - Outcome repo management
+    enable_outcome_repo: bool = False

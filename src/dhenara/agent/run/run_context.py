@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 import uuid
+import warnings
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -26,20 +27,20 @@ class RunContext:
 
     def __init__(
         self,
-        root_component_id: str,
-        project_root: Path,
+        # Primary config
+        run_config: AgentRunConfig | None = None,
+        # Legacy parameters (deprecated) - maintained for backward compatibility
+        root_component_id: str | None = None,
+        project_root: Path | None = None,
         run_root: Path | None = None,
         run_root_subpath: str | None = None,
         run_id: str | None = None,
         observability_settings: ObservabilitySettings | None = None,
-        #  for re-run functionality
         previous_run_id: str | None = None,
         start_hierarchy_path: str | None = None,
-        # Inputs
+        # Non-config parameters
         initial_inputs: dict | None = None,
         input_source: Path | None = None,  # Static inputs
-        # Run configs
-        run_config: AgentRunConfig | None = None,
         # Execution ID
         # Do not confuse with this with run-id.  run-id is for the artifacts/ folder naming.
         # execution_id is a unique tracking ID for this execution
@@ -49,9 +50,38 @@ class RunContext:
         # execution_id: dadex-c446215ea2ce4f8e
         execution_id: str | None = None,
     ):
-        self.root_component_id = root_component_id
+        # Handle legacy parameters with deprecation warnings
+        legacy_params_provided = any(
+            [
+                root_component_id is not None,
+                project_root is not None,
+                run_root is not None,
+                run_root_subpath is not None,
+                run_id is not None,
+                observability_settings is not None,
+                previous_run_id is not None,
+                start_hierarchy_path is not None,
+            ]
+        )
 
-        if not run_config:
+        if legacy_params_provided and run_config is not None:
+            warnings.warn(
+                "Both run_config and individual parameters provided. Individual parameters will be ignored. "
+                "Please use only run_config in future versions.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif legacy_params_provided and run_config is None:
+            warnings.warn(
+                "Individual run configuration parameters are deprecated. "
+                "Please use AgentRunConfig instead. "
+                "Support for individual parameters will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # Build run_config from legacy parameters if not provided
+        if run_config is None:
             if not observability_settings:
                 # If observability_settings is not provided,
                 # traces and metrics will be disabled and logs will be enabled
@@ -70,36 +100,44 @@ class RunContext:
                 observability_settings=observability_settings,
                 previous_run_id=previous_run_id,
                 start_hierarchy_path=start_hierarchy_path,
+                enable_outcome_repo=True,
             )
 
-        self.execution_id = execution_id or f"dadex-{uuid.uuid4().hex[:16]}"
         self.run_config = run_config
 
-        # TODO_FUTURE: Get rid of legacy variables using property
-        self.project_root = project_root
-        self.project_identifier = get_project_identifier(project_dir=self.project_root)
-        # self.agent_identifier = agent_identifier
+        # Validate required parameters
+        if not (self.run_config.root_component_id and self.run_config.project_root):
+            raise ValueError(
+                "root_component_id and project_root must be set either in run_config or as individual parameters"
+            )
+
+        # Set core properties from run_config
+        self.root_component_id = self.run_config.root_component_id
+        self.project_root = Path(str(self.run_config.project_root))
         self.observability_settings = self.run_config.observability_settings
+
+        # Non-config properties
+        self.execution_id = execution_id or f"dadex-{uuid.uuid4().hex[:16]}"
         self.input_source = input_source
-
-        self.run_root = run_root or project_root / "runs"
-        self.run_root_subpath = run_root_subpath
-
-        # Initial inputs
         self.initial_inputs = initial_inputs or {}
 
-        # Store re-run parameters
-        self.run_id = run_id
-        self.previous_run_id = previous_run_id
-        self.start_hierarchy_path = start_hierarchy_path
-        self.execution_context_registry = ExecutionContextRegistry(
-            enable_caching=True,
-        )
+        # Derived properties
+        self.project_identifier = get_project_identifier(project_dir=self.project_root)
+        self.run_root = Path(self.run_config.run_root) if self.run_config.run_root else self.project_root / "runs"
+        self.run_root_subpath = self.run_config.run_root_subpath
 
+        # Store re-run parameters from config
+        self.run_id = self.run_config.run_id
+        self.previous_run_id = self.run_config.previous_run_id
+        self.start_hierarchy_path = self.run_config.start_hierarchy_path
+
+        # Initialize core components
+        self.execution_context_registry = ExecutionContextRegistry(enable_caching=True)
         self.event_bus = EventBus()
         self.setup_completed = False
         self.created_at = datetime.now()
-        logger.info(f"Run context initialized with run configs : {self.run_config}")
+
+        logger.info(f"Run context initialized with run configs: {self.run_config}")
 
     @property
     def effective_run_root(self) -> Path:
@@ -116,29 +154,29 @@ class RunContext:
         previous_run_id: str,
         start_hierarchy_path: str | None = None,
     ):
+        """Update previous run information. Updates both instance and run_config."""
         self.previous_run_id = previous_run_id
         self.start_hierarchy_path = start_hierarchy_path
 
-    def setup_run(self, run_config: AgentRunConfig):
+        # Keep run_config in sync
+        self.run_config.previous_run_id = previous_run_id
+        self.run_config.start_hierarchy_path = start_hierarchy_path
+
+    def setup_run(self, run_config: AgentRunConfig | None = None):
+        """Setup the run environment. Uses instance run_config if none provided."""
+        config = run_config or self.run_config
+
         # Indicates if this is a rerun of a previous execution
         self.is_rerun = self.previous_run_id is not None
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_or_rerun = "rerun" if self.is_rerun else "run"
-        _prefix = f"{run_config.run_id_prefix}_" if run_config.run_id_prefix else ""
+        _prefix = f"{config.run_id_prefix}_" if config.run_id_prefix else ""
         self.run_id = f"{_prefix}{run_or_rerun}_{timestamp}_{uuid.uuid4().hex[:6]}"
         self.run_dir = self.effective_run_root / self.run_id
 
         self.static_inputs_dir = self.run_dir / "static_inputs"
         self.static_inputs_dir.mkdir(parents=True, exist_ok=True)
-
-        # Outcome is not inside the run id, there is a global outcome with
-        # self.outcome_root = self.run_root
-        self.outcome_dir = self.effective_run_root / "outcome"
-
-        # Outcome is the final outcome git repo, not just node outputs
-        _outcome_repo_name = self.project_identifier
-        self.outcome_repo_dir = self.outcome_dir / _outcome_repo_name
 
         self.start_time = datetime.now()
         self.end_time = None
@@ -151,15 +189,26 @@ class RunContext:
         self.trace_dir = self.run_dir / ".trace"
         self.trace_dir.mkdir(parents=True, exist_ok=True)
 
-        self.outcome_dir.mkdir(parents=True, exist_ok=True)
-        self.outcome_repo_dir.mkdir(parents=True, exist_ok=True)
-
         # Initialize git outcome repository
+        if config.enable_outcome_repo:
+            # Outcome is not inside the run id, there is a global outcome with
+            # self.outcome_root = self.run_root
+            self.outcome_dir = self.effective_run_root / "outcome"
+            # Outcome is the final outcome git repo, not just node outputs
+            _outcome_repo_name = self.project_identifier
+            self.outcome_repo_dir = self.outcome_dir / _outcome_repo_name
 
-        self.outcome_repo = RunOutcomeRepository(self.outcome_repo_dir)
+            self.outcome_dir.mkdir(parents=True, exist_ok=True)
+            self.outcome_repo_dir.mkdir(parents=True, exist_ok=True)
 
-        self.git_branch_name = f"run/{self.run_id}"
-        self.outcome_repo.create_run_branch(self.git_branch_name)
+            self.outcome_repo = RunOutcomeRepository(self.outcome_repo_dir)
+            self.git_branch_name = f"run/{self.run_id}"
+            self.outcome_repo.create_run_branch(self.git_branch_name)
+        else:
+            self.outcome_dir = None
+            self.outcome_repo_dir = None
+            self.outcome_repo = None
+            self.git_branch_name = None
 
         # Initialize previous run context
         self.previous_run_dir = None
@@ -196,20 +245,19 @@ class RunContext:
             run_env_params=self.run_env_params,
             outcome_repo=self.outcome_repo,
         )
-        # Intit resource config
-        self.resource_config: ResourceConfig = self.get_resource_config()
 
+        # Initialize resource config
+        self.resource_config: ResourceConfig = self.get_resource_config()
         self.static_inputs = {}
 
         # Save initial metadata
         self._save_metadata()
 
-        # mark setup completed
+        # Mark setup completed
         self.setup_completed = True
 
     def register_node_static_input(self, node_id: str, input_data: NodeInput):
         """Register static input for a node."""
-
         self.static_inputs[node_id] = input_data
 
     def register_event_handlers(self, handlers_map: dict[EventType, Callable]):
@@ -242,7 +290,7 @@ class RunContext:
         input_source_path = source or self.input_source
 
         if not (input_source_path and input_source_path.exists()):
-            logger.info(f"input_source_path {input_source_path} does not exists. No static input files copied")
+            logger.info(f"input_source_path {input_source_path} does not exist. No static input files copied")
             return
 
         # Save input data
@@ -262,22 +310,22 @@ class RunContext:
                     shutil.copy2(src, dst)
 
     def read_static_inputs(self):
-        # Read initial inputs form the root input dir
+        """Read initial inputs from the root input dir"""
         _input_file = self.static_inputs_dir / "static_inputs.json"
 
         if _input_file.exists():
-            with open(self.static_inputs_dir / "static_inputs.json") as f:
+            with open(_input_file) as f:
                 try:
                     _data = json.load(f)
 
                     for node_id, static_input in _data.items():
                         self.register_node_static_input(node_id, static_input)
 
-                    logger.info(f"Successfully loaded Staic inputs from {_input_file}")
+                    logger.info(f"Successfully loaded static inputs from {_input_file}")
                 except Exception as e:
                     logger.exception(f"read_static_inputs: Error: {e}")
         else:
-            logger.info(f"Staic inputs are not initalized as no file exists in {_input_file}")
+            logger.info(f"Static inputs are not initialized as no file exists in {_input_file}")
 
     async def complete_run(
         self,
@@ -288,17 +336,17 @@ class RunContext:
         if self.setup_completed:  # Failed after setup_run()
             self.end_time = datetime.now()
             self.metadata["status"] = status
-
             self.metadata["completed_at"] = self.end_time.isoformat()
             self.metadata["duration_seconds"] = (self.end_time - self.start_time).total_seconds()
             self._save_metadata()
 
             # Complete run in git repository
-            self.outcome_repo.complete_run(
-                run_id=self.run_id,
-                status=status,
-                commit_outcome=True,
-            )
+            if self.outcome_repo:
+                self.outcome_repo.complete_run(
+                    run_id=self.run_id,
+                    status=status,
+                    commit_outcome=True,
+                )
         else:
             # TODO_FUTURE: Record to a global recording system?
             logger.error(f"Completed run even before run_context setup. Error: {error_msg}")
@@ -339,7 +387,7 @@ class RunContext:
         try:
             element_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
-            logger.error(f"Error while deriving heirarchy for prevoious run artifacts: Error: {e}")
+            logger.error(f"Error while deriving hierarchy for previous run artifacts: Error: {e}")
             return
 
         # Define source and target directories
@@ -349,24 +397,9 @@ class RunContext:
         # Ensure target directory exists
         dst_input_dir.mkdir(parents=True, exist_ok=True)
 
-        # NOTE: Currently there us nothing to copy for components
+        # NOTE: Currently there is nothing to copy for components
         if is_component:
             return
-
-        # try:
-        #    # Use glob to copy files instead of trying to use wildcard with copy2
-        #    import glob
-
-        #    for file_path in glob.glob(str(src_input_dir / "*")):
-        #        if os.path.isfile(file_path):
-        #            shutil.copy2(file_path, dst_input_dir)
-        #        elif os.path.isdir(file_path):
-        #            dst_subdir = dst_input_dir / os.path.basename(file_path)
-        #            shutil.copytree(file_path, dst_subdir, dirs_exist_ok=True)
-
-        #    logger.debug(f"Copied dirs for {hierarchy_path}")
-        # except Exception as e:
-        #    logger.error(f"Failed to copy dirs for {hierarchy_path}: {e}")
 
         if src_input_dir.exists():
             # Copy input, output, and outcome files
@@ -380,22 +413,12 @@ class RunContext:
                     except Exception as e:
                         logger.warning(f"Failed to copy {file_name} for {hierarchy_path}: {e}")
 
-            ## Copy any other files in the directory
-            # for src_file in src_input_dir.glob("*"):
-            #    if src_file.is_file() and src_file.name not in ["input.json", "output.json", "outcome.json"]:
-            #        dst_file = dst_input_dir / src_file.name
-            #        try:
-            #            shutil.copy2(src_file, dst_file)
-            #            logger.debug(f"Copied additional file {src_file.name} for node {node_id}")
-            #        except Exception as e:
-            #            logger.warning(f"Failed to copy additional file {src_file.name} for node {node_id}: {e}")
-
     def load_previous_run_execution_result_dict(
         self,
         hierarchy_path: str,
         is_component: bool,
     ) -> dict | None:
-        """Copy artifacts for a specific node/component from previous run."""
+        """Load execution results for a specific node/component from previous run."""
         if not self.previous_run_dir:
             return None
 
@@ -403,26 +426,29 @@ class RunContext:
             element_hier_dir = hierarchy_path.replace(".", os.sep)
         except Exception as e:
             logger.error(f"Error while reloading results: element_hier_dir:{element_hier_dir}, Error: {e}")
-            return
+            return None
 
-        # NOTE: Currently there us nothing to copy for components
+        # NOTE: Currently there is nothing to load for components
         if is_component:
-            return
+            return None
 
-        # Define source and target directories
+        # Define source directory
         src_input_dir = self.previous_run_dir / element_hier_dir
         result_file = src_input_dir / "result.json"
 
         if src_input_dir.exists() and result_file.exists():
-            with open(result_file) as f:
-                _results = json.load(f)
-                return _results
+            try:
+                with open(result_file) as f:
+                    _results = json.load(f)
+                    return _results
+            except Exception as e:
+                logger.error(f"Failed to load results from {result_file}: {e}")
+                return None
 
         return None
 
     def setup_observability(self):
         """Set up observability for the run context."""
-        # Setup observability
         from dhenara.agent.observability import configure_observability
 
         self.trace_file = self.trace_dir / "trace.jsonl"
@@ -432,13 +458,11 @@ class RunContext:
         # Create the trace directory if it doesn't exist
         self.trace_dir.mkdir(parents=True, exist_ok=True)
 
-        # NOTE: Create the file, not inside observability package,
-        # else will flag permission issues with isolated context
-        Path(self.trace_file).touch()
+        # Create the files
+        # NOTE: Do not create the file inside observability package,
+        # as it will flag permission issues with isolated context
         for file in [self.trace_file, self.log_file, self.metrics_file]:
             Path(file).touch()
-            ## Ensure the file is readable and writable
-            ##os.chmod(self.trace_file, 0o644)
 
         # Add rerun information to tracing
         if self.is_rerun:

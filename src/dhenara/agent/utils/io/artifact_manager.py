@@ -19,7 +19,7 @@ class ArtifactManager:
     def __init__(
         self,
         run_env_params: RunEnvParams,
-        outcome_repo: RunOutcomeRepository,
+        outcome_repo: RunOutcomeRepository | None,
     ):
         self.run_env_params = run_env_params
         self.outcome_repo = outcome_repo
