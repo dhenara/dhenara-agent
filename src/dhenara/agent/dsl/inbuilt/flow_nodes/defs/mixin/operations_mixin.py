@@ -81,6 +81,16 @@ class FileSytemOperationsMixin:
                                 operations.append(operation_class(**op))
                             elif isinstance(op, operation_class):
                                 operations.append(op)
+                            elif hasattr(op, "model_dump"):
+                                # Might be a parent class
+                                try:
+                                    _dvals = op.model_dump()
+                                    operations.append(operation_class(**_dvals))
+                                except Exception as e:
+                                    logger.error(
+                                        f"Unexpected operation type in list: {type(op)}. "
+                                        f"Tried a pydantic model dump but failed with errors {e}"
+                                    )
                             else:
                                 logger.error(f"Unexpected operation type in list: {type(op)}")
                     # Handle single operation as dict
