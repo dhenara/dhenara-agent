@@ -1,11 +1,12 @@
-from typing import Any, Callable, Generic, TypeVar
+import inspect
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
-from dhenara.agent.dsl.base import ContextT, Executable, NodeDefT, NodeID, ExecutableTypeEnum
-from dhenara.agent.types.base import BaseModel
-
+from dhenara.agent.dsl.base import ContextT, Executable, ExecutableTypeEnum, NodeID
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
+from dhenara.agent.types.base import BaseModel
 
 
 # A generic node that could later be specialized
@@ -35,22 +36,31 @@ class ExecutableCallback(Executable, BaseModel):
     async def execute(self, execution_context: ContextT) -> Any:
         final_template_args = {}
 
-        for key, val_template in self.template_args.items():
-            if val_template is not None:
-                template_result = DADTemplateEngine.render_dad_template(
-                    template=val_template,
-                    variables={},
-                    execution_context=execution_context,
-                )
+        try:
+            for key, val_template in self.template_args.items():
+                if val_template is not None:
+                    template_result = DADTemplateEngine.render_dad_template(
+                        template=val_template,
+                        variables={},
+                        execution_context=execution_context,
+                    )
 
-                # Process operations based on the actual type returned
-                if template_result:
-                    final_template_args[key] = template_result
+                    # Process operations based on the actual type returned
+                    if template_result:
+                        final_template_args[key] = template_result
 
-        final_args = {**self.args, **final_template_args}
-        result = await self.callable_definition(**final_args)
+            final_args = {**self.args, **final_template_args}
+            result = self.callable_definition(**final_args)
 
-        return result
+            # Await if the callable is async fns
+            if inspect.isawaitable(result):
+                _result = await result
+                return _result
+
+            # Callable is sync fn
+            return result
+        except Exception as e:
+            raise ValueError(f"Error while executing callback. {e}.")
 
 
 CallbackT = TypeVar("CallbackT", bound=ExecutableCallback)
