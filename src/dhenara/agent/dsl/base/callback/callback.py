@@ -1,12 +1,31 @@
 import inspect
+import logging
 from collections.abc import Callable
-from typing import Any, TypeVar
+from datetime import datetime
+from typing import TypeVar
 
 from pydantic import Field
 
-from dhenara.agent.dsl.base import ContextT, Executable, ExecutableTypeEnum, NodeID
+from dhenara.agent.dsl.base import (
+    CallbackInput,
+    CallbackOutcome,
+    CallbackOutput,
+    CallbackOutputData,
+    ContextT,
+    Executable,
+    ExecutableTypeEnum,
+    ExecutionStatusEnum,
+    NodeExecutionResult,
+    NodeID,
+)
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.types.base import BaseModel
+
+logger = logging.getLogger(__name__)
+
+
+class CallbackExecutionResult(NodeExecutionResult[CallbackInput, CallbackOutput, CallbackOutcome]):
+    executable_type: ExecutableTypeEnum = Field(default=ExecutableTypeEnum.callback)
 
 
 # A generic node that could later be specialized
@@ -33,7 +52,7 @@ class ExecutableCallback(Executable, BaseModel):
     def executable_type(self) -> ExecutableTypeEnum:
         return ExecutableTypeEnum.callback
 
-    async def execute(self, execution_context: ContextT) -> Any:
+    async def execute(self, callback_id, execution_context: ContextT) -> CallbackExecutionResult:
         final_template_args = {}
 
         try:
@@ -50,17 +69,35 @@ class ExecutableCallback(Executable, BaseModel):
                         final_template_args[key] = template_result
 
             final_args = {**self.args, **final_template_args}
-            result = self.callable_definition(**final_args)
+            callabe_result = self.callable_definition(**final_args)
 
             # Await if the callable is async fns
-            if inspect.isawaitable(result):
-                _result = await result
-                return _result
+            if inspect.isawaitable(callabe_result):
+                callabe_result = await callabe_result
 
-            # Callable is sync fn
+            # Create execution result
+            result = CallbackExecutionResult(
+                node_identifier=callback_id,
+                execution_status=ExecutionStatusEnum.COMPLETED,
+                input=CallbackInput(final_args=final_args),
+                output=CallbackOutput(data=CallbackOutputData(callabe_result=callabe_result)),
+                outcome=CallbackOutcome(callabe_result=callabe_result),
+                created_at=datetime.now(),
+            )
             return result
         except Exception as e:
-            raise ValueError(f"Error while executing callback. {e}.")
+            err_msg = f"Error while executing callback. {e}."
+            logger.error(err_msg)
+
+            return CallbackExecutionResult(
+                node_identifier=callback_id,
+                execution_status=ExecutionStatusEnum.FAILED,
+                input=None,
+                output=None,
+                outcome=None,
+                error=err_msg,
+                created_at=datetime.now(),
+            )
 
 
 CallbackT = TypeVar("CallbackT", bound=ExecutableCallback)

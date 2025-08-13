@@ -98,7 +98,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
         self.trace_data = trace_data
         super().__init__(*args, **kwargs)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         """Handle GET requests."""
         if self.path == "/":
             self.send_dashboard_html()

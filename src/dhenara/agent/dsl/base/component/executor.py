@@ -9,9 +9,8 @@ from dhenara.agent.dsl.base import (
     ComponentInputT,
     ComponentTypeEnum,
     ContextT,
-    ExecutableNode,
-    CallbackT,
     ExecutableCallback,
+    ExecutableNode,
     ExecutableTypeEnum,
     ExecutionContext,
     ExecutionStatusEnum,
@@ -365,6 +364,7 @@ class ComponentExecutor(BaseModelABC):
 
             elif isinstance(element, ExecutableCallback):
                 callback = element
+                should_execute = True  # Always execute callback
                 # execution_context.set_current_callback(callback.id)
                 # Log callback execution
                 log_with_context(
@@ -374,7 +374,7 @@ class ComponentExecutor(BaseModelABC):
                     {"callback_id": str(callback.id), "component_id": str(component_id)},
                 )
 
-                result = await callback.execute(execution_context)
+                result = await callback.execute(callback.id, execution_context)
                 results.append(result)
 
                 # Log callback completion

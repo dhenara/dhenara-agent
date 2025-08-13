@@ -34,6 +34,15 @@ from .node.node_executor import NodeExecutor
 from .node.node import ExecutableNode, NodeT
 
 # Callback
+from .callback.callback_io import (
+    CallbackOutcome,
+    CallbackOutput,
+    CallbackOutputData,
+    CallbackInput,
+    CallbackInputT,
+    CallbackOutcomeT,
+    CallbackOutputT,
+)
 from .callback.callback import ExecutableCallback, CallbackT
 
 # Component
@@ -64,6 +73,14 @@ PlaceholderType = DeprecatedPlaceholder
 
 
 __all__ = [
+    "CallbackInput",
+    "CallbackInputT",
+    "CallbackOutcome",
+    "CallbackOutcomeT",
+    "CallbackOutput",
+    "CallbackOutputData",
+    "CallbackOutputT",
+    "CallbackT",
     "ComponentDefT",
     "ComponentDefinition",
     "ComponentExeResultT",
@@ -78,6 +95,7 @@ __all__ = [
     "ControlBlockTypeEnum",
     "DADTemplateEngine",
     "Executable",
+    "ExecutableCallback",
     "ExecutableComponent",
     "ExecutableNode",
     "ExecutableNodeDefinition",
@@ -110,6 +128,4 @@ __all__ = [
     "auto_converr_str_to_template",
     "ensure_object_template",
     "is_string_hier_or_expr",
-    "ExecutableCallback",
-    "CallbackT",
 ]
