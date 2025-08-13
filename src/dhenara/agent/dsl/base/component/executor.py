@@ -364,17 +364,33 @@ class ComponentExecutor(BaseModelABC):
 
             elif isinstance(element, ExecutableCallback):
                 callback = element
-                should_execute = True  # Always execute callback
-                # execution_context.set_current_callback(callback.id)
-                # Log callback execution
-                log_with_context(
-                    self.logger,
-                    logging.INFO,
-                    f"Executing callback {callback.id}",
-                    {"callback_id": str(callback.id), "component_id": str(component_id)},
-                )
 
-                result = await callback.execute(callback.id, execution_context)
+                # Set current node in the context
+                execution_context.set_current_node(callback.id)
+
+                # Check if this is where we should start
+                should_execute = execution_context.should_execute
+
+                if should_execute:
+                    # Log callback execution
+                    log_with_context(
+                        self.logger,
+                        logging.INFO,
+                        f"Executing callback {callback.id}",
+                        {"callback_id": str(callback.id), "component_id": str(component_id)},
+                    )
+
+                    result = await callback.execute(execution_context)
+                else:
+                    # Loading from previous run instead of executing
+                    log_with_context(
+                        self.logger,
+                        logging.DEBUG,
+                        f"Skipping callback {callback.id}, loading from previous run",
+                        {"callback_id": str(callback.id), "component_id": str(component_id)},
+                    )
+                    result = await callback.load_from_previous_run(execution_context)
+
                 results.append(result)
 
                 # Log callback completion
@@ -388,6 +404,7 @@ class ComponentExecutor(BaseModelABC):
                     ),
                     {"callback_id": str(callback.id), "duration_sec": element_duration},
                 )
+
             else:
                 # For child components
                 subcomponent = element
