@@ -60,9 +60,25 @@ class ArtifactManager:
                 if not isinstance(data, (dict, list)):
                     logger.error(f"Cannot save data as JSON: expected dict or list, got {type(data)}")
                     # return False
+                def _json_default(o):
+                    try:
+                        import datetime
+                        from pathlib import Path as _Path
+
+                        if isinstance(o, _Path):
+                            return str(o)
+                        if isinstance(o, (set, tuple)):
+                            return list(o)
+                        if isinstance(o, datetime.datetime):
+                            return o.isoformat()
+                        if hasattr(o, "model_dump"):
+                            return o.model_dump()
+                        return str(o)
+                    except Exception:
+                        return str(o)
 
                 with open(output_file, "w") as f:
-                    json.dump(data, f, indent=2)
+                    json.dump(data, f, indent=2, default=_json_default)
             elif record_settings.file_format == RecordFileFormatEnum.yaml:
                 import yaml
 
@@ -117,4 +133,72 @@ class ArtifactManager:
             return True
         except Exception as e:
             logger.exception(f"record_{record_type}: Error: {e}")
+            return False
+
+    # ------------------------------------------------------------------
+    # Component & Run level helpers (always-on recording)
+    # ------------------------------------------------------------------
+    def record_component_result(self, execution_context: ExecutionContext, component_result: Any) -> bool:
+        """Persist a component_result.json for a component (no settings needed).
+
+        Stored under run_dir/<component_hier_path>/component_result.json
+        where component_hier_path mirrors node artifact layout.
+        """
+        try:
+            import os
+            from pathlib import Path as _Path
+            from datetime import datetime as _dt
+
+            hier_path_fs = execution_context.get_hierarchy_path(path_joiner=os.sep, exclude_element_id=False)
+            target_dir = _Path(execution_context.run_context.run_dir) / hier_path_fs
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            comp_result_file = target_dir / "component_result.json"
+
+            def _json_default(o):
+                try:
+                    import datetime
+                    from pathlib import Path as __Path
+                    if isinstance(o, __Path):
+                        return str(o)
+                    if isinstance(o, (set, tuple)):
+                        return list(o)
+                    if isinstance(o, datetime.datetime):
+                        return o.isoformat()
+                    if hasattr(o, "model_dump"):
+                        return o.model_dump()
+                    return str(o)
+                except Exception:
+                    return str(o)
+
+            data = component_result.model_dump(exclude_none=True) if hasattr(component_result, "model_dump") else component_result
+            with open(comp_result_file, "w") as f:
+                json.dump(data, f, indent=2, default=_json_default)
+            return True
+        except Exception as e:
+            logger.debug(f"record_component_result: skipped due to error: {e}")
+            return False
+
+    def record_run_summary(self, run_context, root_component_result: Any) -> bool:
+        """Persist a run_summary.json at the run root with aggregated usage/cost."""
+        try:
+            from datetime import datetime as _dt
+
+            summary = {
+                "run_id": run_context.run_id,
+                "execution_id": run_context.execution_id,
+                "root_component_id": getattr(root_component_result, "component_id", None),
+                "created_at": getattr(run_context, "created_at", None).isoformat() if getattr(run_context, "created_at", None) else None,
+                "completed_at": _dt.now().isoformat(),
+                "agg_usage_cost": getattr(root_component_result, "agg_usage_cost", None),
+                "agg_usage_charge": getattr(root_component_result, "agg_usage_charge", None),
+                "agg_usage_prompt_tokens": getattr(root_component_result, "agg_usage_prompt_tokens", None),
+                "agg_usage_completion_tokens": getattr(root_component_result, "agg_usage_completion_tokens", None),
+                "agg_usage_total_tokens": getattr(root_component_result, "agg_usage_total_tokens", None),
+            }
+            with open(run_context.run_dir / "run_summary.json", "w") as f:
+                json.dump(summary, f, indent=2)
+            return True
+        except Exception as e:
+            logger.debug(f"record_run_summary: skipped due to error: {e}")
             return False

@@ -201,7 +201,7 @@ class ComponentExecutor(BaseModelABC):
                 )
 
             # Execute all elements in the component
-            await self.execute_all_elements(
+            results = await self.execute_all_elements(
                 component_id=component_id,
                 component_definition=component_definition,
                 execution_context=execution_context,
@@ -224,6 +224,68 @@ class ComponentExecutor(BaseModelABC):
                 completed_at=execution_context.completed_at,
             )
 
+            # --- Aggregate cost/usage from child node results (shallow only: direct nodes) ---
+            try:
+                total_cost = 0.0
+                total_charge = 0.0
+                total_prompt = 0
+                total_completion = 0
+                total_tokens = 0
+                any_cost = False
+                any_charge = False
+                any_usage = False
+
+                for _nid, _nres in execution_context.execution_results.items():
+                    if not _nres:
+                        continue
+                    if _nres.usage_cost is not None:
+                        total_cost += float(_nres.usage_cost)
+                        any_cost = True
+                    if _nres.usage_charge is not None:
+                        total_charge += float(_nres.usage_charge)
+                        any_charge = True
+                    if _nres.usage_prompt_tokens is not None:
+                        total_prompt += int(_nres.usage_prompt_tokens)
+                        any_usage = True
+                    if _nres.usage_completion_tokens is not None:
+                        total_completion += int(_nres.usage_completion_tokens)
+                        any_usage = True
+                    if _nres.usage_total_tokens is not None:
+                        total_tokens += int(_nres.usage_total_tokens)
+                        any_usage = True
+
+                # Include nested component execution results (from results list)
+                for _child_res in results or []:
+                    from dhenara.agent.dsl.base.component.comp_exe_result import ComponentExecutionResult as _CER
+
+                    if isinstance(_child_res, _CER):
+                        if _child_res.agg_usage_cost is not None:
+                            total_cost += float(_child_res.agg_usage_cost)
+                            any_cost = True
+                        if _child_res.agg_usage_charge is not None:
+                            total_charge += float(_child_res.agg_usage_charge)
+                            any_charge = True
+                        if _child_res.agg_usage_prompt_tokens is not None:
+                            total_prompt += int(_child_res.agg_usage_prompt_tokens)
+                            any_usage = True
+                        if _child_res.agg_usage_completion_tokens is not None:
+                            total_completion += int(_child_res.agg_usage_completion_tokens)
+                            any_usage = True
+                        if _child_res.agg_usage_total_tokens is not None:
+                            total_tokens += int(_child_res.agg_usage_total_tokens)
+                            any_usage = True
+
+                if any_cost:
+                    execution_result.agg_usage_cost = round(total_cost, 6)
+                if any_charge:
+                    execution_result.agg_usage_charge = round(total_charge, 6)
+                if any_usage:
+                    execution_result.agg_usage_prompt_tokens = total_prompt if total_prompt else None
+                    execution_result.agg_usage_completion_tokens = total_completion if total_completion else None
+                    execution_result.agg_usage_total_tokens = total_tokens if total_tokens else None
+            except Exception as _agg_e:
+                logger.debug(f"Cost aggregation skipped due to error: {_agg_e}")
+
             # Record execution metrics
             end_time = datetime.now()
             duration_sec = (end_time - start_time).total_seconds()
@@ -233,6 +295,17 @@ class ComponentExecutor(BaseModelABC):
                 is_rerun=is_rerun,
                 start_hierarchy_path=start_hierarchy_path,
             )
+            # Persist component-level result & (if root) run-level summary via ArtifactManager helpers
+            if execution_context.artifact_manager:
+                execution_context.artifact_manager.record_component_result(
+                    execution_context=execution_context,
+                    component_result=execution_result,
+                )
+                if run_context is not None:
+                    execution_context.artifact_manager.record_run_summary(
+                        run_context=run_context,
+                        root_component_result=execution_result,
+                    )
 
             if component_definition.trigger_execution_completed:
                 event = ComponentExecutionCompletedEvent(

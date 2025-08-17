@@ -517,6 +517,41 @@ class AIModelNodeExecutor(FlowNodeExecutor):
             output=node_output,
             outcome=node_outcome,
             created_at=datetime.now(),
+            usage_cost=(
+                response.full_response.usage_charge.cost
+                if hasattr(response, "full_response")
+                and response.full_response
+                and getattr(response.full_response, "usage_charge", None)
+                else None
+            ),
+            usage_charge=(
+                response.full_response.usage_charge.charge
+                if hasattr(response, "full_response")
+                and response.full_response
+                and getattr(response.full_response, "usage_charge", None)
+                else None
+            ),
+            usage_prompt_tokens=(
+                response.full_response.usage.prompt_tokens
+                if hasattr(response, "full_response")
+                and response.full_response
+                and getattr(response.full_response, "usage", None)
+                else None
+            ),
+            usage_completion_tokens=(
+                response.full_response.usage.completion_tokens
+                if hasattr(response, "full_response")
+                and response.full_response
+                and getattr(response.full_response, "usage", None)
+                else None
+            ),
+            usage_total_tokens=(
+                response.full_response.usage.total_tokens
+                if hasattr(response, "full_response")
+                and response.full_response
+                and getattr(response.full_response, "usage", None)
+                else None
+            ),
         )
 
     async def generate_stream_response(

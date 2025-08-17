@@ -24,3 +24,16 @@ class NodeExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeOutcom
     error: str | None = Field(default=None)
     errors: list[str] | None = Field(default=None)
     created_at: datetime = Field(...)
+
+    # --- Usage / Cost (only populated for AI Model Call nodes currently) ---
+    usage_cost: float | None = Field(
+        default=None,
+        description="Raw API cost for this node (USD).",
+    )
+    usage_charge: float | None = Field(
+        default=None,
+        description="Charge after applying internal margins (USD).",
+    )
+    usage_prompt_tokens: int | None = Field(default=None, description="Prompt tokens used")
+    usage_completion_tokens: int | None = Field(default=None, description="Completion tokens used")
+    usage_total_tokens: int | None = Field(default=None, description="Total tokens used")

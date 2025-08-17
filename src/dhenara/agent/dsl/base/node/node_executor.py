@@ -381,4 +381,9 @@ class NodeExecutor(ABC):
             outcome=None,
             error=message,
             created_at=datetime.now(),
+            usage_cost=None,
+            usage_charge=None,
+            usage_prompt_tokens=None,
+            usage_completion_tokens=None,
+            usage_total_tokens=None,
         )

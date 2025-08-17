@@ -39,6 +39,16 @@ class ComponentExecutionResult(BaseModel, Generic[NodeInputT, NodeOutputT, NodeO
     updated_at: datetime | None = Field(default=None)
     completed_at: datetime | None = Field(default=None)
 
+    # --- Aggregated usage / cost (derived from child node execution results) ---
+    agg_usage_cost: float | None = Field(default=None, description="Sum of usage_cost across descendant nodes")
+    agg_usage_charge: float | None = Field(
+        default=None,
+        description="Sum of usage_charge across descendant nodes (if any charge data present)",
+    )
+    agg_usage_prompt_tokens: int | None = Field(default=None)
+    agg_usage_completion_tokens: int | None = Field(default=None)
+    agg_usage_total_tokens: int | None = Field(default=None)
+
 
 ComponentExeResultT = TypeVar("ComponentDefT", bound=ComponentExecutionResult)
 # -----------------------------------------------------------------------------
