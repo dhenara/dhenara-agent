@@ -1,55 +1,59 @@
 import os
-
+import contextlib
 from dhenara.agent.run import RunContext
 
 
 class IsolatedExecution:
-    """Provides an isolated execution environment for agents."""
+    """
+    Lightweight execution context.
+    Changes from previous (unsafe) version:
+      - No full env wipe/restore (only overlay chosen vars)
+      - No global chdir by default (agents should use absolute paths)
+      - Revert only what we modify
+    """
 
-    def __init__(self, run_context):
+    def __init__(self, run_context: RunContext, *, change_dir: bool = False, inject_env: dict | None = None):
         self.run_context: RunContext = run_context
-        self.temp_env = {}
+        self.change_dir = change_dir
+        self.inject_env = inject_env or {}
+        self._orig_cwd: str | None = None
+        self._env_prev: dict[str, str] = {}
+        self._unset_keys: set[str] = set()
 
     async def __aenter__(self):
-        """Set up isolation environment."""
-        # Save current environment variables to restore later
-        self.temp_env = os.environ.copy()
-
-        # Set environment variables for the run
-        # TODO_FUTURE
-        # os.environ["DHENARA_RUN_ID"] = self.run_context.run_id
-        # os.environ["DHENARA_RUN_ROOT"] = str(self.run_context.run_root)
-
-        # Set up working directory isolation
-        os.chdir(self.run_context.run_dir)
-
+        for k, v in self.inject_env.items():
+            if k in os.environ:
+                self._env_prev[k] = os.environ[k]
+            else:
+                self._unset_keys.add(k)
+            os.environ[k] = v
+        if self.change_dir:
+            self._orig_cwd = os.getcwd()
+            os.chdir(self.run_context.run_dir)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Clean up isolation environment."""
-        # Restore original environment
-        os.environ.clear()
-        os.environ.update(self.temp_env)
+        if self._orig_cwd:
+            with contextlib.suppress(Exception):
+                os.chdir(self._orig_cwd)
+        for k, v in self._env_prev.items():
+            os.environ[k] = v
+        for k in self._unset_keys:
+            os.environ.pop(k, None)
 
-        # Return to original directory
-        os.chdir(self.run_context.project_root)
-
-    async def run(
-        self,
-        runner,
-    ):
-        """Run the agent in the isolated environment."""
-        # Execute the agent
+    async def run(self, runner):
+        # Run the agent in the isolated environment.
         try:
             result = await runner.run()
-
-            from dhenara.agent.observability import force_flush_logging, force_flush_metrics, force_flush_tracing
+            from dhenara.agent.observability import (
+                force_flush_logging,
+                force_flush_metrics,
+                force_flush_tracing,
+            )
 
             force_flush_tracing()
             force_flush_metrics()
             force_flush_logging()
-
             return result
-        except Exception as e:
-            # logging.exception(f"Agent execution failed: {e}")
-            raise e
+        except Exception:
+            raise
