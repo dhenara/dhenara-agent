@@ -60,6 +60,7 @@ class ArtifactManager:
                 if not isinstance(data, (dict, list)):
                     logger.error(f"Cannot save data as JSON: expected dict or list, got {type(data)}")
                     # return False
+
                 def _json_default(o):
                     try:
                         import datetime
@@ -147,7 +148,6 @@ class ArtifactManager:
         try:
             import os
             from pathlib import Path as _Path
-            from datetime import datetime as _dt
 
             hier_path_fs = execution_context.get_hierarchy_path(path_joiner=os.sep, exclude_element_id=False)
             target_dir = _Path(execution_context.run_context.run_dir) / hier_path_fs
@@ -159,6 +159,7 @@ class ArtifactManager:
                 try:
                     import datetime
                     from pathlib import Path as __Path
+
                     if isinstance(o, __Path):
                         return str(o)
                     if isinstance(o, (set, tuple)):
@@ -171,7 +172,11 @@ class ArtifactManager:
                 except Exception:
                     return str(o)
 
-            data = component_result.model_dump(exclude_none=True) if hasattr(component_result, "model_dump") else component_result
+            data = (
+                component_result.model_dump(exclude_none=True)
+                if hasattr(component_result, "model_dump")
+                else component_result
+            )
             with open(comp_result_file, "w") as f:
                 json.dump(data, f, indent=2, default=_json_default)
             return True
@@ -188,7 +193,9 @@ class ArtifactManager:
                 "run_id": run_context.run_id,
                 "execution_id": run_context.execution_id,
                 "root_component_id": getattr(root_component_result, "component_id", None),
-                "created_at": getattr(run_context, "created_at", None).isoformat() if getattr(run_context, "created_at", None) else None,
+                "created_at": getattr(run_context, "created_at", None).isoformat()
+                if getattr(run_context, "created_at", None)
+                else None,
                 "completed_at": _dt.now().isoformat(),
                 "agg_usage_cost": getattr(root_component_result, "agg_usage_cost", None),
                 "agg_usage_charge": getattr(root_component_result, "agg_usage_charge", None),

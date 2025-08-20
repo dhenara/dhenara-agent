@@ -235,7 +235,7 @@ class ComponentExecutor(BaseModelABC):
                 any_charge = False
                 any_usage = False
 
-                for _nid, _nres in execution_context.execution_results.items():
+                for _nres in execution_context.execution_results.values():
                     if not _nres:
                         continue
                     if _nres.usage_cost is not None:
@@ -256,9 +256,7 @@ class ComponentExecutor(BaseModelABC):
 
                 # Include nested component execution results (from results list)
                 for _child_res in results or []:
-                    from dhenara.agent.dsl.base.component.comp_exe_result import ComponentExecutionResult as _CER
-
-                    if isinstance(_child_res, _CER):
+                    if isinstance(_child_res, ComponentExecutionResult):
                         if _child_res.agg_usage_cost is not None:
                             total_cost += float(_child_res.agg_usage_cost)
                             any_cost = True
