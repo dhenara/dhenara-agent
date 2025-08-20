@@ -25,15 +25,49 @@ _logger_provider = None
 # Track if logging has been initialized
 _logging_initialized = False
 
+# Track currently active (file) log path so we can reinitialize between runs
+_current_log_file_path: str | None = None
+
+
+def reset_logging():
+    """Reset logging initialization state so a subsequent call will rebuild exporters/handlers.
+
+    This is useful for per-run reconfiguration when each run wants an isolated log file.
+    """
+    global _logging_initialized, _logger_provider, _current_log_file_path
+    _logging_initialized = False
+    _logger_provider = None
+    _current_log_file_path = None
+
 
 def setup_logging(settings: ObservabilitySettings) -> None:
-    """Configure OpenTelemetry-integrated logging for the application."""
-    global _logger_provider, _logging_initialized
+    """Configure OpenTelemetry-integrated logging for the application.
 
-    # Only initialize once
+    Detects log file path changes across runs and reinitializes automatically so that
+    each run writes to its own file (previously all runs appended to the first run's file).
+    """
+    global _logger_provider, _logging_initialized, _current_log_file_path
+
+    # If already initialized, decide whether to reuse or rebuild
     if _logging_initialized:
-        logging.getLogger(settings.observability_logger_name).debug("Logging already initialized, skipping setup")
-        return
+        # If we're using file exporter and target path changed, rebuild
+        if (
+            settings.enable_logging
+            and settings.logging_exporter_type == "file"
+            and settings.log_file_path
+            and settings.log_file_path != _current_log_file_path
+        ):
+            logging.getLogger(settings.observability_logger_name).debug(
+                "Log file path changed from %s to %s. Reinitializing logging.",
+                _current_log_file_path,
+                settings.log_file_path,
+            )
+            reset_logging()
+        else:
+            logging.getLogger(settings.observability_logger_name).debug(
+                "Logging already initialized (log file unchanged), skipping setup"
+            )
+            return
 
     # Create a resource with service info
     # resource = Resource.create({"service.name": settings.service_name or DEFAULT_SERVICE_NAME})
@@ -51,9 +85,11 @@ def setup_logging(settings: ObservabilitySettings) -> None:
 
         # Use custom file exporter for logs
         log_exporter = JsonFileLogExporter(settings.log_file_path)
+        _current_log_file_path = settings.log_file_path
     else:
         # Default to console exporter (for development)
         log_exporter = ConsoleLogExporter()
+        _current_log_file_path = None
 
     # Create and add a log processor
     _logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))

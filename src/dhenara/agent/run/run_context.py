@@ -448,23 +448,25 @@ class RunContext:
         return None
 
     def setup_observability(self):
-        """Set up observability for the run context."""
-        from dhenara.agent.observability import configure_observability
+        """Set up observability for the run context.
 
+        Ensures a fresh logging setup per run so logs are written to this run's files.
+        """
+        from dhenara.agent.observability import configure_observability, reset_logging
+
+        # Derive file paths inside the trace dir
         self.trace_file = self.trace_dir / "trace.jsonl"
         self.metrics_file = self.trace_dir / "metrics.jsonl"
         self.log_file = self.trace_dir / "logs.jsonl"
 
-        # Create the trace directory if it doesn't exist
+        # Ensure directory exists
         self.trace_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create the files
-        # NOTE: Do not create the file inside observability package,
-        # as it will flag permission issues with isolated context
+        # Touch files to avoid permission issues inside exporter
         for file in [self.trace_file, self.log_file, self.metrics_file]:
-            Path(file).touch()
+            Path(file).touch(exist_ok=True)
 
-        # Add rerun information to tracing
+        # Rerun metadata
         if self.is_rerun:
             # Modify the service name to indicate it's a rerun
             self.observability_settings.service_name = f"{self.observability_settings.service_name}-rerun"
@@ -476,15 +478,18 @@ class RunContext:
                     f"previous_run_id={self.previous_run_id},start_hierarchy_path={self.start_hierarchy_path},"
                 )
 
-        # Set trace file paths in settings
+        # Inject file paths
         self.observability_settings.trace_file_path = str(self.trace_file)
         self.observability_settings.metrics_file_path = str(self.metrics_file)
         self.observability_settings.log_file_path = str(self.log_file)
 
-        # Use the centralized setup
-        configure_observability(self.observability_settings)
+        # Force fresh logging (previous run may have initialized once)
+        try:
+            reset_logging()
+        except Exception:
+            logger.debug("reset_logging failed or unavailable; continuing")
 
-        # Log tracing info
+        configure_observability(self.observability_settings)
         logger.info(f"Tracing enabled. Traces will be written to: {self.trace_file}")
 
     def get_resource_config(
