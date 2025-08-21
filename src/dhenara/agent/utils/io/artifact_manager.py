@@ -184,6 +184,76 @@ class ArtifactManager:
             logger.debug(f"record_component_result: skipped due to error: {e}")
             return False
 
+    # ------------------------------------------------------------------
+    # Simple ad-hoc artifact dumper (callback convenience)
+    # ------------------------------------------------------------------
+    def record_custom_artifact(
+        self,
+        file_name: str,
+        data: Any,
+        execution_context: ExecutionContext,
+        subdir: str | None = None,
+    ) -> bool:
+        """Persist arbitrary data produced mid-execution (eg: from a callback) into
+            the component hierarchy under a dedicated 'dad-artifacts' folder.
+
+            Layout:
+                <run_dir>/<hierarchy_path>/dad-artifacts/[subdir/]<file_name>
+
+            The format is inferred from the file extension (currently .json or .txt).
+            Falls back to str() for unsupported / serialization failures.
+        Returns True on (best-effort) success, False otherwise.
+        """
+        try:
+            import datetime as _dt
+            import json as _json
+            import os
+            from pathlib import Path as _Path
+
+            hier_path_fs = execution_context.get_hierarchy_path(path_joiner=os.sep, exclude_element_id=False)
+            target_dir = _Path(execution_context.run_context.run_dir) / hier_path_fs / "custom-artifacts"
+            if subdir:
+                target_dir = target_dir / subdir
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            target_file = target_dir / file_name
+
+            # Basic serializers
+            if target_file.suffix.lower() == ".json":
+
+                def _json_default(o):
+                    try:
+                        if isinstance(o, (_dt.datetime, _dt.date)):
+                            return o.isoformat()
+                        from pathlib import Path as __Path
+
+                        if isinstance(o, __Path):
+                            return str(o)
+                        if isinstance(o, (set, tuple)):
+                            return list(o)
+                        if hasattr(o, "model_dump"):
+                            return o.model_dump()
+                        return str(o)
+                    except Exception:  # pragma: no cover
+                        return str(o)
+
+                with open(target_file, "w") as f:
+                    _json.dump(data, f, indent=2, default=_json_default)
+            else:
+                # Plain text fallback
+                with open(target_file, "w") as f:
+                    f.write(str(data))
+
+            logger.debug(
+                "record_custom_artifact: saved %s (%s bytes)",
+                target_file,
+                target_file.stat().st_size if target_file.exists() else "?",
+            )
+            return True
+        except Exception as e:  # pragma: no cover - best effort
+            logger.debug(f"record_custom_artifact: skipped due to error: {e}")
+            return False
+
     def record_run_summary(self, run_context, root_component_result: Any) -> bool:
         """Persist a run_summary.json at the run root with aggregated usage/cost."""
         try:
