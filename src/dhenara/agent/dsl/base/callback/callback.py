@@ -170,11 +170,11 @@ class ExecutableCallback(Executable, BaseModel):
                 )
 
             final_args = {**self.args, **final_template_args, "custom_artifact_dump": custom_artifact_dump}
-            callabe_result = self.callable_definition(**final_args)
+            callable_result = self.callable_definition(**final_args)
 
             # Await if the callable is async fns
-            if inspect.isawaitable(callabe_result):
-                callabe_result = await callabe_result
+            if inspect.isawaitable(callable_result):
+                callable_result = await callable_result
 
             # Create a serializable view of args (strip callables & modules)
             serializable_args = {
@@ -188,8 +188,8 @@ class ExecutableCallback(Executable, BaseModel):
                 node_identifier=self.id,
                 execution_status=ExecutionStatusEnum.COMPLETED,
                 input=CallbackInput(final_args=serializable_args),
-                output=CallbackOutput(data=CallbackOutputData(callabe_result=callabe_result)),
-                outcome=CallbackOutcome(callabe_result=callabe_result),
+                output=CallbackOutput(data=CallbackOutputData(callable_result=callable_result)),
+                outcome=CallbackOutcome(callable_result=callable_result),
                 created_at=datetime.now(),
             )
             return result

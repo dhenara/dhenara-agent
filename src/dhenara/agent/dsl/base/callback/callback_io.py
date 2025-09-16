@@ -13,7 +13,7 @@ class CallbackInput(BaseModel):
 
 
 class CallbackOutputData(BaseModel):
-    callabe_result: dict | None = Field(
+    callable_result: dict | None = Field(
         ...,
         description="Result returned by callback",
     )
@@ -24,7 +24,7 @@ class CallbackOutput(BaseModel):
 
 
 class CallbackOutcome(BaseModel):
-    callabe_result: dict | None
+    callable_result: dict | None
 
 
 CallbackInputT = TypeVar("CallbackInputT", bound=CallbackInput)
