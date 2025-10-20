@@ -42,19 +42,19 @@ class JsonFileMetricExporter(MetricExporter):
             # Convert metrics data to JSON
             metric_dict = metrics_data.to_json()
 
+            if isinstance(metric_dict, str):
+                try:
+                    # Provider SDK may already return a JSON string
+                    log_dict = json.loads(metric_dict)
+                except json.JSONDecodeError:
+                    # If we cannot parse it, capture the raw string for debugging
+                    log_dict = {"raw_metric_payload": metric_dict}
+            else:
+                log_dict = metric_dict
+
             # Append metrics to the file
             with open(self.file_path, "a") as f:
-                # Handle if to_json() returns a string or a dict
-                if isinstance(metric_dict, str):
-                    try:
-                        # If it's already a JSON string, parse it back to a dict
-                        log_dict = json.loads(metric_dict)
-                    except json.JSONDecodeError:
-                        # If it's not a valid JSON string, just use it as is
-                        f.write(log_dict + "\n")
-
-                # Write a properly formatted JSON line with newline
-                f.write(json.dumps(log_dict) + "\n")
+                f.write(json.dumps(log_dict, default=str) + "\n")
 
             return MetricExportResult.SUCCESS
         except Exception as e:
