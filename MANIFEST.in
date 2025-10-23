@@ -1,7 +1,0 @@
-include README.md
-
-recursive-include src/dhenara/cli/templates *.py
-
-global-exclude __pycache__/*
-global-exclude *.pyc
-global-exclude *.py[cod]

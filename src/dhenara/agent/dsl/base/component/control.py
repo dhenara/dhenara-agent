@@ -1,4 +1,4 @@
-from typing import Any, Generic
+from typing import TYPE_CHECKING, Any, Generic
 
 from pydantic import Field, field_validator
 
@@ -11,9 +11,13 @@ from dhenara.agent.dsl.base import (
     ensure_object_template,
 )
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
-from dhenara.agent.run import RunContext
 from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+    from dhenara.agent.run import RunContext
+else:  # Break circular dependency at runtime
+    RunContext = Any
 
 
 class Conditional(BaseModel, Generic[ComponentDefT]):

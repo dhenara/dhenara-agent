@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dhenara.agent.dsl.base import (
     ComponentDefinition,
@@ -25,8 +25,12 @@ from dhenara.agent.observability import log_with_context, record_metric
 from dhenara.agent.observability.tracing import get_current_trace_id
 from dhenara.agent.observability.tracing.data.profile import ComponentTracingProfile
 from dhenara.agent.observability.tracing.decorators.fns import trace_component
-from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+    from dhenara.agent.run.run_context import RunContext
+else:  # Prevent circular import while keeping runtime flexible
+    RunContext = Any
 
 logger = logging.getLogger(__name__)
 

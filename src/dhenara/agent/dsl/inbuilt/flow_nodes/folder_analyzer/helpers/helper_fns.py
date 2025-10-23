@@ -83,7 +83,7 @@ def optimize_for_llm_context(
 ) -> str:
     """Optimize code for LLM context using langchain's text splitters."""
     try:
-        # This requires: pip install langchain
+    # This requires: uv pip install langchain
         from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 
         with open(path, encoding="utf-8") as f:

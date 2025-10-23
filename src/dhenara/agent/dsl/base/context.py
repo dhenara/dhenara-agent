@@ -5,7 +5,7 @@ import uuid
 from asyncio import Event
 from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any, ClassVar, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar
 
 from pydantic import Field
 
@@ -16,10 +16,14 @@ from dhenara.agent.dsl.base.node.node_exe_result import (
     NodeOutputT,
 )
 from dhenara.agent.dsl.base.node.node_io import NodeInput
-from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+    from dhenara.agent.run.run_context import RunContext
+else:  # Allow runtime import order to avoid circular dependency
+    RunContext = Any
 
 from .defs import NodeID
 from .enums import ControlBlockTypeEnum, ExecutableTypeEnum, ExecutionStatusEnum

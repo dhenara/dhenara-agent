@@ -28,10 +28,10 @@ focus on:
 
 ## Installation
 
-You can install the Dhenara Agent DSL framework using pip:
+You can install the Dhenara Agent DSL framework using uv:
 
 ```bash
-pip install dhenara-agent
+uv pip install dhenara-agent
 ```
 
 ## Core Concepts

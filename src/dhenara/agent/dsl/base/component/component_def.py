@@ -1,6 +1,6 @@
 import logging
 from abc import abstractmethod
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
@@ -15,10 +15,14 @@ from dhenara.agent.dsl.base import (
 from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.dsl.base.utils.id_mixin import IdentifierValidationMixin, NavigationMixin
 from dhenara.agent.dsl.events import EventType
-from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModelABC
 from dhenara.agent.types.defs import PLACEHOLDER
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from dhenara.agent.run.run_context import RunContext
+else:  # Prevent circular imports at runtime
+    RunContext = Any
 
 logger = logging.getLogger(__name__)
 

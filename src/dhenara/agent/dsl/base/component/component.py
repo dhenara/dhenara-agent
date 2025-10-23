@@ -1,10 +1,14 @@
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from pydantic import Field, field_validator
 
 from dhenara.agent.dsl.base import ComponentDefT, Conditional, ContextT, Executable, ForEach, NodeID
-from dhenara.agent.run.run_context import RunContext
 from dhenara.agent.types.base import BaseModel
+
+if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+    from dhenara.agent.run.run_context import RunContext
+else:  # Avoid triggering circular import at runtime
+    RunContext = Any
 
 
 # A generic node that could later be specialized
