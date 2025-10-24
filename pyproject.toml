@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "Dhenara Agent DSL (DAD) Framework SDK"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.13,<3.14"
 authors = [
     {name = "Dhenara Inc", email = "support@dhenara.com"},
 ]
@@ -17,17 +17,13 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "dhenara-ai>=1.1.0",
+    "dhenara-ai>=1.1.1",
     "click>=8.0.0",
     "pyyaml>=6.0",
     "httpx>=0.24.0",
@@ -75,7 +71,7 @@ include = [
 ]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py313"
 line-length = 120
 src = ["src"]
 force-exclude = true
