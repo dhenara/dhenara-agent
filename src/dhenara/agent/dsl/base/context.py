@@ -20,7 +20,7 @@ from dhenara.agent.types.base import BaseEnum, BaseModel, BaseModelABC
 from dhenara.agent.utils.io.artifact_manager import ArtifactManager
 from dhenara.ai.types.resource import ResourceConfig
 
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+if TYPE_CHECKING:
     from dhenara.agent.run.run_context import RunContext
 else:  # Allow runtime import order to avoid circular dependency
     RunContext = Any

@@ -5,7 +5,7 @@ from pydantic import Field, field_validator
 from dhenara.agent.dsl.base import ComponentDefT, Conditional, ContextT, Executable, ForEach, NodeID
 from dhenara.agent.types.base import BaseModel
 
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+if TYPE_CHECKING:
     from dhenara.agent.run.run_context import RunContext
 else:  # Avoid triggering circular import at runtime
     RunContext = Any

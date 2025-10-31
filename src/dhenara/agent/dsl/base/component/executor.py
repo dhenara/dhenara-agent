@@ -27,7 +27,7 @@ from dhenara.agent.observability.tracing.data.profile import ComponentTracingPro
 from dhenara.agent.observability.tracing.decorators.fns import trace_component
 from dhenara.agent.types.base import BaseModelABC
 
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+if TYPE_CHECKING:
     from dhenara.agent.run.run_context import RunContext
 else:  # Prevent circular import while keeping runtime flexible
     RunContext = Any

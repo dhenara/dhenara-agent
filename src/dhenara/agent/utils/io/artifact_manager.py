@@ -234,7 +234,7 @@ class ArtifactManager:
                         if hasattr(o, "model_dump"):
                             return o.model_dump()
                         return str(o)
-                    except Exception:  # pragma: no cover
+                    except Exception:
                         return str(o)
 
                 with open(target_file, "w") as f:
@@ -250,7 +250,7 @@ class ArtifactManager:
                 target_file.stat().st_size if target_file.exists() else "?",
             )
             return True
-        except Exception as e:  # pragma: no cover - best effort
+        except Exception as e:
             logger.debug(f"record_custom_artifact: skipped due to error: {e}")
             return False
 

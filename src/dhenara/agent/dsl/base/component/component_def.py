@@ -19,7 +19,7 @@ from dhenara.agent.types.base import BaseModelABC
 from dhenara.agent.types.defs import PLACEHOLDER
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
-if TYPE_CHECKING:  # pragma: no cover - typing only
+if TYPE_CHECKING:
     from dhenara.agent.run.run_context import RunContext
 else:  # Prevent circular imports at runtime
     RunContext = Any

@@ -34,7 +34,7 @@ def load_commands():
 
     # Try to load Pro commands
     try:
-        from dhenara.agent.pro.cli import register_pro_commands  # type: ignore
+        from dhenara.agent.pro.cli import register_pro_commands
 
         register_pro_commands(cli)
     except ImportError:

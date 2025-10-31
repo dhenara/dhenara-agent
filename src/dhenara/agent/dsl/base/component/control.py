@@ -14,7 +14,7 @@ from dhenara.agent.dsl.base.data.dad_template_engine import DADTemplateEngine
 from dhenara.agent.types.base import BaseModel
 from dhenara.ai.types.genai.dhenara.request.data import ObjectTemplate
 
-if TYPE_CHECKING:  # pragma: no cover - import only for type checking
+if TYPE_CHECKING:
     from dhenara.agent.run import RunContext
 else:  # Break circular dependency at runtime
     RunContext = Any
