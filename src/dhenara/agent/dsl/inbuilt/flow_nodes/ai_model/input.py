@@ -15,10 +15,8 @@ class AIModelNodeInput(NodeInput):
     prompt_variables: dict[str, Any] = Field(
         default_factory=dict,
         description="Variables for template resolution in prompt",
-        example={"style": "modern", "name": "Annie"},
     )
     # instruction_variables: dict[str, Any] = Field(
     #    default_factory=dict,
     #    description="Variables for template resolution in system instructions",
-    #    example={"style": "modern", "name": "Annie"},
     # )

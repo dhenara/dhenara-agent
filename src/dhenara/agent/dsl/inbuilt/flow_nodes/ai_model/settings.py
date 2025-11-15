@@ -31,7 +31,6 @@ class AIModelNodeSettings(NodeSettings):
             "Note that this will be passed as context to the current node model call"
             f"Use '{SpecialNodeIDEnum.PREVIOUS}' for previous node output"
         ),
-        example=["previous", "node_1", "node_2"],
     )
     system_instructions: list[str | SystemInstruction] | None = Field(
         default=None,
