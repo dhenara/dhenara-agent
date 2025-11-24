@@ -503,7 +503,7 @@ class RunContext:
                 # Fall back to creating a new one
                 credentials_file = self.project_root / ".dhenara" / ".secrets" / ".credentials.yaml"
                 if not credentials_file.exists():
-                    credentials_file = "~/.env_keys/.dhenara_credentials.yaml"
+                    credentials_file= os.getenv("DAD_DAI_CREDENTIALS_FILE", None)
 
                 resource_config = self.load_default_resource_config(credentials_file)
                 resource_config_registry.register(resource_profile, resource_config)

@@ -197,11 +197,6 @@ class ConfigurationContext:
         """
         Load configuration from a YAML file.
 
-        Searches for configuration files in the following order:
-        1. Specified path (if provided)
-        2. ~/.dhenara/config.yaml
-        3. ./config.yaml
-
         Args:
             path: Optional specific path to a config file
             env: Optional environment name to load environment-specific config
@@ -215,8 +210,8 @@ class ConfigurationContext:
         """
         # Default paths
         paths_to_try = [
-            Path(os.path.expanduser("~/.dhenara/config.yaml")),
-            Path("./config.yaml"),
+            Path(os.path.expanduser("~/.dhenara/dad/dad_config.yaml")),
+            Path("./dad_config.yaml"),
         ]
 
         # Add specified path if provided
