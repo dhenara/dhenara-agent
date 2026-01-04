@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import yaml
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from dhenara.agent.types.base import BaseModel
 
@@ -72,8 +72,7 @@ class _GlobalConfigData(BaseModel):
         description="Current execution environment (development, production, etc.)",
     )
 
-    class Config:
-        extra = "allow"  # Allow additional fields for flexibility
+    model_config = ConfigDict(extra="allow")
 
 
 class ConfigurationContext:
