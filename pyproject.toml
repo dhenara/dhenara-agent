@@ -19,7 +19,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
@@ -29,7 +28,6 @@ dependencies = [
     "httpx>=0.24.0",
     "requests>=2.25.1",
     "pydantic>=2.0.0",
-    "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-instrumentation>=0.40b0",
     "opentelemetry-exporter-otlp>=1.20.0",
@@ -95,7 +93,6 @@ select = [
     "FBT",  # Disallow boolean traps
     "A",  # check if shadow built-ins
     "COM",  # Check if commas are missing
-    "CPY",  # Check if copyright header is missing
     "C4",  # Comprehension linter
 ]
 ignore = [
@@ -106,7 +103,6 @@ ignore = [
     "FBT001",  # Prevents boolean-default-value-positional-argument
     "FBT002",  # Prevents boolean-default-value-positional-argument
     "A005",    # Module name shadows a Python standard-library module
-    "UP038",   # Use `X | Y` in isinstance
 ]
 
 
