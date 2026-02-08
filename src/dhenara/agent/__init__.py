@@ -15,4 +15,4 @@ from .run import *  # noqa: F403,F401
 
 # from .client import Client : TODO_FUTURE: Fix and enable client
 
-__version__ = "0.3.3"
+__version__ = "0.3.4"

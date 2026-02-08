@@ -1,5 +1,13 @@
 # Dhenara Agent DSL (DAD)
 
+> ⚠️ **Status: Deprecated**
+>
+> This package is no longer actively developed.
+> Development has moved to **Dhenara AILoop (DIAL)**, which provides a cleaner, more explicit execution model.
+>
+> Existing users may continue using this package as-is.
+
+
 ## Overview
 
 Dhenara Agent DSL (DAD) is an open-source framework built on top of the `dhenara-ai` Python package. It provides a

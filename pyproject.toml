@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dhenara-agent"
 dynamic = ["version"]
-description = "Dhenara Agent DSL (DAD) Framework SDK"
+description = "DEPRECATED: Development has moved to Dhenara AILoop (DIAL)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13,<3.14"
